@@ -1,0 +1,10 @@
+# Mac
+.DS_Store
+
+# Cabal
+.cabal-sandbox
+cabal.sandbox.config
+dist
+
+# Environment
+externals
