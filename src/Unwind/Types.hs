@@ -1,4 +1,8 @@
-module Unwind.Types where
+module Unwind.Types ( Instruction(..)
+                    , Function(..)
+                    , Unwind
+                    , runUnwind
+                    ) where
 
 import Control.Monad.Identity
 import Control.Monad.State.Strict

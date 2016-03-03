@@ -1,14 +1,13 @@
 module Unwind.Asm ( decompile
                   ) where
 
-import Data.Array.IArray
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
 import qualified Data.Text as T
-import Data.Word (Word64)
 import Hdis86 hiding (Instruction, disassemble)
 import qualified Hdis86 as X86
 
+import Unwind.Analysis
 import Unwind.PE
 import Unwind.Types
 
@@ -21,15 +20,13 @@ disassemble pe = disassembleMetadata format $ textData pe
                            , cfgOrigin = fromIntegral $ imageBase pe + textOffset pe
                            }
 
-wrapInstructions :: [X86.Metadata] -> Array Int Instruction
-wrapInstructions metadata = listArray (0, length metadata - 1) $ fmap toInstruction metadata
+wrapInstructions :: [X86.Metadata] -> [Instruction]
+wrapInstructions metadata = fmap toInstruction metadata
     where toInstruction inst = Instruction { offset = mdOffset inst
                                            , hex = T.pack . mdHex $ inst
                                            , assembly = T.pack . mdAssembly $ inst
                                            , instr = mdInst inst
                                            }
 
-buildControlFlowGraph :: Array Int Instruction -> Gr Instruction ()
-buildControlFlowGraph instrs = mkGraph (assocs instrs) []
-
-analyze = return ()
+buildControlFlowGraph :: [Instruction] -> Gr Instruction ()
+buildControlFlowGraph instrs = mkGraph (zip ((fromIntegral . offset) <$> instrs) instrs) []
