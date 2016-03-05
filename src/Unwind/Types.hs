@@ -35,4 +35,4 @@ runUnwind = execState
 
 showGraph :: Gr Instruction () -> String
 showGraph gr = unlines . map showNode . map (context gr) . nodes $ gr
-    where showNode (ein, _, i, eout) = printf "[%vi %vo] %s" (show $ length ein) (show $ length eout) (show i)
+    where showNode (ein, _, i, eout) = printf "[%di %do] %s" (length ein) (length eout) (show i)
