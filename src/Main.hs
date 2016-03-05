@@ -4,9 +4,10 @@ import qualified System.Environment as System
 
 import Unwind.Asm
 import Unwind.PE
+import Unwind.Types
 
 main :: IO ()
 main = do
     [filepath] <- System.getArgs
     pe <- loadPEFile filepath
-    putStrLn . prettify . nmap show . decompile $ pe
+    putStrLn . showGraph . decompile $ pe

@@ -2,6 +2,7 @@ module Unwind.Types ( Instruction(..)
                     , Function(..)
                     , Unwind
                     , runUnwind
+                    , showGraph
                     ) where
 
 import Control.Monad.Identity
@@ -31,3 +32,7 @@ type Unwind = StateT UnwindData Identity
 
 runUnwind :: Unwind () -> Gr Instruction () -> Gr Instruction ()
 runUnwind = execState
+
+showGraph :: Gr Instruction () -> String
+showGraph gr = unlines . map showNode . map (context gr) . nodes $ gr
+    where showNode (ein, _, i, eout) = printf "[%vi %vo] %s" (show $ length ein) (show $ length eout) (show i)
