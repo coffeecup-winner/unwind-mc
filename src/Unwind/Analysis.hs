@@ -1,9 +1,10 @@
+{-# LANGUAGE TupleSections #-}
 module Unwind.Analysis ( analyze
                        ) where
 
-import Control.Monad.State.Strict
+import Control.Monad.State.Strict (get, modify)
 import Data.Graph.Inductive.Graph
-import Data.Graph.Inductive.Query.DFS
+import Data.Graph.Inductive.Query.DFS (xdfsWith)
 import Data.List (nub)
 import Data.Word (Word64)
 import Hdis86 hiding (Instruction)
@@ -17,20 +18,15 @@ analyze = do
     let nodes = labNodes gr
         targets = (getControlFlowTargets . snd) <$> nodes
         offsets = fst <$> nodes
-        offsetsAndTargets = flatten3 $ zip3 offsets (tail offsets) targets
+        offsetsAndTargets = concat $ zipWith3 (\a b vs -> (a, b, ) <$> vs) offsets (tail offsets) targets
     modify $ insEdges [(node, next, ()) | (node, next, NextTarget) <- offsetsAndTargets]
     modify $ insEdges [(node, next + fromIntegral o, ()) | (node, next, RelativeTarget o) <- offsetsAndTargets]
     gr <- get
-    let registerTargets = concat [map (\v -> (node, v)) $ getPossibleRegisterValues gr node r | (node, _, RegisterTarget r) <- offsetsAndTargets]
+    let registerTargets = concat [(node, ) <$> getPossibleRegisterValues gr node r | (node, _, RegisterTarget r) <- offsetsAndTargets]
     modify $ insEdges [(node, fromIntegral next, ()) | (node, Constant next) <- registerTargets]
     modify $ insNodes $ map (\n -> (fromIntegral n, fakeInstruction n "ext")) . nub $ [node | (_, Relative node) <- registerTargets]
     modify $ insEdges [(node, fromIntegral next, ()) | (node, Relative next) <- registerTargets]
     -- memory targets require more analysis
-
-flatten3 :: [(a, b, [c])] -> [(a, b, c)]
-flatten3 [] = []
-flatten3 ((a, b, []):xs) = flatten3 xs
-flatten3 ((a, b, c:cs):xs) = (a, b, c) : flatten3 ((a, b, cs):xs)
 
 data PossibleValue = Constant Word64
                    | Relative Word64
