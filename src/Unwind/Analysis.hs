@@ -3,6 +3,8 @@ module Unwind.Analysis ( analyze
 
 import Control.Monad.State.Strict
 import Data.Graph.Inductive.Graph
+import Data.Graph.Inductive.Query.DFS
+import Data.List (nub)
 import Data.Word (Word64)
 import Hdis86 hiding (Instruction)
 import qualified Hdis86 as X86
@@ -15,15 +17,45 @@ analyze = do
     let nodes = labNodes gr
         targets = (getControlFlowTargets . snd) <$> nodes
         offsets = fst <$> nodes
-        offsetsAndTargets = flatten $ zip3 offsets (tail offsets) targets
+        offsetsAndTargets = flatten3 $ zip3 offsets (tail offsets) targets
     modify $ insEdges [(node, next, ()) | (node, next, NextTarget) <- offsetsAndTargets]
     modify $ insEdges [(node, next + fromIntegral o, ()) | (node, next, RelativeTarget o) <- offsetsAndTargets]
-    -- memory and register targets require more analysis
+    gr <- get
+    let registerTargets = concat [map (\v -> (node, v)) $ getPossibleRegisterValues gr node r | (node, _, RegisterTarget r) <- offsetsAndTargets]
+    modify $ insEdges [(node, fromIntegral next, ()) | (node, Constant next) <- registerTargets]
+    modify $ insNodes $ map (\n -> (fromIntegral n, fakeInstruction n "ext")) . nub $ [node | (_, Relative node) <- registerTargets]
+    modify $ insEdges [(node, fromIntegral next, ()) | (node, Relative next) <- registerTargets]
+    -- memory targets require more analysis
 
-flatten :: [(a, b, [c])] -> [(a, b, c)]
-flatten [] = []
-flatten ((a, b, []):xs) = flatten xs
-flatten ((a, b, c:cs):xs) = (a, b, c) : flatten ((a, b, cs):xs)
+flatten3 :: [(a, b, [c])] -> [(a, b, c)]
+flatten3 [] = []
+flatten3 ((a, b, []):xs) = flatten3 xs
+flatten3 ((a, b, c:cs):xs) = (a, b, c) : flatten3 ((a, b, cs):xs)
+
+data PossibleValue = Constant Word64
+                   | Relative Word64
+                   deriving (Show)
+
+getPossibleRegisterValues :: DynGraph g => g Instruction () -> Int -> Register -> [PossibleValue]
+getPossibleRegisterValues gr node reg = concat $ xdfsWith traceback getAssignments [node] gr
+    where traceback (ein, n, i, _) = if null $ getRegisterAssignments gr n i reg then map snd ein else []
+          getAssignments (_, n, i, _) = getRegisterAssignments gr n i reg
+
+getRegisterAssignments :: DynGraph g => g Instruction () -> Int -> Instruction -> Register -> [PossibleValue]
+getRegisterAssignments gr node (Instruction _ _ _ instr) reg = go instr
+    where
+        go (Inst _ Imov [Mem _, _]) = []
+        go (Inst _ Imov [Reg r, _]) | r /= reg = []
+        go (Inst _ Imov [Reg r, Mem (Memory Bits32 RegNone RegNone 0 (Immediate Bits32 m))]) = [Relative $ fromIntegral m]
+        go (Inst _ Imov [Reg r, Mem (Memory Bits32 b RegNone 0 (Immediate Bits0 0))]) =
+            if null [v | Relative v <- baseAssignments]
+            then [Relative v | Constant v <- baseAssignments]
+            else (error "Cannot check 2nd relative assignment")
+            where baseAssignments = getPossibleRegisterValues gr node b
+        go (Inst _ Imov [Reg r, Imm (Immediate Bits32 m)]) = [Constant $ fromIntegral m]
+        go (Inst _ Imov o) = error $ show o
+        -- TODO: prohibit modifications of reg
+        go _ = []
 
 data ControlFlowTarget = NextTarget
                        | RelativeTarget Word64

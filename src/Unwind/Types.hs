@@ -1,6 +1,7 @@
 module Unwind.Types ( Instruction(..)
                     , Function(..)
                     , Unwind
+                    , fakeInstruction
                     , runUnwind
                     , showGraph
                     ) where
@@ -21,7 +22,10 @@ data Instruction = Instruction { offset :: !Word64
                                }
 
 instance Show Instruction where
-    show (Instruction o h a _) = printf "%08x %20s %s" o h a
+    show (Instruction _ _ _ i) = show i
+
+fakeInstruction :: Word64 -> String -> Instruction
+fakeInstruction o t = Instruction o T.empty (T.pack t) (X86.Inst [] X86.Inop [])
 
 data Function = Function { start :: !Word64
                          , instrs :: !(Int, Int)
@@ -35,4 +39,4 @@ runUnwind = execState
 
 showGraph :: Gr Instruction () -> String
 showGraph gr = unlines . map showNode . map (context gr) . nodes $ gr
-    where showNode (ein, _, i, eout) = printf "[%di %do] %s" (length ein) (length eout) (show i)
+    where showNode (ein, _, (Instruction o h a _), eout) = printf "[%di %do] %08x %20s %s" (length ein) (length eout) o h a

@@ -1,5 +1,4 @@
-module Unwind.Asm ( decompile
-                  ) where
+module Unwind.Asm  where
 
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.PatriciaTree
