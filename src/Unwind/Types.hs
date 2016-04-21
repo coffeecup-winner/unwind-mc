@@ -39,4 +39,5 @@ runUnwind = execState
 
 showGraph :: Gr Instruction () -> String
 showGraph gr = unlines . map showNode . map (context gr) . nodes $ gr
-    where showNode (ein, _, (Instruction o h a _), eout) = printf "[%di %do] %08x %20s %s" (length ein) (length eout) o h a
+    where showNode (ein, _, (Instruction o h a _), eout) =
+            printf "[%di %do] %08x %20s %s" (length ein) (length eout) o (T.unpack h) (T.unpack a)
