@@ -1,11 +1,12 @@
 {-# LANGUAGE TupleSections #-}
 module Unwind.Analysis ( analyze
+                       , findFunctions
                        ) where
 
 import Control.Monad.State.Strict (get, modify)
 import Data.Graph.Inductive.Graph
-import Data.Graph.Inductive.Query.DFS (xdfsWith)
-import Data.List (nub)
+import Data.Graph.Inductive.Query.DFS (reachable, xdfsWith)
+import Data.List (nub, sort)
 import Data.Word (Word64)
 import Hdis86 hiding (Instruction)
 import qualified Hdis86 as X86
@@ -19,25 +20,35 @@ analyze = do
         targets = (getControlFlowTargets . snd) <$> nodes
         offsets = fst <$> nodes
         offsetsAndTargets = concat $ zipWith3 (\a b vs -> (a, b, ) <$> vs) offsets (tail offsets) targets
-    modify $ insEdges [(node, next, ()) | (node, next, NextTarget) <- offsetsAndTargets]
-    modify $ insEdges [(node, next + fromIntegral o, ()) | (node, next, RelativeTarget o) <- offsetsAndTargets]
+    modify $ insEdges [(node, next, Next) | (node, next, (NextTarget, Next)) <- offsetsAndTargets]
+    modify $ insEdges [(node, next + fromIntegral o, tr) | (node, next, (RelativeTarget o, tr)) <- offsetsAndTargets]
     gr <- get
-    let registerTargets = concat [(node, ) <$> getPossibleRegisterValues gr node r | (node, _, RegisterTarget r) <- offsetsAndTargets]
-    modify $ insEdges [(node, fromIntegral next, ()) | (node, Constant next) <- registerTargets]
-    modify $ insNodes $ map (\n -> (fromIntegral n, fakeInstruction n "ext")) . nub $ [node | (_, Relative node) <- registerTargets]
-    modify $ insEdges [(node, fromIntegral next, ()) | (node, Relative next) <- registerTargets]
+    let registerTargets = concat [(node, , tr) <$> getPossibleRegisterValues gr node r | (node, _, (RegisterTarget r, tr)) <- offsetsAndTargets]
+    modify $ insEdges [(node, fromIntegral next, tr) | (node, Constant next, tr) <- registerTargets]
+    modify $ insNodes $ map (\n -> (fromIntegral n, fakeInstruction n "ext")) . nub $ [node | (_, Relative node, _) <- registerTargets]
+    modify $ insEdges [(node, fromIntegral next, tr) | (node, Relative next, tr) <- registerTargets]
     -- memory targets require more analysis
+
+findFunctions :: InstructionGraph -> [Function]
+findFunctions gr = functions
+    where
+        functions = map (\t -> Function (fromIntegral t) (subgraph (reachable t graphWithoutCalls) gr)) callTargets
+        callTargets = sort . nub . map (\(_, t, _) -> t) . filter isCall . concatMap (out gr) $ callSites
+        callSites = [addr | (addr, Instruction _ _ _ (Inst _ Icall _)) <- labNodes gr]
+        graphWithoutCalls = newGraph (labNodes gr) (filter (not . isCall) (labEdges gr))
+        isCall (_, _, Call) = True
+        isCall (_, _, _) = False
 
 data PossibleValue = Constant Word64
                    | Relative Word64
                    deriving (Show)
 
-getPossibleRegisterValues :: DynGraph g => g Instruction () -> Int -> Register -> [PossibleValue]
+getPossibleRegisterValues :: InstructionGraph -> Int -> Register -> [PossibleValue]
 getPossibleRegisterValues gr node reg = concat $ xdfsWith traceback getAssignments [node] gr
     where traceback (ein, n, i, _) = if null $ getRegisterAssignments gr n i reg then map snd ein else []
           getAssignments (_, n, i, _) = getRegisterAssignments gr n i reg
 
-getRegisterAssignments :: DynGraph g => g Instruction () -> Int -> Instruction -> Register -> [PossibleValue]
+getRegisterAssignments :: InstructionGraph -> Int -> Instruction -> Register -> [PossibleValue]
 getRegisterAssignments gr node (Instruction _ _ _ instr) reg = go instr
     where
         go (Inst _ Imov [Mem _, _]) = []
@@ -59,32 +70,32 @@ data ControlFlowTarget = NextTarget
                        | RegisterTarget Register
                        deriving (Show)
 
-getControlFlowTargets :: Instruction -> [ControlFlowTarget]
+getControlFlowTargets :: Instruction -> [(ControlFlowTarget, Transition)]
 getControlFlowTargets (Instruction _ _ _ instr) = go instr
     where
-        go (Inst _ Ija    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijae   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijb    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijbe   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijg    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijge   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijl    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijle   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijp    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijnp   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijs    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijns   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijo    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijno   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijz    o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijnz   o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijcxz  o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijecxz o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijrcxz o) = [NextTarget, getJumpTarget o]
-        go (Inst _ Ijmp   o) = [getJumpTarget o]
-        go (Inst _ Icall  o) = [NextTarget, getJumpTarget o]
+        go (Inst _ Ija    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijae   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijb    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijbe   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijg    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijge   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijl    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijle   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijp    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijnp   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijs    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijns   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijo    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijno   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijz    o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijnz   o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijcxz  o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijecxz o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijrcxz o) = [(NextTarget, Next), (getJumpTarget o, Branch)]
+        go (Inst _ Ijmp   o) = [(getJumpTarget o, Branch)]
+        go (Inst _ Icall  o) = [(NextTarget, Next), (getJumpTarget o, Call)]
         go (Inst _ Iret   _) = []
-        go _                 = [NextTarget]
+        go _                 = [(NextTarget, Next)]
 
 getJumpTarget :: [Operand] -> ControlFlowTarget
 getJumpTarget = go

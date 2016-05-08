@@ -1,7 +1,6 @@
 module Unwind.Asm  where
 
 import Data.Graph.Inductive.Graph
-import Data.Graph.Inductive.PatriciaTree
 import qualified Data.Text as T
 import Hdis86 hiding (Instruction, disassemble)
 import qualified Hdis86 as X86
@@ -10,7 +9,7 @@ import Unwind.Analysis
 import Unwind.PE
 import Unwind.Types
 
-decompile :: PEFile -> Gr Instruction ()
+decompile :: PEFile -> InstructionGraph
 decompile = runUnwind analyze . buildControlFlowGraph . wrapInstructions . disassemble
 
 disassemble :: PEFile -> [X86.Metadata]
@@ -27,5 +26,5 @@ wrapInstructions metadata = fmap toInstruction metadata
                                            , instr = mdInst inst
                                            }
 
-buildControlFlowGraph :: [Instruction] -> Gr Instruction ()
-buildControlFlowGraph instrs = mkGraph (zip ((fromIntegral . offset) <$> instrs) instrs) []
+buildControlFlowGraph :: [Instruction] -> InstructionGraph
+buildControlFlowGraph instrs = newGraph (zip ((fromIntegral . offset) <$> instrs) instrs) []

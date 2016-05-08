@@ -1,4 +1,7 @@
 module Unwind.Types ( Instruction(..)
+                    , Transition(..)
+                    , InstructionGraph
+                    , newGraph
                     , Function(..)
                     , Unwind
                     , fakeInstruction
@@ -21,23 +24,33 @@ data Instruction = Instruction { offset :: !Word64
                                , instr :: !X86.Instruction
                                }
 
+data Transition = Next
+                | Branch
+                | Call
+                deriving (Show)
+
 instance Show Instruction where
     show (Instruction _ _ _ i) = show i
+
+type InstructionGraph = Gr Instruction Transition
+
+newGraph :: [LNode Instruction] -> [LEdge Transition] -> InstructionGraph
+newGraph = mkGraph
 
 fakeInstruction :: Word64 -> String -> Instruction
 fakeInstruction o t = Instruction o T.empty (T.pack t) (X86.Inst [] X86.Inop [])
 
 data Function = Function { start :: !Word64
-                         , instrs :: !(Int, Int)
+                         , body :: InstructionGraph
                          } deriving (Show)
 
-type UnwindData = Gr Instruction ()
+type UnwindData = InstructionGraph
 type Unwind = StateT UnwindData Identity
 
-runUnwind :: Unwind () -> Gr Instruction () -> Gr Instruction ()
+runUnwind :: Unwind () -> InstructionGraph -> UnwindData
 runUnwind = execState
 
-showGraph :: Gr Instruction () -> String
+showGraph :: InstructionGraph -> String
 showGraph gr = unlines . map showNode . map (context gr) . nodes $ gr
     where showNode (ein, _, (Instruction o h a _), eout) =
             printf "[%di %do] %08x %20s %s" (length ein) (length eout) o (T.unpack h) (T.unpack a)
