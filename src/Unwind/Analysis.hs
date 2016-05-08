@@ -96,6 +96,7 @@ getControlFlowTargets (Instruction _ _ _ instr) = go instr
         go (Inst _ Ijmp   o) = [(getJumpTarget o, Branch)]
         go (Inst _ Icall  o) = [(NextTarget, Next), (getJumpTarget o, Call)]
         go (Inst _ Iret   _) = []
+        go (Inst _ Iint3  _) = []
         go _                 = [(NextTarget, Next)]
 
 getJumpTarget :: [Operand] -> ControlFlowTarget
