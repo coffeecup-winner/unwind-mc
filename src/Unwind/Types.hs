@@ -1,6 +1,7 @@
 module Unwind.Types ( Instruction(..)
                     , Transition(..)
                     , InstructionGraph
+                    , FunctionGraph
                     , newGraph
                     , Function(..)
                     , Unwind
@@ -24,17 +25,18 @@ data Instruction = Instruction { offset :: !Word64
                                , instr :: !X86.Instruction
                                }
 
+instance Show Instruction where
+    show (Instruction _ _ _ i) = show i
+
 data Transition = Next
                 | Branch
                 | Call
                 deriving (Show)
 
-instance Show Instruction where
-    show (Instruction _ _ _ i) = show i
-
 type InstructionGraph = Gr Instruction Transition
+type FunctionGraph = Gr Function ()
 
-newGraph :: [LNode Instruction] -> [LEdge Transition] -> InstructionGraph
+newGraph :: [LNode n] -> [LEdge e] -> Gr n e
 newGraph = mkGraph
 
 fakeInstruction :: Word64 -> String -> Instruction

@@ -6,7 +6,7 @@ module Unwind.Analysis ( analyze
 import Control.Monad.State.Strict (get, modify)
 import Data.Graph.Inductive.Graph
 import Data.Graph.Inductive.Query.DFS (reachable, xdfsWith)
-import Data.List (nub, sort)
+import Data.List (nub)
 import Data.Word (Word64)
 import Hdis86 hiding (Instruction)
 import qualified Hdis86 as X86
@@ -29,11 +29,12 @@ analyze = do
     modify $ insEdges [(node, fromIntegral next, tr) | (node, Relative next, tr) <- registerTargets]
     -- memory targets require more analysis
 
-findFunctions :: InstructionGraph -> [Function]
-findFunctions gr = functions
+findFunctions :: InstructionGraph -> FunctionGraph
+findFunctions gr = newGraph (map (\f -> (fromIntegral $ start f, f)) functions) dependencies
     where
-        functions = map (\t -> Function (fromIntegral t) (subgraph (reachable t graphWithoutCalls) gr)) callTargets
-        callTargets = sort . nub . map (\(_, t, _) -> t) . filter isCall . concatMap (out gr) $ callSites
+        dependencies = concatMap (\f -> map (fromIntegral $ start f, , ()) . getTargets . nodes $ body f) functions
+        functions = map (\t -> Function (fromIntegral t) (subgraph (reachable t graphWithoutCalls) gr)) $ getTargets callSites
+        getTargets = nub . map (\(_, t, _) -> t) . filter isCall . concatMap (out gr)
         callSites = [addr | (addr, Instruction _ _ _ (Inst _ Icall _)) <- labNodes gr]
         graphWithoutCalls = newGraph (labNodes gr) (filter (not . isCall) (labEdges gr))
         isCall (_, _, Call) = True
