@@ -17,7 +17,7 @@ popd
 
 git clone https://github.com/coffeecup-winner/hdis86
 pushd hdis86
-git co HEAD^ # properly update hdis86 to support udis86 1.7.2
+git checkout HEAD^ # properly update hdis86 to support udis86 1.7.2
 cabal sandbox init --sandbox ../../.cabal-sandbox
 cabal install
 popd
