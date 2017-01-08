@@ -40,9 +40,9 @@ namespace UnwindMC.Analysis
         private readonly Disassembler _disassembler;
         private readonly ulong _pc;
         private readonly ArraySegment<byte> _bytes;
+        private readonly ulong _firstAddress;
         private readonly ulong _firstAddressAfterCode;
-        private readonly ulong _knownAddressMask;
-        private readonly SortedDictionary<ulong, Instruction> _instructions;
+        private readonly SortedDictionary<ulong, Instruction> _instructions = new SortedDictionary<ulong, Instruction>();
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
 
@@ -51,13 +51,12 @@ namespace UnwindMC.Analysis
             _disassembler = disassembler;
             _pc = pc;
             _bytes = bytes;
+            _firstAddress = instructions[0].Offset;
             var lastInstruction = instructions[instructions.Count - 1];
             _firstAddressAfterCode = lastInstruction.Offset + lastInstruction.Length;
-            _instructions = new SortedDictionary<ulong, Instruction>();
             foreach (var instr in instructions)
             {
                 _instructions.Add(instr.Offset, instr);
-                _knownAddressMask |= instr.Offset;
             }
         }
 
@@ -102,7 +101,7 @@ namespace UnwindMC.Analysis
         public bool AddJumpTableEntry(ulong address)
         {
             var data = ReadUInt32(address);
-            if ((data & _knownAddressMask) != data)
+            if (data < _firstAddress || data >= _firstAddressAfterCode)
             {
                 return false;
             }

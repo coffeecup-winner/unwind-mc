@@ -31,6 +31,8 @@ namespace UnwindMC.Analysis
             _graph = new InstructionGraph(_disassembler, instructions, textBytes, pc);
         }
 
+        public InstructionGraph Graph => _graph;
+
         public void Analyze()
         {
             AddExplicitCalls();
