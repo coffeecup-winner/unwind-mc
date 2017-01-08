@@ -83,7 +83,8 @@ namespace UnwindMC.Analysis
         {
             var link = new Link(offset, targetOffset, type, @base, index);
 
-            if (!_instructionLinks.TryGetValue(offset, out var links))
+            List<Link> links;
+            if (!_instructionLinks.TryGetValue(offset, out links))
             {
                 links = new List<Link>();
                 _instructionLinks[offset] = links;
@@ -108,7 +109,8 @@ namespace UnwindMC.Analysis
             int size;
             var dataAddresses = new HashSet<ulong>();
             dataAddresses.Add(address);
-            if (_instructions.TryGetValue(address, out var instr))
+            Instruction instr;
+            if (_instructions.TryGetValue(address, out instr))
             {
                 size = instr.Length;
             }
@@ -179,7 +181,8 @@ namespace UnwindMC.Analysis
                     continue;
                 }
 
-                if (!_instructionLinks.TryGetValue(current.Item1, out var links))
+                List<Link> links;
+                if (!_instructionLinks.TryGetValue(current.Item1, out links))
                 {
                     Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
                     visitedAllLinks = false;
