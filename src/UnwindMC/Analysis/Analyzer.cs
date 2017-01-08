@@ -33,15 +33,13 @@ namespace UnwindMC.Analysis
 
         public void Analyze()
         {
-            AddMemoryJumps();
-            ResolveJumpTables();
-
-            //AddNextLinks();
-            //AddExplicitBranches();
-
             AddExplicitCalls();
             InitializeExtraData();
             ResolveFunctionBounds();
+
+            AddMemoryJumps();
+            ResolveJumpTables();
+            UpdateExtraData();
         }
 
         private void AddMemoryJumps()
@@ -110,7 +108,36 @@ namespace UnwindMC.Analysis
         {
             foreach (var instr in _graph.Instructions)
             {
-                _extraData[instr.Offset] = new InstructionExtraData();
+                _extraData.Add(instr.Offset, new InstructionExtraData());
+            }
+        }
+
+        private void UpdateExtraData()
+        {
+            var deleted = new HashSet<ulong>();
+            var missing = new HashSet<ulong>();
+            var addresses = new HashSet<ulong>(_graph.Instructions.Select(i => i.Offset));
+            foreach (var address in addresses)
+            {
+                if (!_extraData.ContainsKey(address))
+                {
+                    missing.Add(address);
+                }
+            }
+            foreach (var address in _extraData.Keys)
+            {
+                if (!addresses.Contains(address))
+                {
+                    deleted.Add(address);
+                }
+            }
+            foreach (var address in deleted)
+            {
+                _extraData.Remove(address);
+            }
+            foreach (var address in missing)
+            {
+                _extraData.Add(address, new InstructionExtraData());
             }
         }
 
