@@ -11,10 +11,7 @@ namespace UnwindMC
                 Console.WriteLine("Usage: unwind-mc <exe-file>");
                 return;
             }
-            var pe = PEFile.Load(args[0]);
-            var decompiler = new Decompiler();
-            var instructions = decompiler.Decompile(pe);
-            Console.WriteLine(decompiler.Dump(instructions));
+            new Decompiler().Decompile(PEFile.Load(args[0]));
         }
     }
 }

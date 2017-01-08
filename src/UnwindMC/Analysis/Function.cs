@@ -1,18 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace UnwindMC.Analysis
+﻿namespace UnwindMC.Analysis
 {
     public class Function
     {
-        public Function(ulong offset)
+        public Function(ulong address)
         {
-            Offset = offset;
+            Address = address;
+            Status = FunctionStatus.Created;
         }
 
-        public ulong Offset { get; }
+        public ulong Address { get; }
+        public FunctionStatus Status { get; set; }
+    }
+
+    public enum FunctionStatus
+    {
+        Created,
+        BoundsResolved,
+        BoundsNotResolvedInvalidAddress,
+        BoundsNotResolvedIncompleteGraph,
     }
 }

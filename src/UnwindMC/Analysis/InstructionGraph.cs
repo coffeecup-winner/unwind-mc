@@ -1,4 +1,6 @@
 ﻿using NDis86;
+using NLog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,6 +8,8 @@ namespace UnwindMC.Analysis
 {
     public class InstructionGraph
     {
+        private readonly Logger Logger = LogManager.GetCurrentClassLogger();
+
         private class Link
         {
             public Link(ulong offset, ulong targetOffset, LinkType type)
@@ -20,11 +24,12 @@ namespace UnwindMC.Analysis
             public LinkType Type { get; }
         }
 
+        [Flags]
         public enum LinkType
         {
-            Next,
-            Branch,
-            Call,
+            Next = 0x01,
+            Branch = 0x02,
+            Call = 0x04,
         }
 
         private readonly IReadOnlyList<Instruction> _instructions;
@@ -57,6 +62,49 @@ namespace UnwindMC.Analysis
                 _reverseLinks[targetOffset] = links;
             }
             links.Add(link);
+        }
+
+        public bool Contains(ulong offset)
+        {
+            return _instructionsMap.ContainsKey(offset);
+        }
+
+        public bool DFS(ulong offset, LinkType type, Func<Instruction, bool> process)
+        {
+            var visited = new HashSet<ulong>();
+            var stack = new Stack<ulong>();
+            stack.Push(offset);
+            var visitedAllLinks = true;
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                var instr = _instructionsMap[current];
+                visited.Add(current);
+                if (!process(instr))
+                {
+                    continue;
+                }
+
+                if (!_instructionLinks.TryGetValue(current, out var links))
+                {
+                    Logger.Warn("DFS: Couldn't find links for " + _instructionsMap[current].Assembly);
+                    visitedAllLinks = false;
+                    continue;
+                }
+                for (int i = links.Count - 1; i >= 0; i--)
+                {
+                    var link = links[i];
+                    if ((type & link.Type) == 0)
+                    {
+                        continue;
+                    }
+                    if (!visited.Contains(link.TargetOffset))
+                    {
+                        stack.Push(link.TargetOffset);
+                    }
+                }
+            }
+            return visitedAllLinks;
         }
     }
 }
