@@ -2,7 +2,6 @@
 using NLog;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace UnwindMC.Analysis
 {
@@ -10,18 +9,23 @@ namespace UnwindMC.Analysis
     {
         private readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private class Link
+        public class Link
         {
-            public Link(ulong offset, ulong targetOffset, LinkType type)
+            public Link(ulong offset, ulong targetOffset, LinkType type, OperandType @base, OperandType index)
             {
                 Offset = offset;
                 TargetOffset = targetOffset;
                 Type = type;
+                Base = @base;
+                Index = index;
             }
 
             public ulong Offset { get; }
             public ulong TargetOffset { get; }
             public LinkType Type { get; }
+            public OperandType Base { get; }
+            public OperandType Index { get; }
+            public bool IsResolved { get; set; }
         }
 
         [Flags]
@@ -30,24 +34,53 @@ namespace UnwindMC.Analysis
             Next = 0x01,
             Branch = 0x02,
             Call = 0x04,
+            MemoryJump = 0x08,
         }
 
-        private readonly IReadOnlyList<Instruction> _instructions;
-        private readonly Dictionary<ulong, Instruction> _instructionsMap;
+        private readonly Disassembler _disassembler;
+        private readonly ulong _pc;
+        private readonly ArraySegment<byte> _bytes;
+        private readonly ulong _firstAddressAfterCode;
+        private readonly SortedDictionary<ulong, Instruction> _instructions;
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
 
-        public InstructionGraph(IReadOnlyList<Instruction> instructions)
+        public InstructionGraph(Disassembler disassembler, IReadOnlyList<Instruction> instructions, ArraySegment<byte> bytes, ulong pc)
         {
-            _instructions = instructions;
-            _instructionsMap = instructions.ToDictionary(i => i.Offset);
+            _disassembler = disassembler;
+            _pc = pc;
+            _bytes = bytes;
+            var lastInstruction = instructions[instructions.Count - 1];
+            _firstAddressAfterCode = lastInstruction.Offset + lastInstruction.Length;
+            _instructions = new SortedDictionary<ulong, Instruction>();
+            foreach (var instr in instructions)
+            {
+                _instructions.Add(instr.Offset, instr);
+            }
         }
 
-        public IReadOnlyList<Instruction> Instructions => _instructions;
+        public ICollection<Instruction> Instructions => _instructions.Values;
+        public ulong FirstAddressAfterCode => _firstAddressAfterCode;
 
-        public void AddLink(ulong offset, ulong targetOffset, LinkType type)
+        public bool Contains(ulong offset)
         {
-            var link = new Link(offset, targetOffset, type);
+            return _instructions.ContainsKey(offset);
+        }
+
+        public ulong GetNext(ulong address)
+        {
+            do
+            {
+                address++;
+            }
+            while (!_instructions.ContainsKey(address) && address < _firstAddressAfterCode);
+            return address;
+        }
+
+        public void AddLink(ulong offset, ulong targetOffset, LinkType type,
+            OperandType @base = OperandType.None, OperandType index = OperandType.None)
+        {
+            var link = new Link(offset, targetOffset, type, @base, index);
 
             if (!_instructionLinks.TryGetValue(offset, out var links))
             {
@@ -64,30 +97,85 @@ namespace UnwindMC.Analysis
             links.Add(link);
         }
 
-        public bool Contains(ulong offset)
+        public void AddJumpTableEntry(ulong address)
         {
-            return _instructionsMap.ContainsKey(offset);
+            var data = ReadUInt32(address);
+            int size;
+            var dataAddresses = new HashSet<ulong>();
+            dataAddresses.Add(address);
+            if (_instructions.TryGetValue(address, out var instr))
+            {
+                size = instr.Length;
+            }
+            else
+            {
+                var instrAddress = address;
+                while (!_instructions.TryGetValue(--instrAddress, out instr)) { }
+                // Split the old instruction and re-disassemble its first part
+                int extraLength = (int)(address - instrAddress);
+                _disassembler.SetPC(instrAddress);
+                var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(instrAddress - _pc), extraLength, withHex: true, withAssembly: true);
+                foreach (var newInstr in instructions)
+                {
+                    dataAddresses.Add(newInstr.Offset);
+                    _instructions[newInstr.Offset] = newInstr;
+                }
+                size = instr.Length - extraLength;
+            }
+            var dataInstr = new Instruction(address, MnemonicCode.Inone, 4, null, string.Format("dd {0:x8}", data),
+                new Operand[0], 0, OperandType.None, false, false, 0, 0, 0, 0, 0);
+            _instructions[address] = dataInstr;
+            while (size < 4)
+            {
+                instr = _instructions[address + (ulong)size];
+                _instructions.Remove(address + (ulong)size);
+                size += instr.Length;
+                dataAddresses.Add(instr.Offset);
+            }
+            if (size != 4)
+            {
+                // Re-disassemble the rest; it should be a part of the next table entry or nop/int3
+                _disassembler.SetPC(address + 4);
+                var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(address - _pc) + 4, size - 4, withHex: true, withAssembly: true);
+                foreach (var newInstr in instructions)
+                {
+                    dataAddresses.Add(newInstr.Offset);
+                    _instructions[newInstr.Offset] = newInstr;
+                }
+            }
         }
 
-        public bool DFS(ulong offset, LinkType type, Func<Instruction, bool> process)
+        private uint ReadUInt32(ulong address)
+        {
+            uint result = 0;
+            int baseIndex = _bytes.Offset + (int)(address - _pc);
+            for (int i = 3; i >= 0; i--)
+            {
+                result <<= 8;
+                result += _bytes.Array[baseIndex + i];
+            }
+            return result;
+        }
+
+        public bool DFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process)
         {
             var visited = new HashSet<ulong>();
-            var stack = new Stack<ulong>();
-            stack.Push(offset);
+            var stack = new Stack<Tuple<ulong, Link>>();
+            stack.Push(Tuple.Create(offset, new Link(ulong.MaxValue, offset, LinkType.Call, OperandType.None, OperandType.None)));
             var visitedAllLinks = true;
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
-                var instr = _instructionsMap[current];
-                visited.Add(current);
-                if (!process(instr))
+                var instr = _instructions[current.Item1];
+                visited.Add(current.Item1);
+                if (!process(instr, current.Item2))
                 {
                     continue;
                 }
 
-                if (!_instructionLinks.TryGetValue(current, out var links))
+                if (!_instructionLinks.TryGetValue(current.Item1, out var links))
                 {
-                    Logger.Warn("DFS: Couldn't find links for " + _instructionsMap[current].Assembly);
+                    Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
                     visitedAllLinks = false;
                     continue;
                 }
@@ -98,9 +186,21 @@ namespace UnwindMC.Analysis
                     {
                         continue;
                     }
+                    if (link.Type == LinkType.MemoryJump && link.Base != OperandType.None)
+                    {
+                        Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
+                        visitedAllLinks = false;
+                        continue;
+                    }
+                    if (link.TargetOffset >= _firstAddressAfterCode)
+                    {
+                        Logger.Warn("DFS: Jump outside of code section");
+                        visitedAllLinks = false;
+                        continue;
+                    }
                     if (!visited.Contains(link.TargetOffset))
                     {
-                        stack.Push(link.TargetOffset);
+                        stack.Push(Tuple.Create(link.TargetOffset, link));
                     }
                 }
             }
