@@ -80,8 +80,17 @@ namespace UnwindMC.Analysis
                     Logger.Warn("Jump table is not in the code segment");
                     continue;
                 }
-                // Heuristic: assume that every jump table ends with nop or int3
-                _graph.AddJumpTableEntry(table.Address);
+                uint offset = 0;
+                while (!_graph.AddJumpTableEntry(table.Address + offset))
+                {
+                    table.FirstIndex++;
+                    offset += 4;
+                }
+                while (_graph.AddJumpTableEntry(table.Address + offset))
+                {
+                    offset += 4;
+                }
+                table.MaxIndex = (int)offset / 4 - 1;
             }
             Logger.Info("Done");
         }

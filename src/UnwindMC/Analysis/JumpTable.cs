@@ -8,5 +8,7 @@
         }
 
         public ulong Address { get; }
+        public int FirstIndex { get; set; }
+        public int MaxIndex { get; set; }
     }
 }
