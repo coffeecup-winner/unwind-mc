@@ -35,6 +35,7 @@ namespace UnwindMC.Analysis
 
         public void Analyze()
         {
+            // Stage 1 - build jump tables
             AddExplicitCalls();
             InitializeExtraData();
             ResolveFunctionBounds();
@@ -42,6 +43,12 @@ namespace UnwindMC.Analysis
             AddMemoryJumps();
             ResolveJumpTables();
             UpdateExtraData();
+
+            // Stage 2 - resolve function bounds
+            Graph.ClearLinks();
+
+            AddExplicitCalls();
+            ResolveFunctionBounds();
         }
 
         private void AddMemoryJumps()

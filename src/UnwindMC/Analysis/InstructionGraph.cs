@@ -99,6 +99,12 @@ namespace UnwindMC.Analysis
             links.Add(link);
         }
 
+        public void ClearLinks()
+        {
+            _instructionLinks.Clear();
+            _reverseLinks.Clear();
+        }
+
         public bool AddJumpTableEntry(ulong address)
         {
             var data = ReadUInt32(address);
