@@ -25,14 +25,14 @@ namespace UnwindMC.Tests
                 0x5c, 0x15, 0x4b, 0x00, // address of pop ebx
                 0x5d, 0x15, 0x4b, 0x00, // address of leave
                 0x55, // push ebp
-                0x86, 0xec, // TODO add expected
+                0x8b, 0xec, // mov ebp, esp
                 0x8b, 0x4d, 0x0c, // mov ecx, [ebp+0xc]
                 0xff, 0x49, 0x04, // dec dword [ecx+0x4]
             };
             var analyzer = new Analyzer(new ArraySegment<byte>(code), 0x004b154e);
             analyzer.Analyze();
             var graph = analyzer.Graph;
-            Assert.That(graph.Instructions.Select(i => i.Assembly), Is.EquivalentTo(new[] {
+            Assert.That(graph.Instructions.Select(i => i.Assembly), Is.EqualTo(new[] {
                 "call 0x4b1553",
                 "jmp dword [eax*4+0x4b155f]",
                 "pop edi",
@@ -45,8 +45,7 @@ namespace UnwindMC.Tests
                 "dd 004b155c",
                 "dd 004b155d",
                 "push ebp",
-                "invalid", // FIXME: the disassembler should rewrite more memory
-                "in al, dx",
+                "mov ebp, esp",
                 "mov ecx, [ebp+0xc]",
                 "dec dword [ecx+0x4]",
             }));

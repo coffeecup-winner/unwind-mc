@@ -93,6 +93,7 @@ namespace UnwindMC.Analysis
                     offset += 4;
                 }
                 table.MaxIndex = (int)offset / 4 - 1;
+                _graph.Redisassemble(table.Address + offset);
             }
             Logger.Info("Done");
         }

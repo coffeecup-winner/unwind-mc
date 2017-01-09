@@ -141,7 +141,7 @@ namespace UnwindMC.Analysis
             }
             if (size != 4)
             {
-                // Re-disassemble the rest; it should be a part of the next table entry or nop/int3
+                // Re-disassemble the rest
                 _disassembler.SetPC(address + 4);
                 var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(address - _pc) + 4, size - 4, withHex: true, withAssembly: true);
                 foreach (var newInstr in instructions)
@@ -151,6 +151,47 @@ namespace UnwindMC.Analysis
                 }
             }
             return true;
+        }
+
+        public void Redisassemble(ulong address)
+        {
+            // This will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
+            _disassembler.SetPC(address);
+            const int maxDisassembleLength = 0x100;
+            int disassembleLength = Math.Min(maxDisassembleLength, (int)(_firstAddressAfterCode - address));
+            var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(address - _pc), disassembleLength, withHex: true, withAssembly: true);
+            bool fixedInstructions = false;
+            int i;
+            // Take 1 instruction less since it can be incorrectly disassembled (partial data)
+            for (i = 0; i < instructions.Count - 1; i++)
+            {
+                var newInstr = instructions[i];
+                Instruction oldInstr;
+                if (_instructions.TryGetValue(newInstr.Offset, out oldInstr) && oldInstr.Length == newInstr.Length)
+                {
+                    if (!fixedInstructions)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                _instructions[newInstr.Offset] = newInstr;
+                for (uint j = 1; j < newInstr.Length; j++)
+                {
+                    if (_instructions.ContainsKey(newInstr.Offset + j))
+                    {
+                        _instructions.Remove(newInstr.Offset + j);
+                    }
+                }
+                fixedInstructions = true;
+            }
+            if (fixedInstructions && i == instructions.Count)
+            {
+                throw new Exception("FIXME: extra disassemble size was too small");
+            }
         }
 
         private uint ReadUInt32(ulong address)
