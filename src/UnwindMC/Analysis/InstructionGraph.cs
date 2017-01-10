@@ -2,6 +2,7 @@
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace UnwindMC.Analysis
 {
@@ -38,7 +39,6 @@ namespace UnwindMC.Analysis
         }
 
         private readonly Disassembler _disassembler;
-        private readonly ulong _pc;
         private readonly ArraySegment<byte> _bytes;
         private readonly ulong _firstAddress;
         private readonly ulong _firstAddressAfterCode;
@@ -49,9 +49,8 @@ namespace UnwindMC.Analysis
         public InstructionGraph(Disassembler disassembler, IReadOnlyList<Instruction> instructions, ArraySegment<byte> bytes, ulong pc)
         {
             _disassembler = disassembler;
-            _pc = pc;
             _bytes = bytes;
-            _firstAddress = instructions[0].Offset;
+            _firstAddress = pc;
             var lastInstruction = instructions[instructions.Count - 1];
             _firstAddressAfterCode = lastInstruction.Offset + lastInstruction.Length;
             foreach (var instr in instructions)
@@ -76,6 +75,11 @@ namespace UnwindMC.Analysis
             }
             while (!_instructions.ContainsKey(address) && address < _firstAddressAfterCode);
             return address;
+        }
+
+        public ArraySegment<byte> GetBytes(ulong address, int size)
+        {
+            return new ArraySegment<byte>(_bytes.Array, ToByteArrayIndex(address), size);
         }
 
         public void AddLink(ulong offset, ulong targetOffset, LinkType type,
@@ -112,10 +116,27 @@ namespace UnwindMC.Analysis
             {
                 return false;
             }
+            MarkDataBytes(address, 4, string.Format("dd {0:x8}", data));
+            return true;
+        }
+
+        public void AddJumpTableIndirectEntries(ulong address, int count)
+        {
+            var sb = new StringBuilder();
+            sb.Append("db");
+            int start = ToByteArrayIndex(address);
+            for (int i = 0; i < count; i++)
+            {
+                sb.AppendFormat(" {0:x2}", _bytes.Array[start + i]);
+            }
+            MarkDataBytes(address, count, sb.ToString());
+        }
+
+        private void MarkDataBytes(ulong address, int length, string dataDisplayText)
+        {
             int size;
-            var dataAddresses = new HashSet<ulong>();
-            dataAddresses.Add(address);
             Instruction instr;
+            // check if there is an instruction at address, otherwise split an existing one
             if (_instructions.TryGetValue(address, out instr))
             {
                 size = instr.Length;
@@ -127,36 +148,33 @@ namespace UnwindMC.Analysis
                 // Split the old instruction and re-disassemble its first part
                 int extraLength = (int)(address - instrAddress);
                 _disassembler.SetPC(instrAddress);
-                var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(instrAddress - _pc), extraLength, withHex: true, withAssembly: true);
+                var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(instrAddress), extraLength, withHex: true, withAssembly: true);
                 foreach (var newInstr in instructions)
                 {
-                    dataAddresses.Add(newInstr.Offset);
                     _instructions[newInstr.Offset] = newInstr;
                 }
                 size = instr.Length - extraLength;
             }
-            var dataInstr = new Instruction(address, MnemonicCode.Inone, 4, null, string.Format("dd {0:x8}", data),
+            // write a pseudo instruction
+            _instructions[address] = new Instruction(address, MnemonicCode.Inone, (byte)length, null, dataDisplayText,
                 new Operand[0], 0, OperandType.None, false, false, 0, 0, 0, 0, 0);
-            _instructions[address] = dataInstr;
-            while (size < 4)
+            // remove old instructions
+            while (size < length)
             {
                 instr = _instructions[address + (ulong)size];
                 _instructions.Remove(address + (ulong)size);
                 size += instr.Length;
-                dataAddresses.Add(instr.Offset);
             }
-            if (size != 4)
+            // if there are bytes left from the last removed instruction, re-disassemble them
+            if (size != length)
             {
-                // Re-disassemble the rest
-                _disassembler.SetPC(address + 4);
-                var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(address - _pc) + 4, size - 4, withHex: true, withAssembly: true);
+                _disassembler.SetPC(address + (uint)length);
+                var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(address) + length, size - length, withHex: true, withAssembly: true);
                 foreach (var newInstr in instructions)
                 {
-                    dataAddresses.Add(newInstr.Offset);
                     _instructions[newInstr.Offset] = newInstr;
                 }
             }
-            return true;
         }
 
         public void Redisassemble(ulong address)
@@ -165,7 +183,7 @@ namespace UnwindMC.Analysis
             _disassembler.SetPC(address);
             const int maxDisassembleLength = 0x100;
             int disassembleLength = Math.Min(maxDisassembleLength, (int)(_firstAddressAfterCode - address));
-            var instructions = _disassembler.Disassemble(_bytes.Array, _bytes.Offset + (int)(address - _pc), disassembleLength, withHex: true, withAssembly: true);
+            var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(address), disassembleLength, withHex: true, withAssembly: true);
             bool fixedInstructions = false;
             int i;
             // Take 1 instruction less since it can be incorrectly disassembled (partial data)
@@ -203,7 +221,7 @@ namespace UnwindMC.Analysis
         private uint ReadUInt32(ulong address)
         {
             uint result = 0;
-            int baseIndex = _bytes.Offset + (int)(address - _pc);
+            int baseIndex = ToByteArrayIndex(address);
             for (int i = 3; i >= 0; i--)
             {
                 result <<= 8;
@@ -213,6 +231,16 @@ namespace UnwindMC.Analysis
         }
 
         public bool DFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process)
+        {
+            return DFS(offset, type, process, reverse: false);
+        }
+
+        public bool ReverseDFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process)
+        {
+            return DFS(offset, type, process, reverse: true);
+        }
+
+        private bool DFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process, bool reverse)
         {
             var visited = new HashSet<ulong>();
             var stack = new Stack<Tuple<ulong, Link>>();
@@ -229,7 +257,7 @@ namespace UnwindMC.Analysis
                 }
 
                 List<Link> links;
-                if (!_instructionLinks.TryGetValue(current.Item1, out links))
+                if (!(reverse ? _reverseLinks : _instructionLinks).TryGetValue(current.Item1, out links))
                 {
                     Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
                     visitedAllLinks = false;
@@ -248,19 +276,25 @@ namespace UnwindMC.Analysis
                         visitedAllLinks = false;
                         continue;
                     }
-                    if (link.TargetOffset >= _firstAddressAfterCode)
+                    var linkOffset = (reverse ? link.Offset : link.TargetOffset);
+                    if (linkOffset >= _firstAddressAfterCode)
                     {
                         Logger.Warn("DFS: Jump outside of code section");
                         visitedAllLinks = false;
                         continue;
                     }
-                    if (!visited.Contains(link.TargetOffset))
+                    if (!visited.Contains(linkOffset))
                     {
-                        stack.Push(Tuple.Create(link.TargetOffset, link));
+                        stack.Push(Tuple.Create(linkOffset, link));
                     }
                 }
             }
             return visitedAllLinks;
+        }
+
+        private int ToByteArrayIndex(ulong address)
+        {
+            return _bytes.Offset + (int)(address - _firstAddress);
         }
     }
 }

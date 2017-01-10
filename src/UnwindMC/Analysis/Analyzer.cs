@@ -61,12 +61,12 @@ namespace UnwindMC.Analysis
                     case MnemonicCode.Ijmp:
                         if (instr.Operands[0].Type == OperandType.Memory)
                         {
-                            var address = GetTargetAddress(instr);
+                            var address = instr.Operands[0].LValue.udword;
                             _graph.AddLink(instr.Offset, address, InstructionGraph.LinkType.MemoryJump,
                                 instr.Operands[0].Base, instr.Operands[0].Index);
                             if (!_jumpTables.ContainsKey(address))
                             {
-                                _jumpTables.Add(address, new JumpTable(address));
+                                _jumpTables.Add(address, new JumpTable(instr.Offset, address));
                             }
                         }
                         break;
@@ -89,17 +89,78 @@ namespace UnwindMC.Analysis
                     Logger.Warn("Jump table is not in the code segment");
                     continue;
                 }
+
+                OperandType idx = OperandType.None;
+                OperandType lowByteIdx = OperandType.None;
+                ulong indirectAddress = 0;
+                int casesCount = 0;
+                Graph.ReverseDFS(table.Reference, InstructionGraph.LinkType.Next, (instr, link) =>
+                {
+                    // find out the jump index register
+                    if (idx == OperandType.None)
+                    {
+                        idx = instr.Operands[0].Index;
+                        lowByteIdx = RegisterHelper.GetLowByteRegisterFromDword(idx);
+                        return true;
+                    }
+                    // update the main jump register if the jump is indirect
+                    if (indirectAddress == 0 && instr.Code == MnemonicCode.Imov && instr.Operands[0].Base == lowByteIdx)
+                    {
+                        idx = instr.Operands[1].Base;
+                        indirectAddress = instr.Operands[1].LValue.udword;
+                        return true;
+                    }
+                    // track register re-assignments
+                    if (casesCount == 0 && instr.Code == MnemonicCode.Imov && instr.Operands[0].Type == OperandType.Register &&
+                        instr.Operands[1].Type == OperandType.Register && instr.Operands[0].Base == idx)
+                    {
+                        idx = instr.Operands[1].Base;
+                        return true;
+                    }
+                    // search for cases count, can find it from code like cmp ecx, 0xb
+                    // where the main jump register is tested against the max allowed case index
+                    // (in which cases there will be a conditional jump to the default branch)
+                    if (casesCount == 0 && instr.Code == MnemonicCode.Icmp && instr.Operands[0].Base == idx)
+                    {
+                        casesCount = instr.Operands[1].LValue.ubyte + 1;
+                        return false;
+                    }
+                    return true;
+                });
+
+                int jumpsCount;
+                if (indirectAddress == 0)
+                {
+                    jumpsCount = casesCount;
+                    casesCount = 0;
+                }
+                else
+                {
+                    jumpsCount = Graph.GetBytes(indirectAddress, casesCount).Max() + 1;
+                }
+
                 uint offset = 0;
-                while (!_graph.AddJumpTableEntry(table.Address + offset))
+                for (int i = 0; i < jumpsCount; i++)
                 {
-                    table.FirstIndex++;
+                    if (!_graph.AddJumpTableEntry(table.Address + offset))
+                    {
+                        table.FirstIndex++;
+                    }
+                    _graph.AddJumpTableEntry(table.Address + offset);
                     offset += 4;
                 }
-                while (_graph.AddJumpTableEntry(table.Address + offset))
+                table.MaxIndex = jumpsCount;
+                while (casesCount >= 4)
                 {
+                    _graph.AddJumpTableIndirectEntries(table.Address + offset, 4);
+                    casesCount -= 4;
                     offset += 4;
                 }
-                table.MaxIndex = (int)offset / 4 - 1;
+                if (casesCount > 0)
+                {
+                    _graph.AddJumpTableIndirectEntries(table.Address + offset, casesCount);
+                    offset += (uint)casesCount;
+                }
                 _graph.Redisassemble(table.Address + offset);
             }
             Logger.Info("Done");
@@ -266,18 +327,6 @@ namespace UnwindMC.Analysis
                 default: throw new ArgumentException();
             }
             return targetOffset;
-        }
-
-        private static ulong GetTargetAddress(Instruction instr)
-        {
-            switch (instr.Operands[0].Size)
-            {
-                case 8: return instr.Operands[0].LValue.ubyte;
-                case 16: return instr.Operands[0].LValue.uword;
-                case 32: return instr.Operands[0].LValue.udword;
-                case 64: return instr.Operands[0].LValue.uqword;
-                default: throw new ArgumentException();
-            }
         }
 
         public string DumpResults()

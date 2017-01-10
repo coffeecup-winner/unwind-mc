@@ -51,6 +51,7 @@
     <Compile Include="Analysis\Function.cs" />
     <Compile Include="Analysis\InstructionGraph.cs" />
     <Compile Include="Analysis\JumpTable.cs" />
+    <Compile Include="Analysis\RegisterHelper.cs" />
     <Compile Include="Decompiler.cs" />
     <Compile Include="PEFile.cs" />
     <Compile Include="Program.cs" />
