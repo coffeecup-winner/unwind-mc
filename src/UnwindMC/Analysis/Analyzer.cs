@@ -11,18 +11,13 @@ namespace UnwindMC.Analysis
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private readonly Disassembler _disassembler;
         private readonly InstructionGraph _graph;
         private readonly SortedDictionary<ulong, Function> _functions = new SortedDictionary<ulong, Function>();
         private readonly SortedDictionary<ulong, JumpTable> _jumpTables = new SortedDictionary<ulong, JumpTable>(); 
 
         public Analyzer(ArraySegment<byte> textBytes, ulong pc)
         {
-            _disassembler = new Disassembler(syntax: DisassemblySyntax.Intel, pc: pc);
-            Logger.Info("Disassembling machine code");
-            var instructions = _disassembler.Disassemble(textBytes.Array, textBytes.Offset, textBytes.Count, withHex: true, withAssembly: true);
-            Logger.Info("Done");
-            _graph = new InstructionGraph(_disassembler, instructions, textBytes, pc);
+            _graph = new InstructionGraph(textBytes, pc);
         }
 
         public InstructionGraph Graph => _graph;
@@ -34,7 +29,7 @@ namespace UnwindMC.Analysis
             ResolveFunctionBounds();
 
             // Stage 2 - resolve function bounds
-            Graph.ClearLinks();
+            _graph.ClearLinks();
 
             AddExplicitCalls();
             ResolveFunctionBounds();
@@ -73,7 +68,6 @@ namespace UnwindMC.Analysis
                     function.Status = FunctionStatus.BoundsNotResolvedInvalidAddress;
                     continue;
                 }
-                var hasUnresolvedMemoryJumps = false;
                 var allowedLinks = InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump;
                 var visitedAllLinks = _graph.DFS(function.Address, allowedLinks, (instr, link) =>
                 {
@@ -87,7 +81,7 @@ namespace UnwindMC.Analysis
                     AddSwitchCases(instr);
                     return true;
                 });
-                function.Status = !hasUnresolvedMemoryJumps && visitedAllLinks
+                function.Status = visitedAllLinks
                     ? FunctionStatus.BoundsResolved
                     : FunctionStatus.BoundsNotResolvedIncompleteGraph;
             }
@@ -177,7 +171,7 @@ namespace UnwindMC.Analysis
             OperandType lowByteIdx = OperandType.None;
             ulong indirectAddress = 0;
             int casesCount = 0;
-            Graph.ReverseDFS(table.Reference, InstructionGraph.LinkType.Next, (instr, link) =>
+            _graph.ReverseDFS(table.Reference, InstructionGraph.LinkType.Next, (instr, link) =>
             {
                 // find out the jump index register
                 if (idx == OperandType.None)
@@ -219,7 +213,7 @@ namespace UnwindMC.Analysis
             }
             else
             {
-                jumpsCount = Graph.GetBytes(indirectAddress, casesCount).Max() + 1;
+                jumpsCount = _graph.GetBytes(indirectAddress, casesCount).Max() + 1;
             }
 
             uint offset = 0;

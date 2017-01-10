@@ -47,9 +47,12 @@ namespace UnwindMC.Analysis
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
 
-        public InstructionGraph(Disassembler disassembler, IReadOnlyList<Instruction> instructions, ArraySegment<byte> bytes, ulong pc)
+        public InstructionGraph(ArraySegment<byte> bytes, ulong pc)
         {
-            _disassembler = disassembler;
+            _disassembler = new Disassembler(DisassemblyMode.Mode32Bit, DisassemblySyntax.Intel, pc);
+            Logger.Info("Disassembling machine code");
+            var instructions = _disassembler.Disassemble(bytes.Array, bytes.Offset, bytes.Count, withHex: true, withAssembly: true);
+            Logger.Info("Done");
             _bytes = bytes;
             _firstAddress = pc;
             var lastInstruction = instructions[instructions.Count - 1];
