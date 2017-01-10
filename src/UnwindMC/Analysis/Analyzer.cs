@@ -260,32 +260,38 @@ namespace UnwindMC.Analysis
         {
             Logger.Info("Dumping results");
             var sb = new StringBuilder();
-            var notResolved = new string(' ', 8);
-            var incomplete = new string('x', 8);
             int unresolvedInstructions = 0;
             int incompleteInstructions = 0;
             foreach (var instr in _graph.Instructions)
             {
                 var address = _graph.GetExtraData(instr.Offset).FunctionAddress;
-                string function;
+                string description;
                 if (address == 0)
                 {
-                    function = notResolved;
-                    if (instr.Code != MnemonicCode.Inop)
+                    if (instr.Code == MnemonicCode.Inop || instr.Assembly == "mov edi, edi" || instr.Assembly == "lea ecx, [ecx]")
                     {
+                        description = "--------";
+                    }
+                    else if (instr.Code == MnemonicCode.Inone)
+                    {
+                        description = "jmptable";
+                    }
+                    else
+                    {
+                        description = "        ";
                         unresolvedInstructions++;
                     }
                 }
                 else if (_functions[address].Status == FunctionStatus.BoundsNotResolvedIncompleteGraph)
                 {
-                    function = incomplete;
+                    description = "xxxxxxxx";
                     incompleteInstructions++;
                 }
                 else
                 {
-                    function = string.Format("{0:x8}", address);
+                    description = string.Format("{0:x8}", address);
                 }
-                sb.AppendFormat("{0} {1:x8} {2,20} {3}", function, instr.Offset, instr.Hex, instr.Assembly);
+                sb.AppendFormat("{0} {1:x8} {2,20} {3}", description, instr.Offset, instr.Hex, instr.Assembly);
                 sb.AppendLine();
             }
             var result = sb.ToString();
