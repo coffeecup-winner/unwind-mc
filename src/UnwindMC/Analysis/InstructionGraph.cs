@@ -12,21 +12,21 @@ namespace UnwindMC.Analysis
 
         public class Link
         {
-            public Link(ulong offset, ulong targetOffset, LinkType type, OperandType @base, OperandType index)
+            public Link(ulong offset, ulong targetOffset, LinkType type)
             {
                 Offset = offset;
                 TargetOffset = targetOffset;
                 Type = type;
-                Base = @base;
-                Index = index;
             }
 
             public ulong Offset { get; }
             public ulong TargetOffset { get; }
             public LinkType Type { get; }
-            public OperandType Base { get; }
-            public OperandType Index { get; }
-            public bool IsResolved { get; set; }
+        }
+
+        public class ExtraData
+        {
+            public ulong FunctionAddress { get; set; }
         }
 
         [Flags]
@@ -35,7 +35,7 @@ namespace UnwindMC.Analysis
             Next = 0x01,
             Branch = 0x02,
             Call = 0x04,
-            MemoryJump = 0x08,
+            SwitchCaseJump = 0x08,
         }
 
         private readonly Disassembler _disassembler;
@@ -43,6 +43,7 @@ namespace UnwindMC.Analysis
         private readonly ulong _firstAddress;
         private readonly ulong _firstAddressAfterCode;
         private readonly SortedDictionary<ulong, Instruction> _instructions = new SortedDictionary<ulong, Instruction>();
+        private readonly Dictionary<ulong, ExtraData> _extraData = new Dictionary<ulong, ExtraData>();
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
 
@@ -82,10 +83,20 @@ namespace UnwindMC.Analysis
             return new ArraySegment<byte>(_bytes.Array, ToByteArrayIndex(address), size);
         }
 
-        public void AddLink(ulong offset, ulong targetOffset, LinkType type,
-            OperandType @base = OperandType.None, OperandType index = OperandType.None)
+        public ExtraData GetExtraData(ulong offset)
         {
-            var link = new Link(offset, targetOffset, type, @base, index);
+            ExtraData data;
+            if (!_extraData.TryGetValue(offset, out data))
+            {
+                data = new ExtraData();
+                _extraData.Add(offset, data);
+            }
+            return data;
+        }
+
+        public void AddLink(ulong offset, ulong targetOffset, LinkType type)
+        {
+            var link = new Link(offset, targetOffset, type);
 
             List<Link> links;
             if (!_instructionLinks.TryGetValue(offset, out links))
@@ -218,7 +229,7 @@ namespace UnwindMC.Analysis
             }
         }
 
-        private uint ReadUInt32(ulong address)
+        public uint ReadUInt32(ulong address)
         {
             uint result = 0;
             int baseIndex = ToByteArrayIndex(address);
@@ -244,7 +255,7 @@ namespace UnwindMC.Analysis
         {
             var visited = new HashSet<ulong>();
             var stack = new Stack<Tuple<ulong, Link>>();
-            stack.Push(Tuple.Create(offset, new Link(ulong.MaxValue, offset, LinkType.Call, OperandType.None, OperandType.None)));
+            stack.Push(Tuple.Create(offset, new Link(ulong.MaxValue, offset, LinkType.Call)));
             var visitedAllLinks = true;
             while (stack.Count > 0)
             {
@@ -268,12 +279,6 @@ namespace UnwindMC.Analysis
                     var link = links[i];
                     if ((type & link.Type) == 0)
                     {
-                        continue;
-                    }
-                    if (link.Type == LinkType.MemoryJump && link.Base != OperandType.None)
-                    {
-                        Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
-                        visitedAllLinks = false;
                         continue;
                     }
                     var linkOffset = (reverse ? link.Offset : link.TargetOffset);
