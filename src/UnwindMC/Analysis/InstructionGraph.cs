@@ -236,7 +236,7 @@ namespace UnwindMC.Analysis
                 }
                 fixedInstructions = true;
             }
-            if (fixedInstructions && i == instructions.Count)
+            if (fixedInstructions && i == instructions.Count - 1)
             {
                 throw new Exception("FIXME: extra disassemble size was too small");
             }
