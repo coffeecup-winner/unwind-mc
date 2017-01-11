@@ -12,15 +12,15 @@ namespace UnwindMC.Analysis
 
         public class Link
         {
-            public Link(ulong offset, ulong targetOffset, LinkType type)
+            public Link(ulong address, ulong targetAddress, LinkType type)
             {
-                Offset = offset;
-                TargetOffset = targetOffset;
+                Address = address;
+                TargetAddress = targetAddress;
                 Type = type;
             }
 
-            public ulong Offset { get; }
-            public ulong TargetOffset { get; }
+            public ulong Address { get; }
+            public ulong TargetAddress { get; }
             public LinkType Type { get; }
         }
 
@@ -66,9 +66,14 @@ namespace UnwindMC.Analysis
         public ICollection<Instruction> Instructions => _instructions.Values;
         public ulong FirstAddressAfterCode => _firstAddressAfterCode;
 
-        public bool Contains(ulong offset)
+        public bool Contains(ulong address)
         {
-            return _instructions.ContainsKey(offset);
+            return _instructions.ContainsKey(address);
+        }
+
+        public bool InBounds(ulong address)
+        {
+            return address >= _firstAddress && address < _firstAddressAfterCode;
         }
 
         public ulong GetNext(ulong address)
@@ -96,13 +101,13 @@ namespace UnwindMC.Analysis
             return new ArraySegment<byte>(_bytes.Array, ToByteArrayIndex(address), size);
         }
 
-        public ExtraData GetExtraData(ulong offset)
+        public ExtraData GetExtraData(ulong address)
         {
             ExtraData data;
-            if (!_extraData.TryGetValue(offset, out data))
+            if (!_extraData.TryGetValue(address, out data))
             {
                 data = new ExtraData();
-                _extraData.Add(offset, data);
+                _extraData.Add(address, data);
             }
             return data;
         }
@@ -136,7 +141,7 @@ namespace UnwindMC.Analysis
         public bool AddJumpTableEntry(ulong address)
         {
             var data = ReadUInt32(address);
-            if (data < _firstAddress || data >= _firstAddressAfterCode)
+            if (!InBounds(data))
             {
                 return false;
             }
@@ -167,17 +172,8 @@ namespace UnwindMC.Analysis
             }
             else
             {
-                var instrAddress = address;
-                while (!_instructions.TryGetValue(--instrAddress, out instr)) { }
-                // Split the old instruction and re-disassemble its first part
-                int extraLength = (int)(address - instrAddress);
-                _disassembler.SetPC(instrAddress);
-                var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(instrAddress), extraLength, withHex: true, withAssembly: true);
-                foreach (var newInstr in instructions)
-                {
-                    _instructions[newInstr.Offset] = newInstr;
-                }
-                size = instr.Length - extraLength;
+                instr = SplitInstructionAt(address);
+                size = instr.Length - (int)(address - instr.Offset);
             }
             // write a pseudo instruction
             _instructions[address] = new Instruction(address, MnemonicCode.Inone, (byte)length, null, dataDisplayText,
@@ -201,9 +197,29 @@ namespace UnwindMC.Analysis
             }
         }
 
+        private Instruction SplitInstructionAt(ulong address)
+        {
+            var instrAddress = address;
+            Instruction oldInstr;
+            while (!_instructions.TryGetValue(--instrAddress, out oldInstr)) { }
+            // Split the old instruction and re-disassemble its first part
+            int extraLength = (int)(address - instrAddress);
+            _disassembler.SetPC(instrAddress);
+            var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(instrAddress), extraLength, withHex: true, withAssembly: true);
+            foreach (var newInstr in instructions)
+            {
+                _instructions[newInstr.Offset] = newInstr;
+            }
+            return oldInstr;
+        }
+
         public void Redisassemble(ulong address)
         {
-            // This will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
+            // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
+            if (!_instructions.ContainsKey(address))
+            {
+                SplitInstructionAt(address);
+            }
             _disassembler.SetPC(address);
             const int maxDisassembleLength = 0x100;
             int disassembleLength = Math.Min(maxDisassembleLength, (int)(_firstAddressAfterCode - address));
@@ -254,21 +270,21 @@ namespace UnwindMC.Analysis
             return result;
         }
 
-        public bool DFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process)
+        public bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process)
         {
-            return DFS(offset, type, process, reverse: false);
+            return DFS(address, type, process, reverse: false);
         }
 
-        public bool ReverseDFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process)
+        public bool ReverseDFS(ulong address, LinkType type, Func<Instruction, Link, bool> process)
         {
-            return DFS(offset, type, process, reverse: true);
+            return DFS(address, type, process, reverse: true);
         }
 
-        private bool DFS(ulong offset, LinkType type, Func<Instruction, Link, bool> process, bool reverse)
+        private bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process, bool reverse)
         {
             var visited = new HashSet<ulong>();
             var stack = new Stack<Tuple<ulong, Link>>();
-            stack.Push(Tuple.Create(offset, new Link(ulong.MaxValue, offset, LinkType.Call)));
+            stack.Push(Tuple.Create(address, new Link(ulong.MaxValue, address, LinkType.Call)));
             var visitedAllLinks = true;
             while (stack.Count > 0)
             {
@@ -294,16 +310,16 @@ namespace UnwindMC.Analysis
                     {
                         continue;
                     }
-                    var linkOffset = (reverse ? link.Offset : link.TargetOffset);
-                    if (linkOffset >= _firstAddressAfterCode)
+                    var linkAddress = (reverse ? link.Address : link.TargetAddress);
+                    if (!InBounds(linkAddress))
                     {
                         Logger.Warn("DFS: Jump outside of code section");
                         visitedAllLinks = false;
                         continue;
                     }
-                    if (!visited.Contains(linkOffset))
+                    if (!visited.Contains(linkAddress))
                     {
-                        stack.Push(Tuple.Create(linkOffset, link));
+                        stack.Push(Tuple.Create(linkAddress, link));
                     }
                 }
             }

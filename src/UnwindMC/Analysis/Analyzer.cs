@@ -56,11 +56,16 @@ namespace UnwindMC.Analysis
             {
                 var function = _functions[key];
                 Logger.Debug("[{0}/{1}] sub_{2:x8}...", ++index, _functions.Count, function.Address);
-                if (!_graph.Contains(function.Address))
+                if (!_graph.InBounds(function.Address))
                 {
-                    Logger.Warn("The specified address is not a valid start of instruction or was disassembled incorrectly");
+                    Logger.Warn("The specified address is outside of code segment");
                     function.Status = FunctionStatus.BoundsNotResolvedInvalidAddress;
                     continue;
+                }
+                if (!_graph.Contains(function.Address))
+                {
+                    Logger.Debug("The specified address is not a valid start of instruction, re-disassembling");
+                    _graph.Redisassemble(function.Address);
                 }
                 var allowedLinks = InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump;
                 var visitedAllLinks = _graph.DFS(function.Address, allowedLinks, (instr, link) =>
