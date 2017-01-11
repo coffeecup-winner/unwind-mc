@@ -48,6 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Analysis\Analyzer.cs" />
+    <Compile Include="Analysis\AssignmentTracker.cs" />
     <Compile Include="Analysis\Function.cs" />
     <Compile Include="Analysis\InstructionGraph.cs" />
     <Compile Include="Analysis\JumpTable.cs" />
@@ -56,6 +57,7 @@
     <Compile Include="PEFile.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Util\Option.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

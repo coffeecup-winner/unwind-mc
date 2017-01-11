@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System;
+using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
 {
@@ -24,13 +25,6 @@ namespace UnwindMC.Analysis
 
         public void Analyze()
         {
-            // Stage 1 - build jump tables
-            AddExplicitCalls();
-            ResolveFunctionBounds();
-
-            // Stage 2 - resolve function bounds
-            _graph.ClearLinks();
-
             AddExplicitCalls();
             ResolveFunctionBounds();
         }
@@ -170,8 +164,8 @@ namespace UnwindMC.Analysis
             OperandType idx = OperandType.None;
             OperandType lowByteIdx = OperandType.None;
             ulong indirectAddress = 0;
-            int casesCount = 0;
-            _graph.ReverseDFS(table.Reference, InstructionGraph.LinkType.Next, (instr, link) =>
+            var casesCountOption = Option<int>.None;
+            _graph.ReverseDFS(table.Reference, InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch, (instr, link) =>
             {
                 // find out the jump index register
                 if (idx == OperandType.None)
@@ -187,24 +181,24 @@ namespace UnwindMC.Analysis
                     indirectAddress = instr.Operands[1].LValue.udword;
                     return true;
                 }
-                // track register re-assignments
-                if (casesCount == 0 && instr.Code == MnemonicCode.Imov && instr.Operands[0].Type == OperandType.Register &&
-                    instr.Operands[1].Type == OperandType.Register && instr.Operands[0].Base == idx)
-                {
-                    idx = instr.Operands[1].Base;
-                    return true;
-                }
-                // search for cases count, can find it from code like cmp ecx, 0xb
+                // search for cases count, can find it from code like cmp ecx, 0xb or mov ecx, 0xb
                 // where the main jump register is tested against the max allowed case index
                 // (in which cases there will be a conditional jump to the default branch)
-                if (casesCount == 0 && instr.Code == MnemonicCode.Icmp && instr.Operands[0].Base == idx)
-                {
-                    casesCount = instr.Operands[1].LValue.ubyte + 1;
-                    return false;
-                }
-                return true;
+                var tracker = new AssignmentTracker(_graph);
+                var value = tracker.Find(instr.Offset, idx, (i, reg) =>
+                    (i.Code == MnemonicCode.Icmp && i.Operands[0].Type == OperandType.Register && i.Operands[0].Base == reg) ||
+                    (i.Code == MnemonicCode.Imov && i.Operands[0].Type == OperandType.Register && i.Operands[0].Base == reg && i.Operands[1].Type == OperandType.Immediate));
+                casesCountOption = value.Map(v => v.ubyte + 1);
+                return false;
             });
 
+            if (!casesCountOption.HasValue)
+            {
+                Logger.Info("Done");
+                return;
+            }
+
+            int casesCount = casesCountOption.Value;
             int jumpsCount;
             if (indirectAddress == 0)
             {

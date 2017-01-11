@@ -81,6 +81,16 @@ namespace UnwindMC.Analysis
             return address;
         }
 
+        public int GetInValue(ulong address)
+        {
+            return _reverseLinks[address].Count;
+        }
+
+        public int GetOutValue(ulong address)
+        {
+            return _instructionLinks[address].Count;
+        }
+
         public ArraySegment<byte> GetBytes(ulong address, int size)
         {
             return new ArraySegment<byte>(_bytes.Array, ToByteArrayIndex(address), size);
