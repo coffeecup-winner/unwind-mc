@@ -186,13 +186,16 @@ namespace UnwindMC.Analysis
                     indirectAddress = instr.Operands[1].LValue.udword;
                     return true;
                 }
-                // search for cases count, can find it from code like cmp ecx, 0xb or mov ecx, 0xb
-                // where the main jump register is tested against the max allowed case index
-                // (in which cases there will be a conditional jump to the default branch)
+                // search for the jump to the default case
+                if (!(instr.Code == MnemonicCode.Ija && instr.Operands[0].Type == OperandType.ImmediateBranch))
+                {
+                    return true;
+                }
+                // search for cases count, can find it from code like cmp ecx, 0xb
+                // the jump register is irrelevant since it must be the closest one to ja
                 var tracker = new AssignmentTracker(_graph);
-                var value = tracker.Find(instr.Offset, idx, (i, reg) =>
-                    (i.Code == MnemonicCode.Icmp && i.Operands[0].Type == OperandType.Register && i.Operands[0].Base == reg) ||
-                    (i.Code == MnemonicCode.Imov && i.Operands[0].Type == OperandType.Register && i.Operands[0].Base == reg && i.Operands[1].Type == OperandType.Immediate));
+                var value = tracker.Find(instr.Offset, idx, (i, _) =>
+                    i.Code == MnemonicCode.Icmp && i.Operands[0].Type == OperandType.Register);
                 casesCountOption = value.Map(v => v.ubyte + 1);
                 return false;
             });
