@@ -267,7 +267,7 @@ namespace UnwindMC.Analysis
                 string description;
                 if (address == 0)
                 {
-                    if (instr.Code == MnemonicCode.Inop || instr.Assembly == "mov edi, edi" || instr.Assembly == "lea ecx, [ecx]")
+                    if (instr.Code == MnemonicCode.Inop || instr.Code == MnemonicCode.Iint3 || instr.Assembly == "mov edi, edi" || instr.Assembly == "lea ecx, [ecx]")
                     {
                         description = "--------";
                     }
@@ -277,7 +277,7 @@ namespace UnwindMC.Analysis
                     }
                     else
                     {
-                        description = "        ";
+                        description = "????????";
                         unresolvedInstructions++;
                     }
                 }
