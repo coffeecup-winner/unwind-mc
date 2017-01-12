@@ -27,6 +27,7 @@ namespace UnwindMC.Analysis
         public class ExtraData
         {
             public ulong FunctionAddress { get; set; }
+            public bool IsProtected { get; set; }
         }
 
         [Flags]
@@ -178,6 +179,7 @@ namespace UnwindMC.Analysis
             // write a pseudo instruction
             _instructions[address] = new Instruction(address, MnemonicCode.Inone, (byte)length, null, dataDisplayText,
                 new Operand[0], 0, OperandType.None, false, false, 0, 0, 0, 0, 0);
+            GetExtraData(address).IsProtected = true;
             // remove old instructions
             while (size < length)
             {
@@ -223,6 +225,14 @@ namespace UnwindMC.Analysis
             _disassembler.SetPC(address);
             const int maxDisassembleLength = 0x100;
             int disassembleLength = Math.Min(maxDisassembleLength, (int)(_firstAddressAfterCode - address));
+            for (int j = 0; j < disassembleLength; j++)
+            {
+                ExtraData data;
+                if (_extraData.TryGetValue(address + (uint)j, out data) && data.IsProtected)
+                {
+                    disassembleLength = j;
+                }
+            }
             var instructions = _disassembler.Disassemble(_bytes.Array, ToByteArrayIndex(address), disassembleLength, withHex: true, withAssembly: true);
             bool fixedInstructions = false;
             int i;
