@@ -36,8 +36,10 @@ namespace UnwindMC
             return new PEFile(filename);
         }
 
-        public ulong ImageBase => _pe.ImageNtHeaders.OptionalHeader.ImageBase;
-        public uint TextOffset => _text.VirtualAddress;
+        private ulong ImageBase => _pe.ImageNtHeaders.OptionalHeader.ImageBase;
+
+        public ulong TextSectionAddress => ImageBase + _text.VirtualAddress;
+        public ulong EntryPointAddress => ImageBase + _pe.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
 
         public ArraySegment<byte> GetTextBytes() =>
             GetSectionBytes(_text);

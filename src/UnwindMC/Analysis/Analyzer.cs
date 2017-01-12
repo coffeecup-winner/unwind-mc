@@ -29,6 +29,11 @@ namespace UnwindMC.Analysis
             ResolveFunctionBounds();
         }
 
+        public void AddFunction(ulong address)
+        {
+            _functions.Add(address, new Function(address));
+        }
+
         private void AddExplicitCalls()
         {
             Logger.Info("Adding explicit calls");
