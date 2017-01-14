@@ -7,7 +7,8 @@ namespace UnwindMC
     {
         public void Decompile(PEFile pe)
         {
-            var analyzer = new Analyzer(pe.GetTextBytes(), pe.TextSectionAddress);
+            var importResolver = new ImportResolver(pe.ImageBase, pe.GetImportAddressTableBytes(), pe.GetImportBytes());
+            var analyzer = new Analyzer(pe.GetTextBytes(), pe.TextSectionAddress, importResolver);
             analyzer.AddFunction(pe.EntryPointAddress);
             analyzer.Analyze();
             Console.WriteLine(analyzer.DumpResults());

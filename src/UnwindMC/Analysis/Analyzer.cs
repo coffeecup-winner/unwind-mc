@@ -13,12 +13,14 @@ namespace UnwindMC.Analysis
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private readonly InstructionGraph _graph;
+        private readonly ImportResolver _importResolver;
         private readonly SortedDictionary<ulong, Function> _functions = new SortedDictionary<ulong, Function>();
         private readonly SortedDictionary<ulong, JumpTable> _jumpTables = new SortedDictionary<ulong, JumpTable>(); 
 
-        public Analyzer(ArraySegment<byte> textBytes, ulong pc)
+        public Analyzer(ArraySegment<byte> textBytes, ulong pc, ImportResolver importResolver)
         {
             _graph = new InstructionGraph(textBytes, pc);
+            _importResolver = importResolver;
         }
 
         public InstructionGraph Graph => _graph;
@@ -27,6 +29,7 @@ namespace UnwindMC.Analysis
         {
             AddExplicitCalls();
             ResolveFunctionBounds();
+            ResolveExternalFunctionCalls();
         }
 
         public void AddFunction(ulong address)
@@ -90,6 +93,33 @@ namespace UnwindMC.Analysis
                     : FunctionStatus.BoundsNotResolvedIncompleteGraph;
             }
             Logger.Info("Done");
+        }
+
+        private void ResolveExternalFunctionCalls()
+        {
+            Logger.Info("Resolving external calls");
+            foreach (var instr in _graph.Instructions)
+            {
+                var import = TryGetImportAddress(instr, 1)
+                    .OrElse(() => TryGetImportAddress(instr, 0))
+                    .Map(_importResolver.GetImportName);
+                if (import.HasValue)
+                {
+                    _graph.GetExtraData(instr.Offset).ImportName = import.Value;
+                }
+            }
+            Logger.Info("Done");
+        }
+
+        private Option<ulong> TryGetImportAddress(Instruction instr, int index)
+        {
+            if (instr.Operands.Count > index && instr.Operands[index].Type == OperandType.Memory &&
+                instr.Operands[index].Base == OperandType.None && instr.Operands[index].Index == OperandType.None &&
+                _importResolver.IsImportAddress(instr.Operands[index].LValue.udword))
+            {
+                return Option.Some(instr.Operands[index].LValue.uqword);
+            }
+            return Option<ulong>.None;
         }
 
         private void AddNextLinks(Instruction instr)
@@ -299,6 +329,11 @@ namespace UnwindMC.Analysis
                     description = string.Format("{0:x8}", address);
                 }
                 sb.AppendFormat("{0} {1:x8} {2,20} {3}", description, instr.Offset, instr.Hex, instr.Assembly);
+                var importName = _graph.GetExtraData(instr.Offset).ImportName;
+                if (importName != null)
+                {
+                    sb.Append(" ; " + importName);
+                }
                 sb.AppendLine();
             }
             var result = sb.ToString();

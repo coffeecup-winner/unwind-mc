@@ -36,15 +36,29 @@ namespace UnwindMC
             return new PEFile(filename);
         }
 
-        private ulong ImageBase => _pe.ImageNtHeaders.OptionalHeader.ImageBase;
-
+        public ulong ImageBase => _pe.ImageNtHeaders.OptionalHeader.ImageBase;
         public ulong TextSectionAddress => ImageBase + _text.VirtualAddress;
         public ulong EntryPointAddress => ImageBase + _pe.ImageNtHeaders.OptionalHeader.AddressOfEntryPoint;
 
         public ArraySegment<byte> GetTextBytes() =>
             GetSectionBytes(_text);
 
+        public ArraySegment<byte> GetImportBytes() =>
+            GetDataDirectoryBytes(Constants.DataDirectoryIndex.Import);
+
+        public ArraySegment<byte> GetImportAddressTableBytes() =>
+            GetDataDirectoryBytes(Constants.DataDirectoryIndex.IAT);
+
+        private IMAGE_DATA_DIRECTORY GetDataDirectory(Constants.DataDirectoryIndex index) =>
+            _pe.ImageNtHeaders.OptionalHeader.DataDirectory[(int)index];
+
         private ArraySegment<byte> GetSectionBytes(IMAGE_SECTION_HEADER header) =>
             new ArraySegment<byte>(_file, (int)header.PointerToRawData, (int)header.SizeOfRawData);
+
+        private ArraySegment<byte> GetDataDirectoryBytes(Constants.DataDirectoryIndex index)
+        {
+            var data = GetDataDirectory(index);
+            return new ArraySegment<byte>(_file, (int)data.VirtualAddress, (int)data.Size);
+        }
     }
 }

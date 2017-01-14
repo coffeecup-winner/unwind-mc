@@ -3,6 +3,7 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
 {
@@ -27,6 +28,7 @@ namespace UnwindMC.Analysis
         public class ExtraData
         {
             public ulong FunctionAddress { get; set; }
+            public string ImportName { get; set; }
             public bool IsProtected { get; set; }
         }
 
@@ -215,6 +217,9 @@ namespace UnwindMC.Analysis
             return oldInstr;
         }
 
+        public ulong ReadUInt32(ulong address) =>
+            _bytes.Array.ReadUInt32(ToByteArrayIndex(address));
+
         public void Redisassemble(ulong address)
         {
             // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
@@ -266,18 +271,6 @@ namespace UnwindMC.Analysis
             {
                 throw new Exception("FIXME: extra disassemble size was too small");
             }
-        }
-
-        public uint ReadUInt32(ulong address)
-        {
-            uint result = 0;
-            int baseIndex = ToByteArrayIndex(address);
-            for (int i = 3; i >= 0; i--)
-            {
-                result <<= 8;
-                result += _bytes.Array[baseIndex + i];
-            }
-            return result;
         }
 
         public bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process)

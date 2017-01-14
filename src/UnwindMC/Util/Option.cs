@@ -36,6 +36,9 @@ namespace UnwindMC.Util
         public Option<U> Map<U>(Func<T, U> map) =>
             _hasValue ? Option.Some(map(_value)) : Option<U>.None;
 
+        public Option<T> OrElse(Func<Option<T>> orElse) =>
+            _hasValue ? this : orElse();
+
         public override bool Equals(object obj)
         {
             if (!(obj is Option<T>))

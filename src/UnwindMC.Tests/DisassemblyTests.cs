@@ -29,7 +29,7 @@ namespace UnwindMC.Tests
                 0x8b, 0x4d, 0x0c, // mov ecx, [ebp+0xc]
                 0xff, 0x49, 0x04, // dec dword [ecx+0x4]
             };
-            var analyzer = new Analyzer(new ArraySegment<byte>(code), 0x004b154e);
+            var analyzer = new Analyzer(new ArraySegment<byte>(code), 0x004b154e, null);
             analyzer.Analyze();
             var graph = analyzer.Graph;
             Assert.That(graph.Instructions.Select(i => i.Assembly), Is.EqualTo(new[] {
