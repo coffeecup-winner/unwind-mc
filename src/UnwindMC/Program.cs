@@ -1,4 +1,5 @@
 ﻿using System;
+using UnwindMC.Project;
 
 namespace UnwindMC
 {
@@ -8,10 +9,10 @@ namespace UnwindMC
         {
             if (args.Length != 1)
             {
-                Console.WriteLine("Usage: unwind-mc <exe-file>");
+                Console.WriteLine("Usage: unwind-mc <project-root-path>");
                 return;
             }
-            new Decompiler().Decompile(PEFile.Load(args[0]));
+            new Decompiler(DecompilationProject.Load(args[0])).Decompile();
         }
     }
 }

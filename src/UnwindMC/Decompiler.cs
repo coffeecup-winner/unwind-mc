@@ -1,17 +1,26 @@
-﻿using System;
+﻿using System.IO;
 using UnwindMC.Analysis;
+using UnwindMC.Project;
 
 namespace UnwindMC
 {
     public class Decompiler
     {
-        public void Decompile(PEFile pe)
+        private readonly DecompilationProject _project;
+
+        public Decompiler(DecompilationProject project)
         {
+            _project = project;
+        }
+
+        public void Decompile()
+        {
+            var pe = PEFile.Load(_project.ExePath);
             var importResolver = new ImportResolver(pe.ImageBase, pe.GetImportAddressTableBytes(), pe.GetImportBytes());
             var analyzer = new Analyzer(pe.GetTextBytes(), pe.TextSectionAddress, importResolver);
             analyzer.AddFunction(pe.EntryPointAddress);
             analyzer.Analyze();
-            Console.WriteLine(analyzer.DumpResults());
+            File.WriteAllText(_project.OutputPath, analyzer.DumpResults());
         }
     }
 }
