@@ -21,6 +21,7 @@ namespace UnwindMC
             analyzer.AddFunction(pe.EntryPointAddress);
             analyzer.Analyze();
             File.WriteAllText(_project.OutputPath, analyzer.DumpResults());
+            File.WriteAllText(Path.Combine(_project.RootPath, "functions.gv"), analyzer.DumpFunctionCallGraph());
         }
     }
 }

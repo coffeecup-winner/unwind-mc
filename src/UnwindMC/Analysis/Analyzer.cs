@@ -342,5 +342,27 @@ namespace UnwindMC.Analysis
                 incompleteInstructions, (double)incompleteInstructions / _graph.Instructions.Count);
             return result;
         }
+
+        public string DumpFunctionCallGraph()
+        {
+            Logger.Info("Dumping function call graph");
+            var sb = new StringBuilder();
+            sb.AppendLine("digraph functions {");
+            foreach (var function in _functions.Values)
+            {
+                sb.AppendLine(string.Format("  sub_{0:x8}", function.Address));
+            }
+            foreach (var instr in _graph.Instructions)
+            {
+                if (instr.Code == MnemonicCode.Icall && instr.Operands[0].Type == OperandType.ImmediateBranch)
+                {
+                    sb.AppendLine(string.Format("  sub_{0:x8} -> sub_{1:x8}", _graph.GetExtraData(instr.Offset).FunctionAddress, GetRelativeTargetOffset(instr)));
+                }
+            }
+            sb.AppendLine("}");
+            var result = sb.ToString();
+            Logger.Info("Done");
+            return result;
+        }
     }
 }
