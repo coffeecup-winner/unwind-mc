@@ -179,7 +179,12 @@ namespace UnwindMC.Analysis
                 size = instr.Length - (int)(address - instr.Offset);
             }
             // write a pseudo instruction
-            _instructions[address] = new Instruction(address, MnemonicCode.Inone, (byte)length, null, dataDisplayText,
+            var sb = new StringBuilder();
+            for (uint i = 0; i < length; i++)
+            {
+                sb.AppendFormat("{0:x2}", _bytes.Array[ToByteArrayIndex(address + i)]);
+            }
+            _instructions[address] = new Instruction(address, MnemonicCode.Inone, (byte)length, sb.ToString(), dataDisplayText,
                 new Operand[0], 0, OperandType.None, false, false, 0, 0, 0, 0, 0);
             GetExtraData(address).IsProtected = true;
             // remove old instructions

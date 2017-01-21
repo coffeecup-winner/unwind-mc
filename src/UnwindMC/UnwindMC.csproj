@@ -53,6 +53,7 @@
     <Compile Include="Analysis\Analyzer.cs" />
     <Compile Include="Analysis\AssignmentTracker.cs" />
     <Compile Include="Analysis\Function.cs" />
+    <Compile Include="Analysis\IImportResolver.cs" />
     <Compile Include="Analysis\ImportResolver.cs" />
     <Compile Include="Analysis\InstructionGraph.cs" />
     <Compile Include="Analysis\JumpTable.cs" />

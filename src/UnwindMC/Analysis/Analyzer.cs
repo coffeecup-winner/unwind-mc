@@ -13,11 +13,11 @@ namespace UnwindMC.Analysis
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         private readonly InstructionGraph _graph;
-        private readonly ImportResolver _importResolver;
+        private readonly IImportResolver _importResolver;
         private readonly SortedDictionary<ulong, Function> _functions = new SortedDictionary<ulong, Function>();
         private readonly SortedDictionary<ulong, JumpTable> _jumpTables = new SortedDictionary<ulong, JumpTable>(); 
 
-        public Analyzer(ArraySegment<byte> textBytes, ulong pc, ImportResolver importResolver)
+        public Analyzer(ArraySegment<byte> textBytes, ulong pc, IImportResolver importResolver)
         {
             _graph = new InstructionGraph(textBytes, pc);
             _importResolver = importResolver;

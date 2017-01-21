@@ -4,7 +4,7 @@ using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
 {
-    public class ImportResolver
+    public class ImportResolver : IImportResolver
     {
         private readonly ulong _imageBase;
         private readonly ArraySegment<byte> _importAddressTableBytes;
