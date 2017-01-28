@@ -293,12 +293,12 @@ namespace UnwindMC.Analysis
             var visited = new HashSet<ulong>();
             var stack = new Stack<Tuple<ulong, Link>>();
             stack.Push(Tuple.Create(address, new Link(ulong.MaxValue, address, LinkType.Call)));
+            visited.Add(address);
             var visitedAllLinks = true;
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
                 var instr = _instructions[current.Item1];
-                visited.Add(current.Item1);
                 if (!process(instr, current.Item2))
                 {
                     continue;
@@ -328,6 +328,7 @@ namespace UnwindMC.Analysis
                     if (!visited.Contains(linkAddress))
                     {
                         stack.Push(Tuple.Create(linkAddress, link));
+                        visited.Add(linkAddress);
                     }
                 }
             }
