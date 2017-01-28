@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System;
 using UnwindMC.Util;
+using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Analysis
 {
@@ -44,11 +45,11 @@ namespace UnwindMC.Analysis
             {
                 if (instr.Code == MnemonicCode.Icall && instr.Operands[0].Type == OperandType.ImmediateBranch)
                 {
-                    var targetOffset = GetRelativeTargetOffset(instr);
-                    _graph.AddLink(instr.Offset, targetOffset, InstructionGraph.LinkType.Call);
-                    if (!_functions.ContainsKey(targetOffset))
+                    var targetAddress = instr.GetTargetAddress();
+                    _graph.AddLink(instr.Offset, targetAddress, InstructionGraph.LinkType.Call);
+                    if (!_functions.ContainsKey(targetAddress))
                     {
-                        _functions.Add(targetOffset, new Function(targetOffset));
+                        _functions.Add(targetAddress, new Function(targetAddress));
                     }
                 }
             }
@@ -166,7 +167,7 @@ namespace UnwindMC.Analysis
                 case MnemonicCode.Ijz:
                     if (instr.Operands[0].Type == OperandType.ImmediateBranch)
                     {
-                        _graph.AddLink(instr.Offset, GetRelativeTargetOffset(instr), InstructionGraph.LinkType.Branch);
+                        _graph.AddLink(instr.Offset, instr.GetTargetAddress(), InstructionGraph.LinkType.Branch);
                     }
                     break;
             }
@@ -279,20 +280,6 @@ namespace UnwindMC.Analysis
             Logger.Info("Done");
         }
 
-        private static ulong GetRelativeTargetOffset(Instruction instr)
-        {
-            var targetOffset = instr.Offset + instr.Length;
-            switch (instr.Operands[0].Size)
-            {
-                case 8: targetOffset = (ulong)((long)targetOffset + instr.Operands[0].LValue.@sbyte); break;
-                case 16: targetOffset = (ulong)((long)targetOffset + instr.Operands[0].LValue.sword); break;
-                case 32: targetOffset = (ulong)((long)targetOffset + instr.Operands[0].LValue.sdword); break;
-                case 64: targetOffset = (ulong)((long)targetOffset + instr.Operands[0].LValue.sqword); break;
-                default: throw new ArgumentException();
-            }
-            return targetOffset;
-        }
-
         public string DumpResults()
         {
             Logger.Info("Dumping results");
@@ -356,7 +343,7 @@ namespace UnwindMC.Analysis
             {
                 if (instr.Code == MnemonicCode.Icall && instr.Operands[0].Type == OperandType.ImmediateBranch)
                 {
-                    sb.AppendLine(string.Format("  sub_{0:x8} -> sub_{1:x8}", _graph.GetExtraData(instr.Offset).FunctionAddress, GetRelativeTargetOffset(instr)));
+                    sb.AppendLine(string.Format("  sub_{0:x8} -> sub_{1:x8}", _graph.GetExtraData(instr.Offset).FunctionAddress, instr.GetTargetAddress()));
                 }
             }
             sb.AppendLine("}");

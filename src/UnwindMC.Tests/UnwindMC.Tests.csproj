@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="AnalysisHelper.cs" />
     <Compile Include="DisassemblyTests.cs" />
+    <Compile Include="ILDecompilationTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
