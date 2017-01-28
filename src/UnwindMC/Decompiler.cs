@@ -20,8 +20,9 @@ namespace UnwindMC
             var analyzer = new Analyzer(pe.GetTextBytes(), pe.TextSectionAddress, importResolver);
             analyzer.AddFunction(pe.EntryPointAddress);
             analyzer.Analyze();
-            File.WriteAllText(_project.OutputPath, analyzer.DumpResults());
-            File.WriteAllText(Path.Combine(_project.RootPath, "functions.gv"), analyzer.DumpFunctionCallGraph());
+            var dumper = new ResultDumper(analyzer.Graph, analyzer.Functions);
+            File.WriteAllText(_project.OutputPath, dumper.DumpResults());
+            File.WriteAllText(Path.Combine(_project.RootPath, "functions.gv"), dumper.DumpFunctionCallGraph());
         }
     }
 }
