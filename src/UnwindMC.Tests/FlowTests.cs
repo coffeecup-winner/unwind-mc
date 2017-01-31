@@ -1,32 +1,19 @@
 ﻿using NDis86;
 using NUnit.Framework;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Analysis.Flow;
 
+using static UnwindMC.Tests.Helpers.FlowHelper;
 using static UnwindMC.Tests.Helpers.ILHelper;
 
 namespace UnwindMC.Tests
 {
     [TestFixture]
-    public class ILDecompilationTests
+    public class FlowTests
     {
         [Test]
-        public void TestILWithFunctionPointers()
+        public void TestFlowWithFunctionPointers()
         {
-            var analyzer = AnalysisHelper.Analyze(@"
-                00400000                   56 push esi
-                00400001             8b742408 mov esi, [esp+0x8]
-                00400005             3b74240c cmp esi, [esp+0xc]
-                00400009                 730d jae 0x400018
-                0040000b                 8b06 mov eax, [esi]
-                0040000d                 85c0 test eax, eax
-                0040000f                 7402 jz 0x400013
-                00400011                 ffd0 call eax
-                00400013               83c604 add esi, 0x4
-                00400016                 ebed jmp 0x400005
-                00400018                   5e pop esi
-                00400019                   c3 ret");
-            var il = ILDecompiler.Decompile(analyzer.Graph, 0x400000);
-
             var asn0 = Assign(Register(OperandType.ESI), Stack(0));
             var cmp0 = Compare(Register(OperandType.ESI), Stack(4));
             var asn1 = Assign(Register(OperandType.EAX), Pointer(OperandType.ESI));
@@ -44,7 +31,19 @@ namespace UnwindMC.Tests
             call.AddNext(add);
             add.AddNext(cmp0);
 
-            AssertILEqual(asn0, il);
+            var blocks = FlowAnalyzer.Analyze(asn0);
+
+            var expected = Blocks(
+                Sequential(asn0),
+                Loop(
+                    Sequential(asn1),
+                    Conditional(
+                        Blocks(Sequential()),
+                        Blocks(Sequential(call))),
+                    Sequential(add)),
+                Sequential(ret));
+
+            AssertFlowEqual(expected, blocks);            
         }
     }
 }
