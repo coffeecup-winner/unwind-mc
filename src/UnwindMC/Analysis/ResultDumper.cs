@@ -2,6 +2,7 @@
 using NLog;
 using System.Collections.Generic;
 using System.Text;
+using UnwindMC.Analysis.IL;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
@@ -83,6 +84,44 @@ namespace UnwindMC.Analysis
                 if (instr.Code == MnemonicCode.Icall && instr.Operands[0].Type == OperandType.ImmediateBranch)
                 {
                     sb.AppendLine(string.Format("  sub_{0:x8} -> sub_{1:x8}", _graph.GetExtraData(instr.Offset).FunctionAddress, instr.GetTargetAddress()));
+                }
+            }
+            sb.AppendLine("}");
+            var result = sb.ToString();
+            Logger.Info("Done");
+            return result;
+        }
+
+        public string DumpILGraph(ILInstruction il)
+        {
+            Logger.Info("Dumping IL graph");
+            var sb = new StringBuilder();
+            sb.AppendLine("digraph il {");
+            var visited = new HashSet<ILInstruction>();
+            var queue = new Queue<ILInstruction>();
+            queue.Enqueue(il);
+            visited.Add(il);
+            while (queue.Count > 0)
+            {
+                var instr = queue.Dequeue();
+                sb.AppendLine(string.Format("  {0} [label=\"{1}\"]", instr.GetHashCode(), instr.ToString()));
+                if (instr.DefaultChild != null)
+                {
+                    if (visited.Add(instr.DefaultChild))
+                    {
+                        queue.Enqueue(instr.DefaultChild);
+                    }
+                    sb.AppendLine(string.Format("  {0} -> {1} [label=\"{2}\"]", instr.GetHashCode(),
+                        instr.DefaultChild.GetHashCode(), instr.ConditionalChild == null ? "" : "false"));
+                }
+                if (instr.ConditionalChild != null)
+                {
+                    if (visited.Add(instr.ConditionalChild))
+                    {
+                        queue.Enqueue(instr.ConditionalChild);
+                    }
+                    sb.AppendLine(string.Format("  {0} -> {1} [label=\"{2}\"]", instr.GetHashCode(),
+                        instr.ConditionalChild.GetHashCode(), "true"));
                 }
             }
             sb.AppendLine("}");
