@@ -6,8 +6,6 @@ namespace UnwindMC.Analysis.IL
 {
     public class ILInstruction
     {
-        private readonly Dictionary<ILBranchType, ILInstruction> _children = new Dictionary<ILBranchType, ILInstruction>();
-
         public ILInstruction(ILInstructionType type, ILOperand target = null, ILOperand source = null, ILBranch branch = null)
         {
             Type = type;
@@ -20,35 +18,19 @@ namespace UnwindMC.Analysis.IL
         public ILOperand Target { get; }
         public ILOperand Source { get; }
         public ILBranch Branch { get; }
-        public IReadOnlyDictionary<ILBranchType, ILInstruction> Children => _children;
+        public ILInstruction DefaultChild { get; private set; }
+        public ILBranchType Condition { get; private set; }
+        public ILInstruction ConditionalChild { get; private set; }
 
-        public void AddNext(ILInstruction instr)
+        public void AddDefaultChild(ILInstruction instr)
         {
-            _children.Add(ILBranchType.Next, instr);
+            DefaultChild = instr;
         }
 
-        public void AddLeft(ILBranchType type, ILInstruction instr)
+        public void AddConditionalChild(ILBranchType condition, ILInstruction instr)
         {
-            _children.Add(type, instr);
-        }
-
-        public void AddRight(ILBranchType type, ILInstruction instr)
-        {
-            _children.Add(Complement(type), instr);
-        }
-
-        private static ILBranchType Complement(ILBranchType type)
-        {
-            switch (type)
-            {
-                case ILBranchType.Equal: return ILBranchType.NotEqual;
-                case ILBranchType.NotEqual: return ILBranchType.Equal;
-                case ILBranchType.Less: return ILBranchType.GreaterOrEqual;
-                case ILBranchType.LessOrEqual: return ILBranchType.Greater;
-                case ILBranchType.GreaterOrEqual: return ILBranchType.Less;
-                case ILBranchType.Greater: return ILBranchType.LessOrEqual;
-                default: throw new ArgumentException("Cannot find branch type complement");
-            }
+            Condition = condition;
+            ConditionalChild = instr;
         }
 
         public override string ToString()
@@ -78,7 +60,16 @@ namespace UnwindMC.Analysis.IL
                     break;
                 case ILInstructionType.Compare:
                     sb.Append(Target);
-                    sb.Append(" <> ");
+                    switch (Condition)
+                    {
+                        case ILBranchType.Equal: sb.Append(" == "); break;
+                        case ILBranchType.NotEqual: sb.Append(" != "); break;
+                        case ILBranchType.Less: sb.Append(" < "); break;
+                        case ILBranchType.LessOrEqual: sb.Append(" <= "); break;
+                        case ILBranchType.GreaterOrEqual: sb.Append(" >= "); break;
+                        case ILBranchType.Greater: sb.Append(" > "); break;
+                        default: throw new InvalidOperationException("Invalid condition type");
+                    }
                     sb.Append(Source);
                     break;
                 case ILInstructionType.Return:

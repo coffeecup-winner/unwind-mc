@@ -35,14 +35,14 @@ namespace UnwindMC.Tests
             var add = Add(Register(OperandType.ESI), Value(4));
             var ret = Return();
 
-            asn0.AddNext(cmp0);
-            cmp0.AddLeft(ILBranchType.GreaterOrEqual, ret);
-            cmp0.AddRight(ILBranchType.GreaterOrEqual, asn1);
-            asn1.AddNext(cmp1);
-            cmp1.AddLeft(ILBranchType.Equal, add);
-            cmp1.AddRight(ILBranchType.Equal, call);
-            call.AddNext(add);
-            add.AddNext(cmp0);
+            asn0.AddDefaultChild(cmp0);
+            cmp0.AddDefaultChild(ret);
+            cmp0.AddConditionalChild(ILBranchType.Less, asn1);
+            asn1.AddDefaultChild(cmp1);
+            cmp1.AddDefaultChild(add);
+            cmp1.AddConditionalChild(ILBranchType.NotEqual, call);
+            call.AddDefaultChild(add);
+            add.AddDefaultChild(cmp0);
 
             AssertILEqual(asn0, il);
         }

@@ -18,14 +18,25 @@ namespace UnwindMC.Analysis.IL
                 var instr = stack.Pop();
                 yield return instr;
 
-                // children will be visited in the reverse order, but it shouldn't matter for most use cases
-                foreach (var child in instr.Children)
+                if (instr.ConditionalChild != null)
                 {
-                    if (visited.Add(child.Value) && (subGraph == null || subGraph.Contains(child.Value)) && (guard == null || !guard.Contains(child.Value)))
+                    if (visited.Add(instr.ConditionalChild) &&
+                        (subGraph == null || subGraph.Contains(instr.ConditionalChild)) &&
+                        (guard == null || !guard.Contains(instr.ConditionalChild)))
                     {
-                        stack.Push(child.Value);
+                        stack.Push(instr.ConditionalChild);
                     }
                 }
+
+                if (instr.DefaultChild != null)
+                {
+                    if (visited.Add(instr.DefaultChild) &&
+                        (subGraph == null || subGraph.Contains(instr.DefaultChild)) &&
+                        (guard == null || !guard.Contains(instr.DefaultChild)))
+                    {
+                        stack.Push(instr.DefaultChild);
+                    }
+                }                
             }
         }
     }

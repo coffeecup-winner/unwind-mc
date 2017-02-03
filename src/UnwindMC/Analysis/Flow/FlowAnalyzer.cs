@@ -13,7 +13,7 @@ namespace UnwindMC.Analysis.Flow
             SequentialBlock seq = new SequentialBlock();
             foreach (var instr in il.DFS(subGraph))
             {
-                if (instr.Children.Count < 2)
+                if (instr.ConditionalChild == null)
                 {
                     seq.Add(instr);
                     continue;
@@ -21,21 +21,20 @@ namespace UnwindMC.Analysis.Flow
                 result.Add(seq);
                 
                 // loop detection
-                var keys = instr.Children.Keys.ToArray();
                 var guard = new HashSet<ILInstruction> { instr };
-                var left = instr.Children[keys[0]].DFS(subGraph, guard).ToList();
-                var right = instr.Children[keys[1]].DFS(subGraph, guard).ToList();
-                bool leftLoop = left.Any(i => i.Children.Values.Any(c => c == instr));
+                var left = instr.ConditionalChild.DFS(subGraph, guard).ToList();
+                var right = instr.DefaultChild.DFS(subGraph, guard).ToList();
+                bool leftLoop = left.Any(i => i.DefaultChild == instr || i.ConditionalChild == instr);
                 if (leftLoop)
                 {
-                    result.Add(new LoopBlock(Analyze(instr.Children[keys[0]], left.ToSet())));
+                    result.Add(new LoopBlock(instr, Analyze(instr.ConditionalChild, left.ToSet())));
                     result.AddRange(Analyze(right[0], right.ToSet()));
                     return result;
                 }
-                bool rightLoop = right.Any(i => i.Children.Values.Any(c => c == instr));
+                bool rightLoop = right.Any(i => i.DefaultChild == instr || i.ConditionalChild == instr);
                 if (rightLoop)
                 {
-                    result.Add(new LoopBlock(Analyze(instr.Children[keys[1]], right.ToSet())));
+                    result.Add(new LoopBlock(instr, Analyze(instr.DefaultChild, right.ToSet())));
                     result.AddRange(Analyze(left[0], left.ToSet()));
                     return result;
                 }
@@ -51,6 +50,7 @@ namespace UnwindMC.Analysis.Flow
                 i0++;
                 i1++;
                 result.Add(new ConditionalBlock(
+                    instr,
                     Analyze(left[0], left.Take(i0).ToSet()),
                     Analyze(right[0], right.Take(i1).ToSet())));
                 result.AddRange(Analyze(left[i0], left.Skip(i0).ToSet()));

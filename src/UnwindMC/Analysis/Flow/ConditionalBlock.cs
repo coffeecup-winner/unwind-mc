@@ -1,19 +1,22 @@
 ﻿using System.Collections.Generic;
+using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Analysis.Flow
 {
     public class ConditionalBlock : IBlock
     {
-        private readonly List<IBlock> _left;
-        private readonly List<IBlock> _right;
+        private readonly List<IBlock> _trueBranch;
+        private readonly List<IBlock> _falseBranch;
 
-        public ConditionalBlock(List<IBlock> left, List<IBlock> right)
+        public ConditionalBlock(ILInstruction condition, List<IBlock> trueBranch, List<IBlock> falseBranch)
         {
-            _left = left;
-            _right = right;
+            Condition = condition;
+            _trueBranch = trueBranch;
+            _falseBranch = falseBranch;
         }
 
-        public IReadOnlyList<IBlock> LeftChildren => _left;
-        public IReadOnlyList<IBlock> RightChildren => _right;
+        public ILInstruction Condition { get; }
+        public IReadOnlyList<IBlock> TrueBranch => _trueBranch;
+        public IReadOnlyList<IBlock> FalseBranch => _falseBranch;
     }
 }

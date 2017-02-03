@@ -36,8 +36,8 @@ namespace UnwindMC.Tests.Helpers
                 {
                     Assert.That(blocks[i], Is.TypeOf<ConditionalBlock>());
                     var actualCond = (ConditionalBlock)blocks[i];
-                    AssertFlowEqual(cond.LeftChildren, actualCond.LeftChildren);
-                    AssertFlowEqual(cond.RightChildren, actualCond.RightChildren);
+                    AssertFlowEqual(cond.TrueBranch, actualCond.TrueBranch);
+                    AssertFlowEqual(cond.FalseBranch, actualCond.FalseBranch);
                 }
             }
         }
@@ -52,14 +52,14 @@ namespace UnwindMC.Tests.Helpers
             return block;
         }
 
-        public static IBlock Loop(params IBlock[] blocks)
+        public static IBlock Loop(ILInstruction condition, params IBlock[] blocks)
         {
-            return new LoopBlock(blocks.ToList());
+            return new LoopBlock(condition, blocks.ToList());
         }
 
-        public static IBlock Conditional(IReadOnlyList<IBlock> left, IReadOnlyList<IBlock> right)
+        public static IBlock Conditional(ILInstruction condition, IReadOnlyList<IBlock> trueBranch, IReadOnlyList<IBlock> falseBranch)
         {
-            return new ConditionalBlock(left.ToList(), right.ToList());
+            return new ConditionalBlock(condition, trueBranch.ToList(), falseBranch.ToList());
         }
 
         public static IReadOnlyList<IBlock> Blocks(params IBlock[] blocks)

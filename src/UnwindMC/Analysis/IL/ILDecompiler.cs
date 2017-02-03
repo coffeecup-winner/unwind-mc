@@ -43,36 +43,30 @@ namespace UnwindMC.Analysis.IL
                 }
                 if (pair.Value.Type == ILInstructionType.Virtual)
                 {
+                    int index = il.IndexOfKey(pair.Value.Branch.Address);
+                    while (il.Values[index].Type == ILInstructionType.None)
+                    {
+                        index++;
+                    }
+                    current.AddDefaultChild(il.Values[index]);
                     if (pair.Value.Branch.Type == ILBranchType.Next)
                     {
-                        int index = il.IndexOfKey(pair.Value.Branch.Address);
-                        while (il.Values[index].Type == ILInstructionType.None)
-                        {
-                            index++;
-                        }
-                        current.AddNext(il.Values[index]);
                         current = null;
                     }
                     else
                     {
                         lastBranch = pair.Value.Branch;
-                        int index = il.IndexOfKey(pair.Value.Branch.Address);
-                        while (il.Values[index].Type == ILInstructionType.None)
-                        {
-                            index++;
-                        }
-                        current.AddLeft(lastBranch.Type, il.Values[index]);
                     }
                     continue;
                 }
                 if (lastBranch != null)
                 {
-                    current.AddRight(lastBranch.Type, pair.Value);
+                    current.AddConditionalChild(Complement(lastBranch.Type), pair.Value);
                     current = pair.Value;
                     lastBranch = null;
                     continue;
                 }
-                current.AddNext(pair.Value);
+                current.AddDefaultChild(pair.Value);
                 current = pair.Value;
             }
             return il.Values.First(i => i.Type != ILInstructionType.None && i.Type != ILInstructionType.Virtual);
@@ -169,6 +163,20 @@ namespace UnwindMC.Analysis.IL
                 case OperandType.Immediate:
                     return ILOperand.FromValue((int)operand.GetValue());
                 default: throw new NotSupportedException();
+            }
+        }
+
+        private static ILBranchType Complement(ILBranchType type)
+        {
+            switch (type)
+            {
+                case ILBranchType.Equal: return ILBranchType.NotEqual;
+                case ILBranchType.NotEqual: return ILBranchType.Equal;
+                case ILBranchType.Less: return ILBranchType.GreaterOrEqual;
+                case ILBranchType.LessOrEqual: return ILBranchType.Greater;
+                case ILBranchType.GreaterOrEqual: return ILBranchType.Less;
+                case ILBranchType.Greater: return ILBranchType.LessOrEqual;
+                default: throw new ArgumentException("Cannot find branch type complement");
             }
         }
     }

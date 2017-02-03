@@ -23,17 +23,17 @@ namespace UnwindMC.Tests.Helpers
                 Assert.That(actualInstr.Branch, Is.EqualTo(expectedInstr.Branch));
                 Assert.That(actualInstr.Source, Is.EqualTo(expectedInstr.Source));
                 Assert.That(actualInstr.Target, Is.EqualTo(expectedInstr.Target));
-                Assert.That(pair.Item2.Children.Count, Is.EqualTo(pair.Item1.Children.Count));
-                var kv1 = pair.Item1.Children.GetEnumerator();
-                var kv2 = pair.Item2.Children.GetEnumerator();
-                while (kv1.MoveNext() && kv2.MoveNext())
+                Assert.That(actualInstr.Condition, Is.EqualTo(expectedInstr.Condition));
+                Assert.That(actualInstr.DefaultChild == null, Is.EqualTo(expectedInstr.DefaultChild == null));
+                Assert.That(actualInstr.ConditionalChild == null, Is.EqualTo(expectedInstr.ConditionalChild == null));
+                if (expectedInstr.DefaultChild != null && verified.Add(expectedInstr.DefaultChild))
                 {
-                    Assert.That(kv2.Current.Key, Is.EqualTo(kv1.Current.Key));
-                    if (verified.Add(kv1.Current.Value))
-                    {
-                        queue.Enqueue(Tuple.Create(kv1.Current.Value, kv2.Current.Value));
-                    }
-                };
+                    queue.Enqueue(Tuple.Create(expectedInstr.DefaultChild, actualInstr.DefaultChild));
+                }
+                if (expectedInstr.ConditionalChild != null && verified.Add(expectedInstr.ConditionalChild))
+                {
+                    queue.Enqueue(Tuple.Create(expectedInstr.ConditionalChild, actualInstr.ConditionalChild));
+                }
             }
         }
 
