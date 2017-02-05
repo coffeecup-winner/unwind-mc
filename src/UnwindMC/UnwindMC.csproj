@@ -52,6 +52,9 @@
   <ItemGroup>
     <Compile Include="Analysis\Analyzer.cs" />
     <Compile Include="Analysis\AssignmentTracker.cs" />
+    <Compile Include="Analysis\Data\Type.cs" />
+    <Compile Include="Analysis\Data\TypeBuilder.cs" />
+    <Compile Include="Analysis\Data\TypeResolver.cs" />
     <Compile Include="Analysis\Flow\IBlock.cs" />
     <Compile Include="Analysis\Flow\ConditionalBlock.cs" />
     <Compile Include="Analysis\Flow\FlowAnalyzer.cs" />
