@@ -24,6 +24,14 @@ namespace UnwindMC.Tests
             var add = Add(Register(OperandType.ESI), Value(4));
             var ret = Return();
 
+            asn0.SetVariableIds(0, -1);
+            cmp0.SetVariableIds(0, -1);
+            asn1.SetVariableIds(1, 0);
+            cmp1.SetVariableIds(1, -1);
+            call.SetVariableIds(1, -1);
+            add.SetVariableIds(0, -1);
+            ret.SetVariableIds(-1, -1);
+
             asn0.AddDefaultChild(cmp0);
             cmp0.AddDefaultChild(ret);
             cmp0.AddConditionalChild(ILBranchType.Less, asn1);
@@ -51,14 +59,14 @@ namespace UnwindMC.Tests
 
             var ast = new AstBuilder(blocks, types).BuildAst();
             var expected = Scope(
-                Assign(Var("var"), Var("arg")),
-                While(Less(Var("var"), Var("arg")),
+                Assign(Var("var0"), Var("arg0")),
+                While(Less(Var("var0"), Var("arg1")),
                     Scope(
-                        Assign(Var("var"), Dereference(Var("var"))),
-                        IfThenElse(NotEqual(Var("var"), Val(0)),
-                            Scope(Call(Var("var"))),
+                        Assign(Var("var1"), Dereference(Var("var0"))),
+                        IfThenElse(NotEqual(Var("var1"), Val(0)),
+                            Scope(Call(Var("var1"))),
                             Scope()),
-                        Assign(Var("var"), Add(Var("var"), Val(4))))),
+                        Assign(Var("var0"), Add(Var("var0"), Val(4))))),
                 Ret());
             AssertAstEqual(expected, ast);
         }

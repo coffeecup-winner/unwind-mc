@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 
@@ -10,6 +11,10 @@ namespace UnwindMC.Analysis.Ast
         private readonly IReadOnlyList<IBlock> _blocks;
         private readonly IReadOnlyDictionary<ILOperand, Data.Type> _arguments;
 
+        private int _nextVariableNameIdx;
+        private Dictionary<int, string> _variableNames;
+        private Dictionary<ILOperand, string> _argumentNames;
+
         public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyDictionary<ILOperand, Data.Type> arguments)
         {
             _blocks = blocks;
@@ -18,6 +23,14 @@ namespace UnwindMC.Analysis.Ast
 
         public ScopeNode BuildAst()
         {
+            _nextVariableNameIdx = 0;
+            _variableNames = new Dictionary<int, string>();
+            _argumentNames = new Dictionary<ILOperand, string>();
+            int index = 0;
+            foreach (var pair in _arguments.OrderBy(p => p.Key.Offset))
+            {
+                _argumentNames[pair.Key] = "arg" + index++;
+            }
             return BuildScope(_blocks);
         }
 
@@ -65,11 +78,14 @@ namespace UnwindMC.Analysis.Ast
             switch (instr.Type)
             {
                 case ILInstructionType.Add:
-                    return new AssignmentNode(BuildVar(instr.Target), new BinaryOperatorNode(Operator.Add, BuildExpression(instr.Target), BuildExpression(instr.Source)));
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        new BinaryOperatorNode(Operator.Add,
+                            BuildExpression(instr.Target, instr.TargetId),
+                            BuildExpression(instr.Source, instr.SourceId)));
                 case ILInstructionType.Assign:
-                    return new AssignmentNode(BuildVar(instr.Target), BuildExpression(instr.Source));
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId), BuildExpression(instr.Source, instr.SourceId));
                 case ILInstructionType.Call:
-                    return new FunctionCallNode(BuildExpression(instr.Target));
+                    return new FunctionCallNode(BuildExpression(instr.Target, instr.TargetId));
                 case ILInstructionType.Return:
                     return new ReturnNode();
                 default: throw new ArgumentException("Instruction is not a valid statement");
@@ -81,18 +97,20 @@ namespace UnwindMC.Analysis.Ast
             switch (instr.Type)
             {
                 case ILInstructionType.Compare:
-                    return new BinaryOperatorNode(GetBinaryOperator(instr.Condition), BuildExpression(instr.Target), BuildExpression(instr.Source));
+                    return new BinaryOperatorNode(GetBinaryOperator(instr.Condition),
+                        BuildExpression(instr.Target, instr.TargetId),
+                        BuildExpression(instr.Source, instr.SourceId));
                 default: throw new ArgumentException("Instruction is not a valid statement");
             }
         }
 
-        private IExpressionNode BuildExpression(ILOperand op)
+        private IExpressionNode BuildExpression(ILOperand op, int id)
         {
             switch (op.Type)
             {
-                case ILOperandType.Pointer: return new DereferenceNode(new VarNode("var"));
-                case ILOperandType.Register: return new VarNode("var");
-                case ILOperandType.Stack: return new VarNode("arg");
+                case ILOperandType.Pointer: return new DereferenceNode(new VarNode(GetVarName(id)));
+                case ILOperandType.Register: return new VarNode(GetVarName(id));
+                case ILOperandType.Stack: return new VarNode(_argumentNames[op]);
                 case ILOperandType.Value: return new ValueNode(op.Value);
                 default: throw new InvalidOperationException();
             }
@@ -113,13 +131,28 @@ namespace UnwindMC.Analysis.Ast
             }
         }
 
-        private VarNode BuildVar(ILOperand op)
+        private VarNode BuildVar(ILOperand op, int id)
         {
             switch (op.Type)
             {
-                case ILOperandType.Register: return new VarNode("var");
+                case ILOperandType.Register: return new VarNode(GetVarName(id));
                 default: throw new NotSupportedException();
             }
+        }
+
+        private string GetVarName(int id)
+        {
+            if (id == -1)
+            {
+                throw new InvalidOperationException("Invalid id");
+            }
+            string name;
+            if (!_variableNames.TryGetValue(id, out name))
+            {
+                name = "var" + _nextVariableNameIdx++;
+                _variableNames[id] = name;
+            }
+            return name;
         }
     }
 }
