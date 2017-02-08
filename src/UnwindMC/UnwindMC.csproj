@@ -52,6 +52,20 @@
   <ItemGroup>
     <Compile Include="Analysis\Analyzer.cs" />
     <Compile Include="Analysis\AssignmentTracker.cs" />
+    <Compile Include="Analysis\Ast\AssignmentNode.cs" />
+    <Compile Include="Analysis\Ast\AstBuilder.cs" />
+    <Compile Include="Analysis\Ast\BinaryOperatorNode.cs" />
+    <Compile Include="Analysis\Ast\DereferenceNode.cs" />
+    <Compile Include="Analysis\Ast\FunctionCallNode.cs" />
+    <Compile Include="Analysis\Ast\IfThenElseNode.cs" />
+    <Compile Include="Analysis\Ast\IExpressionNode.cs" />
+    <Compile Include="Analysis\Ast\INode.cs" />
+    <Compile Include="Analysis\Ast\ReturnNode.cs" />
+    <Compile Include="Analysis\Ast\ValueNode.cs" />
+    <Compile Include="Analysis\Ast\VarNode.cs" />
+    <Compile Include="Analysis\Ast\ScopeNode.cs" />
+    <Compile Include="Analysis\Ast\IStatementNode.cs" />
+    <Compile Include="Analysis\Ast\WhileNode.cs" />
     <Compile Include="Analysis\Data\Type.cs" />
     <Compile Include="Analysis\Data\TypeBuilder.cs" />
     <Compile Include="Analysis\Data\TypeResolver.cs" />

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnwindMC.Analysis.Ast;
 using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
@@ -10,6 +11,7 @@ namespace UnwindMC.Analysis
     {
         private List<IBlock> _blocks;
         private IReadOnlyDictionary<ILOperand, Data.Type> _arguments;
+        private ScopeNode _ast;
 
         public Function(ulong address)
         {
@@ -21,6 +23,7 @@ namespace UnwindMC.Analysis
         public FunctionStatus Status { get; set; }
         public IReadOnlyList<IBlock> Blocks => _blocks;
         public IReadOnlyDictionary<ILOperand, Data.Type> Arguments => _arguments;
+        public ScopeNode Ast => _ast;
         public ILInstruction FirstInstruction
         {
             get
@@ -67,6 +70,16 @@ namespace UnwindMC.Analysis
             _arguments = TypeResolver.ResolveFunctionArguments(_blocks);
             Status = FunctionStatus.ArgumentsResolved;
         }
+
+        public void BuildAst()
+        {
+            if (Status != FunctionStatus.ArgumentsResolved)
+            {
+                throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
+            }
+            _ast = new AstBuilder(_blocks, _arguments).BuildAst();
+            Status = FunctionStatus.AstBuilt;
+        }
     }
 
     public enum FunctionStatus
@@ -77,5 +90,6 @@ namespace UnwindMC.Analysis
         BoundsNotResolvedIncompleteGraph,
         BodyResolved,
         ArgumentsResolved,
+        AstBuilt,
     }
 }

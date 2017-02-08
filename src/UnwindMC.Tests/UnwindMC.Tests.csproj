@@ -57,8 +57,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnalysisHelper.cs" />
+    <Compile Include="AstTests.cs" />
     <Compile Include="DisassemblyTests.cs" />
     <Compile Include="FlowTests.cs" />
+    <Compile Include="Helpers\AstHelper.cs" />
     <Compile Include="Helpers\FlowHelper.cs" />
     <Compile Include="Helpers\ILHelper.cs" />
     <Compile Include="ILDecompilationTests.cs" />
