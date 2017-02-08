@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace UnwindMC.Analysis.IL
@@ -10,13 +9,17 @@ namespace UnwindMC.Analysis.IL
         {
             Type = type;
             Target = target;
+            TargetId = -1;
             Source = source;
+            SourceId = -1;
             Branch = branch;
         }
 
         public ILInstructionType Type { get; }
         public ILOperand Target { get; }
+        public int TargetId { get; private set; }
         public ILOperand Source { get; }
+        public int SourceId { get; private set; }
         public ILBranch Branch { get; }
         public ILInstruction DefaultChild { get; private set; }
         public ILBranchType Condition { get; private set; }
@@ -31,6 +34,12 @@ namespace UnwindMC.Analysis.IL
         {
             Condition = condition;
             ConditionalChild = instr;
+        }
+
+        public void SetVariableIds(int targetId, int sourceId)
+        {
+            TargetId = targetId;
+            SourceId = sourceId;
         }
 
         public override string ToString()

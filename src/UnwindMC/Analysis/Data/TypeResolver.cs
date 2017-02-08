@@ -10,6 +10,8 @@ namespace UnwindMC.Analysis.Data
         public static IReadOnlyDictionary<ILOperand, Type> ResolveFunctionArguments(IReadOnlyList<IBlock> blocks)
         {
             var types = new Dictionary<ILOperand, TypeBuilder>();
+            var currentIds = new Dictionary<ILOperand, int>();
+            var nextId = 0;
             foreach (var instr in TraverseReversed(blocks))
             {
                 switch (instr.Type)
@@ -21,6 +23,7 @@ namespace UnwindMC.Analysis.Data
                             if (!types.ContainsKey(instr.Target))
                             {
                                 types[instr.Target] = new TypeBuilder();
+                                currentIds[instr.Target] = nextId++;
                             }
                         }
                         else
@@ -35,16 +38,19 @@ namespace UnwindMC.Analysis.Data
                             else if (types.ContainsKey(instr.Source))
                             {
                                 types[instr.Target] = types[instr.Source];
+                                currentIds[instr.Target] = nextId++;
                             }
                             else if (types.ContainsKey(instr.Target))
                             {
                                 types[instr.Source] = types[instr.Target];
+                                currentIds[instr.Source] = nextId++;
                             }
                             else
                             {
                                 throw new NotImplementedException();
                             }
                         }
+                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, instr.Source));
                         break;
                     case ILInstructionType.Assign:
                         if (!types.ContainsKey(instr.Target))
@@ -72,19 +78,24 @@ namespace UnwindMC.Analysis.Data
                         else
                         {
                             types[operand] = types[instr.Target];
+                            currentIds[operand] = nextId++;
                         }
                         if (instr.Source.Type == ILOperandType.Pointer)
                         {
                             types[operand].AddIndirectionLevel();
                         }
+                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, operand));
                         types.Remove(instr.Target);
+                        currentIds.Remove(instr.Target);
                         break;
                     case ILInstructionType.Call:
                         if (!types.ContainsKey(instr.Target))
                         {
                             types[instr.Target] = new TypeBuilder();
+                            currentIds[instr.Target] = nextId++;
                         }
                         types[instr.Target].AddFunctionTrait();
+                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, instr.Source));
                         break;
                 }
             }
@@ -94,6 +105,20 @@ namespace UnwindMC.Analysis.Data
                 result[pair.Key] = pair.Value.Build();
             }
             return result;
+        }
+
+        private static int GetCurrentId(IReadOnlyDictionary<ILOperand, int> currentIds, ILOperand op)
+        {
+            if (op == null)
+            {
+                return -1;
+            }
+            switch (op.Type)
+            {
+                case ILOperandType.Register: return currentIds[op];
+                case ILOperandType.Pointer: return currentIds[op];
+                default: return -1;
+            }
         }
 
         private static IEnumerable<ILInstruction> TraverseReversed(IReadOnlyList<IBlock> blocks)

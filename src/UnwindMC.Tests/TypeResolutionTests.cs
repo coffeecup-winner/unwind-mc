@@ -46,6 +46,21 @@ namespace UnwindMC.Tests
             Assert.That(types[Stack(0)].IndirectionLevel, Is.EqualTo(1));
             Assert.That(types[Stack(4)].IsFunction, Is.True);
             Assert.That(types[Stack(4)].IndirectionLevel, Is.EqualTo(1));
+
+            Assert.That(asn0.TargetId, Is.EqualTo(0));
+            Assert.That(asn0.SourceId, Is.EqualTo(-1));
+            Assert.That(cmp0.TargetId, Is.EqualTo(0));
+            Assert.That(cmp0.SourceId, Is.EqualTo(-1));
+            Assert.That(asn1.TargetId, Is.EqualTo(1));
+            Assert.That(asn1.SourceId, Is.EqualTo(0));
+            Assert.That(cmp1.TargetId, Is.EqualTo(1));
+            Assert.That(cmp1.SourceId, Is.EqualTo(-1));
+            Assert.That(call.TargetId, Is.EqualTo(1));
+            Assert.That(call.SourceId, Is.EqualTo(-1));
+            Assert.That(add.TargetId, Is.EqualTo(0));
+            Assert.That(add.SourceId, Is.EqualTo(-1));
+            Assert.That(ret.TargetId, Is.EqualTo(-1));
+            Assert.That(ret.SourceId, Is.EqualTo(-1));
         }
     }
 }
