@@ -153,10 +153,13 @@ namespace UnwindMC.Emit
             sb.Append(")")
                 .Append(Environment.NewLine);
             Emit(sb, ifThenElse.TrueBranch);
-            sb.Append(_indent)
-                .Append("else")
-                .Append(Environment.NewLine);
-            Emit(sb, ifThenElse.FalseBranch);
+            if (ifThenElse.FalseBranch.ChildrenCount > 0)
+            {
+                sb.Append(_indent)
+                    .Append("else")
+                    .Append(Environment.NewLine);
+                Emit(sb, ifThenElse.FalseBranch);
+            }
         }
 
         private void Emit(StringBuilder sb, ReturnNode ret)

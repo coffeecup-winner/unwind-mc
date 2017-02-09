@@ -43,9 +43,6 @@ namespace UnwindMC.Tests
     {
       var1();
     }
-    else
-    {
-    }
     var0 = var0 + 1;
   }
   return;
