@@ -28,7 +28,7 @@ namespace UnwindMC.Tests
                         IfThenElse(NotEqual(Var("var1"), Val(0)),
                             Scope(Call(Var("var1"))),
                             Scope()),
-                        Assign(Var("var0"), Add(Var("var0"), Val(4))))),
+                        Assign(Var("var0"), Add(Var("var0"), Val(1))))),
                 Ret());
 
             var source = new CppEmitter("foo", parameters, body).EmitSourceCode();
@@ -46,12 +46,12 @@ namespace UnwindMC.Tests
     else
     {
     }
-    var0 = var0 + 4;
+    var0 = var0 + 1;
   }
   return;
 }
 ";
-            Assert.That(source, Is.EqualTo(expected));
+            Assert.That(source.Replace("\r\n", "\n"), Is.EqualTo(expected.Replace("\r\n", "\n")));
         }
     }
 }

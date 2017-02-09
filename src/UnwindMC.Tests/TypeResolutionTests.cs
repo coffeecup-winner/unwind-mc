@@ -40,12 +40,20 @@ namespace UnwindMC.Tests
                     Sequential(add)),
                 Sequential(ret));
 
-            var types = TypeResolver.ResolveFunctionArguments(blocks);
-            Assert.That(types.Count, Is.EqualTo(2));
-            Assert.That(types[Stack(0)].IsFunction, Is.True);
-            Assert.That(types[Stack(0)].IndirectionLevel, Is.EqualTo(1));
-            Assert.That(types[Stack(4)].IsFunction, Is.True);
-            Assert.That(types[Stack(4)].IndirectionLevel, Is.EqualTo(1));
+            var types = TypeResolver.ResolveTypes(blocks);
+            var parameterTypes = types.ParameterTypes;
+            var variableTypes = types.VariableTypes;
+            Assert.That(parameterTypes.Count, Is.EqualTo(2));
+            Assert.That(parameterTypes[0].IsFunction, Is.True);
+            Assert.That(parameterTypes[0].IndirectionLevel, Is.EqualTo(1));
+            Assert.That(parameterTypes[1].IsFunction, Is.True);
+            Assert.That(parameterTypes[1].IndirectionLevel, Is.EqualTo(1));
+
+            Assert.That(variableTypes.Count, Is.EqualTo(2));
+            Assert.That(variableTypes[0].IsFunction, Is.True);
+            Assert.That(variableTypes[0].IndirectionLevel, Is.EqualTo(1));
+            Assert.That(variableTypes[1].IsFunction, Is.True);
+            Assert.That(variableTypes[1].IndirectionLevel, Is.EqualTo(0));
 
             Assert.That(asn0.TargetId, Is.EqualTo(0));
             Assert.That(asn0.SourceId, Is.EqualTo(-1));

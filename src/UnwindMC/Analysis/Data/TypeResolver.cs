@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 
@@ -7,9 +8,22 @@ namespace UnwindMC.Analysis.Data
 {
     public static class TypeResolver
     {
-        public static IReadOnlyDictionary<ILOperand, Type> ResolveFunctionArguments(IReadOnlyList<IBlock> blocks)
+        public struct Result
+        {
+            public readonly IReadOnlyList<Type> ParameterTypes;
+            public readonly IReadOnlyList<Type> VariableTypes;
+
+            public Result(IReadOnlyList<Type> parameterTypes, IReadOnlyList<Type> variableTypes)
+            {
+                ParameterTypes = parameterTypes;
+                VariableTypes = variableTypes;
+            }
+        }
+
+        public static Result ResolveTypes(IReadOnlyList<IBlock> blocks)
         {
             var types = new Dictionary<ILOperand, TypeBuilder>();
+            var variableTypes = new List<Type>();
             var currentIds = new Dictionary<ILOperand, int>();
             var nextId = 0;
             foreach (var instr in TraverseReversed(blocks))
@@ -85,6 +99,11 @@ namespace UnwindMC.Analysis.Data
                             types[operand].AddIndirectionLevel();
                         }
                         instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, operand));
+                        while (variableTypes.Count <= instr.TargetId)
+                        {
+                            variableTypes.Add(null);
+                        }
+                        variableTypes[instr.TargetId] = types[instr.Target].Build();
                         types.Remove(instr.Target);
                         currentIds.Remove(instr.Target);
                         break;
@@ -99,12 +118,12 @@ namespace UnwindMC.Analysis.Data
                         break;
                 }
             }
-            var result = new Dictionary<ILOperand, Type>();
-            foreach (var pair in types)
+            var parameterTypes = new List<Type>();
+            foreach (var pair in types.OrderBy(p => p.Key.Offset))
             {
-                result[pair.Key] = pair.Value.Build();
+                parameterTypes.Add(pair.Value.Build());
             }
-            return result;
+            return new Result(parameterTypes, variableTypes);
         }
 
         private static int GetCurrentId(IReadOnlyDictionary<ILOperand, int> currentIds, ILOperand op)

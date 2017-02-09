@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using UnwindMC.Analysis.Ast.Transformations;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 
@@ -9,29 +9,52 @@ namespace UnwindMC.Analysis.Ast
     public class AstBuilder
     {
         private readonly IReadOnlyList<IBlock> _blocks;
-        private readonly IReadOnlyDictionary<ILOperand, Data.Type> _arguments;
+        private readonly IReadOnlyList<Data.Type> _parameterTypes;
+        private readonly IReadOnlyList<Data.Type> _variableTypes;
 
         private int _nextVariableNameIdx;
         private Dictionary<int, string> _variableNames;
-        private Dictionary<ILOperand, string> _argumentNames;
+        private Dictionary<int, string> _parameterNames;
+        private Dictionary<string, Data.Type> _types;
+        
 
-        public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyDictionary<ILOperand, Data.Type> arguments)
+        public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyList<Data.Type> parameterTypes, IReadOnlyList<Data.Type> variableTypes)
         {
             _blocks = blocks;
-            _arguments = arguments;
+            _parameterTypes = parameterTypes;
+            _variableTypes = variableTypes;
         }
 
         public ScopeNode BuildAst()
         {
             _nextVariableNameIdx = 0;
             _variableNames = new Dictionary<int, string>();
-            _argumentNames = new Dictionary<ILOperand, string>();
-            int index = 0;
-            foreach (var pair in _arguments.OrderBy(p => p.Key.Offset))
+            _parameterNames = new Dictionary<int, string>();
+            _types = new Dictionary<string, Data.Type>();
+            int offset = 0;
+            for (int index = 0; index < _parameterTypes.Count; index++)
             {
-                _argumentNames[pair.Key] = "arg" + index++;
+                var name = "arg" + index;
+                _parameterNames[offset] = name;
+                _types[name] = _parameterTypes[index];
+                offset += _parameterTypes[index].Size;
             }
-            return BuildScope(_blocks);
+            var ast = BuildScope(_blocks);
+            RunTransformations(ast);
+            return ast;
+        }
+
+        private void RunTransformations(ScopeNode ast)
+        {
+            var transformers = new INodeVisitor[]
+            {
+                new FixupPointerArithmetics(_types),
+            };
+
+            foreach (var transformer in transformers)
+            {
+                ast.Accept(transformer);
+            }
         }
 
         private ScopeNode BuildScope(IReadOnlyList<IBlock> blocks)
@@ -110,7 +133,7 @@ namespace UnwindMC.Analysis.Ast
             {
                 case ILOperandType.Pointer: return new DereferenceNode(new VarNode(GetVarName(id)));
                 case ILOperandType.Register: return new VarNode(GetVarName(id));
-                case ILOperandType.Stack: return new VarNode(_argumentNames[op]);
+                case ILOperandType.Stack: return new VarNode(_parameterNames[op.Offset]);
                 case ILOperandType.Value: return new ValueNode(op.Value);
                 default: throw new InvalidOperationException();
             }
@@ -151,6 +174,7 @@ namespace UnwindMC.Analysis.Ast
             {
                 name = "var" + _nextVariableNameIdx++;
                 _variableNames[id] = name;
+                _types[name] = _variableTypes[id];
             }
             return name;
         }

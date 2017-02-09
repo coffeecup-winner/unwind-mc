@@ -62,6 +62,7 @@
     <Compile Include="Analysis\Ast\INode.cs" />
     <Compile Include="Analysis\Ast\INodeVisitor.cs" />
     <Compile Include="Analysis\Ast\ReturnNode.cs" />
+    <Compile Include="Analysis\Ast\Transformations\FixupPointerArithmetics.cs" />
     <Compile Include="Analysis\Ast\ValueNode.cs" />
     <Compile Include="Analysis\Ast\VarNode.cs" />
     <Compile Include="Analysis\Ast\ScopeNode.cs" />

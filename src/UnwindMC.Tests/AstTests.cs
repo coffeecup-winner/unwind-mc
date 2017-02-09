@@ -51,13 +51,19 @@ namespace UnwindMC.Tests
                     Sequential(add)),
                 Sequential(ret));
 
-            var types = new Dictionary<ILOperand, Type>
+            var parameterTypes = new List<Type>
             {
-                { Stack(0), new Type(true, 1) },
-                { Stack(4), new Type(true, 1) },
+                new Type(true, 1),
+                new Type(true, 1),
             };
 
-            var ast = new AstBuilder(blocks, types).BuildAst();
+            var variableTypes = new List<Type>
+            {
+                new Type(true, 1),
+                new Type(true, 0),
+            };
+
+            var ast = new AstBuilder(blocks, parameterTypes, variableTypes).BuildAst();
             var expected = Scope(
                 Assign(Var("var0"), Var("arg0")),
                 While(Less(Var("var0"), Var("arg1")),
@@ -66,7 +72,7 @@ namespace UnwindMC.Tests
                         IfThenElse(NotEqual(Var("var1"), Val(0)),
                             Scope(Call(Var("var1"))),
                             Scope()),
-                        Assign(Var("var0"), Add(Var("var0"), Val(4))))),
+                        Assign(Var("var0"), Add(Var("var0"), Val(1))))),
                 Ret());
             AssertAstEqual(expected, ast);
         }

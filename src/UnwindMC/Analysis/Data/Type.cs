@@ -9,5 +9,6 @@
         }
         public bool IsFunction { get; }
         public int IndirectionLevel { get; }
+        public int Size => 4;
     }
 }

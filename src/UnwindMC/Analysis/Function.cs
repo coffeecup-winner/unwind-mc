@@ -10,7 +10,8 @@ namespace UnwindMC.Analysis
     public class Function
     {
         private List<IBlock> _blocks;
-        private IReadOnlyDictionary<ILOperand, Data.Type> _arguments;
+        private IReadOnlyList<Data.Type> _parameterTypes;
+        private IReadOnlyList<Data.Type> _variableTypes;
         private ScopeNode _ast;
 
         public Function(ulong address)
@@ -24,7 +25,8 @@ namespace UnwindMC.Analysis
         public string Name { get; private set; }
         public FunctionStatus Status { get; set; }
         public IReadOnlyList<IBlock> Blocks => _blocks;
-        public IReadOnlyDictionary<ILOperand, Data.Type> Arguments => _arguments;
+        public IReadOnlyList<Data.Type> ParameterTypes => _parameterTypes;
+        public IReadOnlyList<Data.Type> VariableTypes => _variableTypes;
         public ScopeNode Ast => _ast;
         public ILInstruction FirstInstruction
         {
@@ -63,13 +65,15 @@ namespace UnwindMC.Analysis
             Status = FunctionStatus.BodyResolved;
         }
 
-        public void ResolveArguments()
+        public void ResolveTypes()
         {
             if (Status != FunctionStatus.BodyResolved)
             {
                 throw new InvalidOperationException("Cannot resolve arguments when body is not resolved");
             }
-            _arguments = TypeResolver.ResolveFunctionArguments(_blocks);
+            var types = TypeResolver.ResolveTypes(_blocks);
+            _parameterTypes = types.ParameterTypes;
+            _variableTypes = types.VariableTypes;
             Status = FunctionStatus.ArgumentsResolved;
         }
 
@@ -79,7 +83,7 @@ namespace UnwindMC.Analysis
             {
                 throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
             }
-            _ast = new AstBuilder(_blocks, _arguments).BuildAst();
+            _ast = new AstBuilder(_blocks, _parameterTypes, _variableTypes).BuildAst();
             Status = FunctionStatus.AstBuilt;
         }
     }
