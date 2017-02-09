@@ -13,5 +13,12 @@
 
         public VarNode Var => _var;
         public IExpressionNode Expression => _expression;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _var.Accept(visitor);
+            _expression.Accept(visitor);
+        }
     }
 }

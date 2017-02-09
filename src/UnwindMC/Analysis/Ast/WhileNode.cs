@@ -13,5 +13,12 @@
 
         public IExpressionNode Condition => _condition;
         public ScopeNode Body => _body;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _condition.Accept(visitor);
+            _body.Accept(visitor);
+        }
     }
 }

@@ -10,5 +10,11 @@
         }
 
         public IExpressionNode Pointer => _pointer;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _pointer.Accept(visitor);
+        }
     }
 }

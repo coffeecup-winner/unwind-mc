@@ -16,5 +16,13 @@
         public IExpressionNode Condition => _condition;
         public ScopeNode TrueBranch => _trueBranch;
         public ScopeNode FalseBranch => _falseBranch;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _condition.Accept(visitor);
+            _trueBranch.Accept(visitor);
+            _falseBranch.Accept(visitor);
+        }
     }
 }

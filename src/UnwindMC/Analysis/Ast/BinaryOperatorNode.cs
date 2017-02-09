@@ -35,5 +35,12 @@
         public Operator Operator => _op;
         public IExpressionNode Left => _left;
         public IExpressionNode Right => _right;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _left.Accept(visitor);
+            _right.Accept(visitor);
+        }
     }
 }

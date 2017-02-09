@@ -1,4 +1,7 @@
 ﻿namespace UnwindMC.Analysis.Ast
 {
-    public interface INode { }
+    public interface INode
+    {
+        void Accept(INodeVisitor visitor);
+    }
 }

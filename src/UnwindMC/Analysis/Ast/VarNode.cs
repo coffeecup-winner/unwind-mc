@@ -10,5 +10,10 @@
         }
 
         public string Name => _name;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
     }
 }

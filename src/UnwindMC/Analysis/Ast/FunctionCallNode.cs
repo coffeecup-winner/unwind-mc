@@ -10,5 +10,11 @@
         }
 
         public IExpressionNode Function => _function;
+
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            _function.Accept(visitor);
+        }
     }
 }

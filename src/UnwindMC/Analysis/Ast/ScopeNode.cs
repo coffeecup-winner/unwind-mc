@@ -19,6 +19,15 @@ namespace UnwindMC.Analysis.Ast
             _children.Add(node);
         }
 
+        public void Accept(INodeVisitor visitor)
+        {
+            visitor.Visit(this);
+            foreach (var child in _children)
+            {
+                child.Accept(visitor);
+            }
+        }
+
         public IEnumerator<IStatementNode> GetEnumerator()
         {
             return _children.GetEnumerator();
