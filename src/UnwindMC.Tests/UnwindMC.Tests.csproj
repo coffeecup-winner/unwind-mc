@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="AnalysisHelper.cs" />
     <Compile Include="AstTests.cs" />
+    <Compile Include="CppEmitterTests.cs" />
     <Compile Include="DisassemblyTests.cs" />
     <Compile Include="FlowTests.cs" />
     <Compile Include="Helpers\AstHelper.cs" />

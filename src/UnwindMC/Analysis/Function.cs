@@ -16,10 +16,12 @@ namespace UnwindMC.Analysis
         public Function(ulong address)
         {
             Address = address;
+            Name = string.Format("sub_{0:x6}", address);
             Status = FunctionStatus.Created;
         }
 
         public ulong Address { get; }
+        public string Name { get; private set; }
         public FunctionStatus Status { get; set; }
         public IReadOnlyList<IBlock> Blocks => _blocks;
         public IReadOnlyDictionary<ILOperand, Data.Type> Arguments => _arguments;

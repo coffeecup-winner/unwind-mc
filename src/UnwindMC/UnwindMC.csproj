@@ -87,6 +87,7 @@
     <Compile Include="Analysis\RegisterHelper.cs" />
     <Compile Include="Analysis\ResultDumper.cs" />
     <Compile Include="Decompiler.cs" />
+    <Compile Include="Emit\CppEmitter.cs" />
     <Compile Include="PEFile.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Project\DecompilationProject.cs" />
