@@ -84,6 +84,11 @@ namespace UnwindMC.Analysis.IL
                 case ILInstructionType.Return:
                     sb.Append("return");
                     break;
+                case ILInstructionType.Subtract:
+                    sb.Append(Target);
+                    sb.Append(" -= ");
+                    sb.Append(Source);
+                    break;
             }
             return sb.ToString();
         }
@@ -99,5 +104,6 @@ namespace UnwindMC.Analysis.IL
         Call,
         Compare,
         Return,
+        Subtract,
     }
 }

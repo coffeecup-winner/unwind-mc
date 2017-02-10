@@ -10,6 +10,7 @@ namespace UnwindMC.Analysis.IL
     {
         private readonly Dictionary<int, object> _stackObjects = new Dictionary<int, object>();
         private int _stackOffset;
+        private Instruction _prevInstr;
 
         private ILDecompiler()
         {
@@ -24,7 +25,15 @@ namespace UnwindMC.Analysis.IL
             var instructions = new Dictionary<ulong, ILInstruction>();
             graph.DFS(address, allowedLinks, (instr, link) =>
             {
-                instructions.Add(instr.Offset, ilConverter.Convert(instr));
+                var ilInstructions = ilConverter.Convert(instr);
+                if (ilInstructions.Length > instr.Length)
+                {
+                    throw new NotSupportedException("TODO: not enough virtual addresses");
+                }
+                for (int i = 0; i < ilInstructions.Length; i++)
+                {
+                    instructions.Add(instr.Offset + (uint)i, ilInstructions[i]);
+                }
                 return true;
             });
             var il = new SortedList<ulong, ILInstruction>(instructions);
@@ -72,50 +81,101 @@ namespace UnwindMC.Analysis.IL
             return il.Values.First(i => i.Type != ILInstructionType.None && i.Type != ILInstructionType.Virtual);
         }
 
-        private ILInstruction Convert(Instruction instr)
+        private ILInstruction[] Convert(Instruction instr)
         {
             ILOperand[] operands;
+            ILInstruction[] result;
+            ILInstruction cond;
+            ILInstruction branch;
             switch (instr.Code)
             {
                 case MnemonicCode.Iadd:
                     operands = Convert(instr.Operands);
-                    return new ILInstruction(ILInstructionType.Add, operands[0], operands[1]);
+                    result = new[] { new ILInstruction(ILInstructionType.Add, operands[0], operands[1]) };
+                    break;
                 case MnemonicCode.Icall:
                     operands = Convert(instr.Operands);
-                    return new ILInstruction(ILInstructionType.Call, operands[0]);
+                    result = new[] { new ILInstruction(ILInstructionType.Call, operands[0]) };
+                    break;
+                case MnemonicCode.Icmovl:
+                    operands = Convert(instr.Operands);
+                    result = new[]
+                    {
+                        new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.GreaterOrEqual, instr.Offset + instr.Length)),
+                        new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]),
+                    };
+                    break;
                 case MnemonicCode.Icmp:
                     operands = Convert(instr.Operands);
-                    return new ILInstruction(ILInstructionType.Compare, operands[0], operands[1]);
+                    result = new[] { new ILInstruction(ILInstructionType.Compare, operands[0], operands[1]) };
+                    break;
+                case MnemonicCode.Idec:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Subtract, operands[0], ILOperand.FromValue(1)) };
+                    break;
                 case MnemonicCode.Ijae:
-                    return new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.GreaterOrEqual, instr.GetTargetAddress()));
+                    result = new[] { new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.GreaterOrEqual, instr.GetTargetAddress())) };
+                    break;
                 case MnemonicCode.Ijmp:
-                    return new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.Next, instr.GetTargetAddress()));
+                    result = new[] { new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.Next, instr.GetTargetAddress())) };
+                    break;
                 case MnemonicCode.Ijz:
-                    return new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.Equal, instr.GetTargetAddress()));
+                    cond = GetVirtualConditionInstruction();
+                    branch = new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.Equal, instr.GetTargetAddress()));
+                    result = cond == null ? new[] { branch } : new[] { cond, branch };
+                    break;
+                case MnemonicCode.Ijnz:
+                    cond = GetVirtualConditionInstruction();
+                    branch = new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.NotEqual, instr.GetTargetAddress()));
+                    result = cond == null ? new[] { branch } : new[] { cond, branch };
+                    break;
                 case MnemonicCode.Imov:
                     operands = Convert(instr.Operands);
-                    return new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]);
+                    result = new[] { new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]) };
+                    break;
                 case MnemonicCode.Ipush:
                     _stackOffset -= 4;
                     AddOrUpdateStackValue(_stackOffset);
-                    return new ILInstruction(ILInstructionType.None);
+                    result = new[] { new ILInstruction(ILInstructionType.None) };
+                    break;
                 case MnemonicCode.Ipop:
                     _stackOffset += 4;
-                    return new ILInstruction(ILInstructionType.None);
+                    result = new[] { new ILInstruction(ILInstructionType.None) };
+                    break;
                 case MnemonicCode.Iret:
                     _stackOffset += 4;
                     if (_stackOffset != 0)
                     {
                         throw new InvalidOperationException("Stack imbalance");
                     }
-                    return new ILInstruction(ILInstructionType.Return);
+                    result = new[] { new ILInstruction(ILInstructionType.Return) };
+                    break;
                 case MnemonicCode.Itest:
                     operands = Convert(instr.Operands);
                     if (operands[0].Type == ILOperandType.Register && operands[0].Type == ILOperandType.Register && operands[0].Register == operands[1].Register)
                     {
-                        return new ILInstruction(ILInstructionType.Compare, operands[0], ILOperand.FromValue(0));
+                        result = new[] { new ILInstruction(ILInstructionType.Compare, operands[0], ILOperand.FromValue(0)) };
+                        break;
                     }
                     else goto default;
+                default: throw new NotSupportedException();
+            }
+            _prevInstr = instr;
+            return result;
+        }
+
+        private ILInstruction GetVirtualConditionInstruction()
+        {
+            if (_prevInstr.Code == MnemonicCode.Icmp || _prevInstr.Code == MnemonicCode.Itest)
+            {
+                return null;
+            }
+            ILOperand[] operands;
+            switch (_prevInstr.Code)
+            {
+                case MnemonicCode.Idec:
+                    operands = Convert(_prevInstr.Operands);
+                    return new ILInstruction(ILInstructionType.Compare, operands[0], ILOperand.FromValue(0));
                 default: throw new NotSupportedException();
             }
         }

@@ -62,6 +62,11 @@ namespace UnwindMC.Tests.Helpers
             return new ILInstruction(ILInstructionType.Return);
         }
 
+        public static ILInstruction Subtract(ILOperand target, ILOperand source)
+        {
+            return new ILInstruction(ILInstructionType.Subtract, target, source);
+        }
+
         public static ILOperand Pointer(OperandType reg, int offset = 0)
         {
             return ILOperand.FromPointer(reg, offset);
