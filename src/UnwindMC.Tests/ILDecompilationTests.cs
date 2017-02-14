@@ -93,8 +93,8 @@ namespace UnwindMC.Tests
             asn5.AddDefaultChild(add0);
             add0.AddDefaultChild(sub0);
             sub0.AddDefaultChild(cmp2);
-            cmp2.AddDefaultChild(asn4);
-            cmp2.AddConditionalChild(ILBranchType.Equal, ret);
+            cmp2.AddDefaultChild(ret);
+            cmp2.AddConditionalChild(ILBranchType.NotEqual, asn4);
 
             AssertILEqual(asn0, il);
         }

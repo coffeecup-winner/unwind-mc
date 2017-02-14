@@ -37,6 +37,11 @@ namespace UnwindMC.Analysis.IL
                 return true;
             });
             var il = new SortedList<ulong, ILInstruction>(instructions);
+            var addresses = new Dictionary<ILInstruction, ulong>(instructions.Count);
+            foreach (var pair in il)
+            {
+                addresses[pair.Value] = pair.Key;
+            }
             ILInstruction current = null;
             ILBranch lastBranch = null;
             foreach (var pair in il)
@@ -70,7 +75,15 @@ namespace UnwindMC.Analysis.IL
                 }
                 if (lastBranch != null)
                 {
-                    current.AddConditionalChild(Complement(lastBranch.Type), pair.Value);
+                    if (addresses[current.DefaultChild] > addresses[pair.Value])
+                    {
+                        current.AddConditionalChild(Complement(lastBranch.Type), pair.Value);
+                    }
+                    else
+                    {
+                        current.AddConditionalChild(lastBranch.Type, current.DefaultChild);
+                        current.AddDefaultChild(pair.Value);
+                    }
                     current = pair.Value;
                     lastBranch = null;
                     continue;
