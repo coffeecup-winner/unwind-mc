@@ -26,6 +26,7 @@ namespace UnwindMC.Tests.Helpers
                 Assert.That(actualInstr.Condition, Is.EqualTo(expectedInstr.Condition));
                 Assert.That(actualInstr.DefaultChild == null, Is.EqualTo(expectedInstr.DefaultChild == null));
                 Assert.That(actualInstr.ConditionalChild == null, Is.EqualTo(expectedInstr.ConditionalChild == null));
+                Assert.That(actualInstr.Order, Is.EqualTo(expectedInstr.Order));
                 if (expectedInstr.DefaultChild != null && verified.Add(expectedInstr.DefaultChild))
                 {
                     queue.Enqueue(Tuple.Create(expectedInstr.DefaultChild, actualInstr.DefaultChild));
@@ -34,6 +35,14 @@ namespace UnwindMC.Tests.Helpers
                 {
                     queue.Enqueue(Tuple.Create(expectedInstr.ConditionalChild, actualInstr.ConditionalChild));
                 }
+            }
+        }
+
+        public static void SetOrder(params ILInstruction[] instructions)
+        {
+            for (int i = 0; i < instructions.Length; i++)
+            {
+                instructions[i].SetOrder(i);
             }
         }
 

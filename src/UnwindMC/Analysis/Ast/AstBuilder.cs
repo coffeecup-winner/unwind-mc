@@ -71,10 +71,10 @@ namespace UnwindMC.Analysis.Ast
                     }
                     continue;
                 }
-                var loop = block as LoopBlock;
-                if (loop != null)
+                var whileLoop = block as WhileBlock;
+                if (whileLoop != null)
                 {
-                    scope.Add(BuildLoop(loop));
+                    scope.Add(BuildWhile(whileLoop));
                     continue;
                 }
                 var cond = block as ConditionalBlock;
@@ -86,7 +86,7 @@ namespace UnwindMC.Analysis.Ast
             return scope;
         }
 
-        private IStatementNode BuildLoop(LoopBlock loop)
+        private IStatementNode BuildWhile(WhileBlock loop)
         {
             return new WhileNode(BuildExpression(loop.Condition), BuildScope(loop.Children));
         }

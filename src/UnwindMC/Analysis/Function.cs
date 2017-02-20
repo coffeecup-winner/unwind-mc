@@ -41,7 +41,7 @@ namespace UnwindMC.Analysis
                 {
                     return seq.Instructions[0];
                 }
-                var loop = _blocks[0] as LoopBlock;
+                var loop = _blocks[0] as WhileBlock;
                 if (loop != null)
                 {
                     return loop.Condition;

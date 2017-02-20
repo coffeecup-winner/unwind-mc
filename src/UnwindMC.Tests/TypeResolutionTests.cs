@@ -32,7 +32,7 @@ namespace UnwindMC.Tests
 
             var blocks = Blocks(
                 Sequential(asn0),
-                Loop(cmp0,
+                While(cmp0,
                     Sequential(asn1),
                     Conditional(cmp1,
                         Blocks(Sequential(call)),

@@ -24,6 +24,7 @@ namespace UnwindMC.Analysis.IL
         public ILInstruction DefaultChild { get; private set; }
         public ILBranchType Condition { get; private set; }
         public ILInstruction ConditionalChild { get; private set; }
+        public int Order { get; private set; }
 
         public void AddDefaultChild(ILInstruction instr)
         {
@@ -40,6 +41,11 @@ namespace UnwindMC.Analysis.IL
         {
             TargetId = targetId;
             SourceId = sourceId;
+        }
+
+        public void SetOrder(int order)
+        {
+            Order = order;
         }
 
         public override string ToString()

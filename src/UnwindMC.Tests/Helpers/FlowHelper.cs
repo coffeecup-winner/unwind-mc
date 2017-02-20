@@ -24,18 +24,28 @@ namespace UnwindMC.Tests.Helpers
                     }
                     continue;
                 }
-                var loop = expected[i] as LoopBlock;
-                if (loop != null)
+                var whileLoop = expected[i] as WhileBlock;
+                if (whileLoop != null)
                 {
-                    Assert.That(blocks[i], Is.TypeOf<LoopBlock>());
-                    var actualLoop = (LoopBlock)blocks[i];
-                    AssertFlowEqual(loop.Children, actualLoop.Children);
+                    Assert.That(blocks[i], Is.TypeOf<WhileBlock>());
+                    var actualWhileLoop = (WhileBlock)blocks[i];
+                    ILHelper.AssertILEqual(whileLoop.Condition, actualWhileLoop.Condition);
+                    AssertFlowEqual(whileLoop.Children, actualWhileLoop.Children);
+                }
+                var doWhileLoop = expected[i] as DoWhileBlock;
+                if (doWhileLoop != null)
+                {
+                    Assert.That(blocks[i], Is.TypeOf<DoWhileBlock>());
+                    var actualDoWhileLoop = (DoWhileBlock)blocks[i];
+                    ILHelper.AssertILEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
+                    AssertFlowEqual(doWhileLoop.Children, actualDoWhileLoop.Children);
                 }
                 var cond = expected[i] as ConditionalBlock;
                 if (cond != null)
                 {
                     Assert.That(blocks[i], Is.TypeOf<ConditionalBlock>());
                     var actualCond = (ConditionalBlock)blocks[i];
+                    ILHelper.AssertILEqual(cond.Condition, actualCond.Condition);
                     AssertFlowEqual(cond.TrueBranch, actualCond.TrueBranch);
                     AssertFlowEqual(cond.FalseBranch, actualCond.FalseBranch);
                 }
@@ -52,9 +62,14 @@ namespace UnwindMC.Tests.Helpers
             return block;
         }
 
-        public static IBlock Loop(ILInstruction condition, params IBlock[] blocks)
+        public static IBlock While(ILInstruction condition, params IBlock[] blocks)
         {
-            return new LoopBlock(condition, blocks.ToList());
+            return new WhileBlock(condition, blocks.ToList());
+        }
+
+        public static IBlock DoWhile(ILInstruction condition, params IBlock[] blocks)
+        {
+            return new DoWhileBlock(condition, blocks.ToList());
         }
 
         public static IBlock Conditional(ILInstruction condition, IReadOnlyList<IBlock> trueBranch, IReadOnlyList<IBlock> falseBranch)

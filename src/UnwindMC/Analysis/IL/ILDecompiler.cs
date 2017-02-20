@@ -38,9 +38,14 @@ namespace UnwindMC.Analysis.IL
             });
             var il = new SortedList<ulong, ILInstruction>(instructions);
             var addresses = new Dictionary<ILInstruction, ulong>(instructions.Count);
+            int order = 0;
             foreach (var pair in il)
             {
                 addresses[pair.Value] = pair.Key;
+                if (pair.Value.Type != ILInstructionType.None && pair.Value.Type != ILInstructionType.Virtual)
+                {
+                    pair.Value.SetOrder(order++);
+                }
             }
             ILInstruction current = null;
             ILBranch lastBranch = null;

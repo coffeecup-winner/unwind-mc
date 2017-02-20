@@ -161,11 +161,11 @@ namespace UnwindMC.Analysis.Data
                     }
                     continue;
                 }
-                var loop = current as LoopBlock;
-                if (loop != null)
+                var whileLoop = current as WhileBlock;
+                if (whileLoop != null)
                 {
-                    stack.Push(loop.Condition);
-                    foreach (var child in loop.Children)
+                    stack.Push(whileLoop.Condition);
+                    foreach (var child in whileLoop.Children)
                     {
                         stack.Push(child);
                     }

@@ -3,11 +3,11 @@ using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Analysis.Flow
 {
-    public class LoopBlock : IBlock
+    public class WhileBlock : IBlock
     {
         private readonly List<IBlock> _children;
 
-        public LoopBlock(ILInstruction condition, List<IBlock> children)
+        public WhileBlock(ILInstruction condition, List<IBlock> children)
         {
             Condition = condition;
             _children = children;

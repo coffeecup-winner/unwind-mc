@@ -35,6 +35,8 @@ namespace UnwindMC.Tests
             var add = Add(Register(OperandType.ESI), Value(4));
             var ret = Return();
 
+            SetOrder(asn0, cmp0, asn1, cmp1, call, add, ret);
+
             asn0.AddDefaultChild(cmp0);
             cmp0.AddDefaultChild(ret);
             cmp0.AddConditionalChild(ILBranchType.Less, asn1);
@@ -80,6 +82,8 @@ namespace UnwindMC.Tests
             var sub0 = Subtract(Register(OperandType.ECX), Value(1));
             var cmp2 = Compare(Register(OperandType.ECX), Value(0));
             var ret = Return();
+
+            SetOrder(asn0, asn1, cmp0, asn2, asn3, asn4, cmp1, asn5, add0, sub0, cmp2, ret);
 
             asn0.AddDefaultChild(asn1);
             asn1.AddDefaultChild(cmp0);

@@ -74,13 +74,13 @@
     <Compile Include="Analysis\Flow\IBlock.cs" />
     <Compile Include="Analysis\Flow\ConditionalBlock.cs" />
     <Compile Include="Analysis\Flow\FlowAnalyzer.cs" />
-    <Compile Include="Analysis\Flow\LoopBlock.cs" />
+    <Compile Include="Analysis\Flow\DoWhileBlock.cs" />
+    <Compile Include="Analysis\Flow\WhileBlock.cs" />
     <Compile Include="Analysis\Flow\SequentialBlock.cs" />
     <Compile Include="Analysis\Function.cs" />
     <Compile Include="Analysis\IImportResolver.cs" />
     <Compile Include="Analysis\IL\ILBranch.cs" />
     <Compile Include="Analysis\IL\ILDecompiler.cs" />
-    <Compile Include="Analysis\IL\ILGraph.cs" />
     <Compile Include="Analysis\IL\ILInstruction.cs" />
     <Compile Include="Analysis\IL\ILOperand.cs" />
     <Compile Include="Analysis\ImportResolver.cs" />
