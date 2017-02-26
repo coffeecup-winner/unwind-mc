@@ -6,7 +6,7 @@ using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Analysis.Data
 {
-    public static class TypeResolver
+    public class TypeResolver
     {
         public struct Result
         {
@@ -20,56 +20,71 @@ namespace UnwindMC.Analysis.Data
             }
         }
 
+        Dictionary<ILOperand, TypeBuilder>  _types = new Dictionary<ILOperand, TypeBuilder>();
+        Dictionary<ILOperand, TypeBuilder> _parameterTypes = new Dictionary<ILOperand, TypeBuilder>();
+        Dictionary<ILOperand, int> _currentIds = new Dictionary<ILOperand, int>();
+        int _nextId = 0;
+
+        private TypeResolver() { }
+
         public static Result ResolveTypes(IReadOnlyList<IBlock> blocks)
         {
-            var types = new Dictionary<ILOperand, TypeBuilder>();
-            var variableTypes = new List<Type>();
-            var currentIds = new Dictionary<ILOperand, int>();
-            var nextId = 0;
+            return new TypeResolver().ResolveVariableTypes(blocks);
+        }
+
+        public Result ResolveVariableTypes(IReadOnlyList<IBlock> blocks)
+        {
+            List<Type> variableTypes = new List<Type>();
             foreach (var instr in TraverseReversed(blocks))
             {
                 switch (instr.Type)
                 {
                     case ILInstructionType.Add:
                     case ILInstructionType.Compare:
+                    case ILInstructionType.Subtract:
                         if (instr.Source.Type == ILOperandType.Value)
                         {
-                            if (!types.ContainsKey(instr.Target))
+                            if (!_types.ContainsKey(instr.Target))
                             {
-                                types[instr.Target] = new TypeBuilder();
-                                currentIds[instr.Target] = nextId++;
+                                AssignTypeBuilder(instr.Target, null);
                             }
                         }
                         else
                         {
-                            if (types.ContainsKey(instr.Source) && types.ContainsKey(instr.Target))
+                            if (_types.ContainsKey(instr.Source) && _types.ContainsKey(instr.Target))
                             {
-                                if (types[instr.Source] != types[instr.Target])
+                                if (_types[instr.Source] != _types[instr.Target])
                                 {
                                     throw new InvalidOperationException("Type mismatch");
                                 }
                             }
-                            else if (types.ContainsKey(instr.Source))
+                            else if (_types.ContainsKey(instr.Source))
                             {
-                                types[instr.Target] = types[instr.Source];
-                                currentIds[instr.Target] = nextId++;
+                                AssignTypeBuilder(instr.Target, instr.Source);
                             }
-                            else if (types.ContainsKey(instr.Target))
+                            else if (_types.ContainsKey(instr.Target))
                             {
-                                types[instr.Source] = types[instr.Target];
-                                currentIds[instr.Source] = nextId++;
+                                AssignTypeBuilder(instr.Source, instr.Target);
                             }
                             else
                             {
                                 throw new NotImplementedException();
                             }
                         }
-                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, instr.Source));
+                        instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, instr.Source));
                         break;
                     case ILInstructionType.Assign:
-                        if (!types.ContainsKey(instr.Target))
+                        if (!_types.ContainsKey(instr.Target))
                         {
-                            throw new InvalidOperationException("Assignment appears to not be used in the execution path");
+                            if (instr.Target.Register == NDis86.OperandType.EAX)
+                            {
+                                var returnValue = ILOperand.FromRegister(NDis86.OperandType.EAX);
+                                AssignTypeBuilder(returnValue, null);
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Assignment appears to not be used in the execution path");
+                            }
                         }
                         ILOperand operand;
                         if (instr.Source.Type == ILOperandType.Pointer)
@@ -80,50 +95,76 @@ namespace UnwindMC.Analysis.Data
                         {
                             operand = instr.Source;
                         }
-                        if (types.ContainsKey(operand))
+                        if (instr.Source.Type == ILOperandType.Value)
                         {
-                            var type = types[instr.Target].Build();
-                            if (type.IsFunction)
+                            if (!_types.ContainsKey(instr.Target))
                             {
-                                types[operand].AddFunctionTrait();
+                                AssignTypeBuilder(instr.Target, null);
                             }
-                            types[operand].AddIndirectionLevel(type.IndirectionLevel);
                         }
                         else
                         {
-                            types[operand] = types[instr.Target];
-                            currentIds[operand] = nextId++;
+                            if (_types.ContainsKey(operand))
+                            {
+                                var type = _types[instr.Target].Build();
+                                if (type.IsFunction)
+                                {
+                                    _types[operand].AddFunctionTrait();
+                                }
+                                _types[operand].AddIndirectionLevel(type.IndirectionLevel);
+                            }
+                            else
+                            {
+                                AssignTypeBuilder(operand, instr.Target);
+                            }
                         }
                         if (instr.Source.Type == ILOperandType.Pointer)
                         {
-                            types[operand].AddIndirectionLevel();
+                            _types[operand].AddIndirectionLevel();
                         }
-                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, operand));
+                        instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, operand));
                         while (variableTypes.Count <= instr.TargetId)
                         {
                             variableTypes.Add(null);
                         }
-                        variableTypes[instr.TargetId] = types[instr.Target].Build();
-                        types.Remove(instr.Target);
-                        currentIds.Remove(instr.Target);
+                        variableTypes[instr.TargetId] = _types[instr.Target].Build();
+                        _types.Remove(instr.Target);
+                        _currentIds.Remove(instr.Target);
                         break;
                     case ILInstructionType.Call:
-                        if (!types.ContainsKey(instr.Target))
+                        if (!_types.ContainsKey(instr.Target))
                         {
-                            types[instr.Target] = new TypeBuilder();
-                            currentIds[instr.Target] = nextId++;
+                            AssignTypeBuilder(instr.Target, null);
                         }
-                        types[instr.Target].AddFunctionTrait();
-                        instr.SetVariableIds(GetCurrentId(currentIds, instr.Target), GetCurrentId(currentIds, instr.Source));
+                        _types[instr.Target].AddFunctionTrait();
+                        instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, instr.Source));
                         break;
+                    case ILInstructionType.Return: continue;
+                    default: throw new InvalidOperationException("unknown instruction type");
                 }
             }
             var parameterTypes = new List<Type>();
-            foreach (var pair in types.OrderBy(p => p.Key.Offset))
+            foreach (var pair in _parameterTypes.OrderBy(p => p.Key.Offset))
             {
                 parameterTypes.Add(pair.Value.Build());
             }
             return new Result(parameterTypes, variableTypes);
+        }
+
+        private void AssignTypeBuilder(ILOperand target, ILOperand source)
+        {
+            var typeBuilder = source == null ? new TypeBuilder()
+                            : source.Type == ILOperandType.Stack ? _parameterTypes[source]
+                            : _types[source];
+            if (target.Type == ILOperandType.Stack)
+            {
+                _parameterTypes[target] = typeBuilder;
+            }
+            else
+            {
+                _types[target] = typeBuilder;
+                _currentIds[target] = _nextId++;
+            }
         }
 
         private static int GetCurrentId(IReadOnlyDictionary<ILOperand, int> currentIds, ILOperand op)
@@ -169,6 +210,16 @@ namespace UnwindMC.Analysis.Data
                     {
                         stack.Push(child);
                     }
+                    continue;
+                }
+                var doWhileLoop = current as DoWhileBlock;
+                if (doWhileLoop != null)
+                {
+                    foreach (var child in doWhileLoop.Children)
+                    {
+                        stack.Push(child);
+                    }
+                    stack.Push(doWhileLoop.Condition);
                     continue;
                 }
                 var cond = current as ConditionalBlock;

@@ -38,6 +38,12 @@ namespace UnwindMC.Tests.Helpers
             }
         }
 
+        public static void AssertVarIds(ILInstruction asn0, int targetId, int sourceId)
+        {
+            Assert.That(asn0.TargetId, Is.EqualTo(targetId));
+            Assert.That(asn0.SourceId, Is.EqualTo(sourceId));
+        }
+
         public static void SetOrder(params ILInstruction[] instructions)
         {
             for (int i = 0; i < instructions.Length; i++)
