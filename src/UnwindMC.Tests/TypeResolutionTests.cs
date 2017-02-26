@@ -127,7 +127,7 @@ namespace UnwindMC.Tests
             Assert.That(parameterTypes[1].IsFunction, Is.False);
             Assert.That(parameterTypes[1].IndirectionLevel, Is.EqualTo(0));
 
-            Assert.That(variableTypes.Count, Is.EqualTo(6));
+            Assert.That(variableTypes.Count, Is.EqualTo(5));
             Assert.That(variableTypes[0].IsFunction, Is.False);
             Assert.That(variableTypes[0].IndirectionLevel, Is.EqualTo(0));
             Assert.That(variableTypes[1].IsFunction, Is.False);
@@ -138,16 +138,14 @@ namespace UnwindMC.Tests
             Assert.That(variableTypes[3].IndirectionLevel, Is.EqualTo(0));
             Assert.That(variableTypes[4].IsFunction, Is.False);
             Assert.That(variableTypes[4].IndirectionLevel, Is.EqualTo(0));
-            Assert.That(variableTypes[5].IsFunction, Is.False);
-            Assert.That(variableTypes[5].IndirectionLevel, Is.EqualTo(0));
 
             AssertVarIds(asn0, 0, -1);
-            AssertVarIds(asn1, 5, -1);
+            AssertVarIds(asn1, 4, -1);
             AssertVarIds(cmp0, 0, -1);
             AssertVarIds(asn2, 1, -1);
-            AssertVarIds(asn3, 4, -1);
+            AssertVarIds(asn3, 2, -1);
             AssertVarIds(asn4, 3, 1);
-            AssertVarIds(cmp1, 4, 3); // TODO: don't rewrite the var index inside a loop
+            AssertVarIds(cmp1, 2, 3);
             AssertVarIds(asn5, 2, 3);
             AssertVarIds(add0, 1, -1);
             AssertVarIds(sub0, 0, -1);

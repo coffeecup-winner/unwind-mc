@@ -3,11 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.Data
 {
     public class TypeResolver
     {
+        private enum LoopBoundsMarker
+        {
+            Start,
+            End,
+        }
+
         public struct Result
         {
             public readonly IReadOnlyList<Type> ParameterTypes;
@@ -34,14 +41,44 @@ namespace UnwindMC.Analysis.Data
 
         public Result ResolveVariableTypes(IReadOnlyList<IBlock> blocks)
         {
-            List<Type> variableTypes = new List<Type>();
-            foreach (var instr in TraverseReversed(blocks))
+            var variableTypes = new List<Type>();
+            var typesToRemove = new Dictionary<int, Dictionary<ILOperand, int>>
             {
+                { 0, new Dictionary<ILOperand, int>() }
+            };
+            int currentLevel = 0;
+            foreach (var item in TraverseReversed(blocks))
+            {
+                if (item.IsLeft)
+                {
+                    switch (item.Left)
+                    {
+                        case LoopBoundsMarker.Start:
+                            foreach (var pair in typesToRemove[currentLevel])
+                            {
+                                Remove(variableTypes, pair.Value, pair.Key);
+                            }
+                            typesToRemove.Remove(currentLevel);
+                            currentLevel--;
+                            break;
+                        case LoopBoundsMarker.End:
+                            currentLevel++;
+                            typesToRemove[currentLevel] = new Dictionary<ILOperand, int>();
+                            break;
+                        default: throw new NotSupportedException();
+                    }
+                    continue;
+                }
+                var instr = item.Right;
                 switch (instr.Type)
                 {
                     case ILInstructionType.Add:
                     case ILInstructionType.Compare:
                     case ILInstructionType.Subtract:
+                        if (typesToRemove[currentLevel].ContainsKey(instr.Target))
+                        {
+                            typesToRemove[currentLevel].Remove(instr.Target);
+                        }
                         if (instr.Source.Type == ILOperandType.Value)
                         {
                             if (!_types.ContainsKey(instr.Target))
@@ -123,15 +160,20 @@ namespace UnwindMC.Analysis.Data
                             _types[operand].AddIndirectionLevel();
                         }
                         instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, operand));
-                        while (variableTypes.Count <= instr.TargetId)
+                        if (currentLevel == 0)
                         {
-                            variableTypes.Add(null);
+                            Remove(variableTypes, instr.TargetId, instr.Target);
                         }
-                        variableTypes[instr.TargetId] = _types[instr.Target].Build();
-                        _types.Remove(instr.Target);
-                        _currentIds.Remove(instr.Target);
+                        else
+                        {
+                            typesToRemove[currentLevel].Add(instr.Target, instr.TargetId);
+                        }
                         break;
                     case ILInstructionType.Call:
+                        if (typesToRemove[currentLevel].ContainsKey(instr.Target))
+                        {
+                            typesToRemove[currentLevel].Remove(instr.Target);
+                        }
                         if (!_types.ContainsKey(instr.Target))
                         {
                             AssignTypeBuilder(instr.Target, null);
@@ -149,6 +191,17 @@ namespace UnwindMC.Analysis.Data
                 parameterTypes.Add(pair.Value.Build());
             }
             return new Result(parameterTypes, variableTypes);
+        }
+
+        private void Remove(List<Type> variableTypes, int id, ILOperand operand)
+        {
+            while (variableTypes.Count <= id)
+            {
+                variableTypes.Add(null);
+            }
+            variableTypes[id] = _types[operand].Build();
+            _types.Remove(operand);
+            _currentIds.Remove(operand);
         }
 
         private void AssignTypeBuilder(ILOperand target, ILOperand source)
@@ -181,16 +234,22 @@ namespace UnwindMC.Analysis.Data
             }
         }
 
-        private static IEnumerable<ILInstruction> TraverseReversed(IReadOnlyList<IBlock> blocks)
+        private static IEnumerable<Either<LoopBoundsMarker, ILInstruction>> TraverseReversed(IReadOnlyList<IBlock> blocks)
         {
             var stack = new Stack<object>(blocks); // replace with Either
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
+                var loopBoundsMarker = current as LoopBoundsMarker?;
+                if (loopBoundsMarker != null)
+                {
+                    yield return Either.Left<LoopBoundsMarker, ILInstruction>(loopBoundsMarker.Value);
+                    continue;
+                }
                 var instr = current as ILInstruction;
                 if (instr != null)
                 {
-                    yield return instr;
+                    yield return Either.Right<LoopBoundsMarker, ILInstruction>(instr);
                     continue;
                 }
                 var seq = current as SequentialBlock;
@@ -198,28 +257,32 @@ namespace UnwindMC.Analysis.Data
                 {
                     for (int i = seq.Instructions.Count - 1; i >= 0; i--)
                     {
-                        yield return seq.Instructions[i];
+                        yield return Either.Right<LoopBoundsMarker, ILInstruction>(seq.Instructions[i]);
                     }
                     continue;
                 }
                 var whileLoop = current as WhileBlock;
                 if (whileLoop != null)
                 {
+                    stack.Push(LoopBoundsMarker.Start);
                     stack.Push(whileLoop.Condition);
                     foreach (var child in whileLoop.Children)
                     {
                         stack.Push(child);
                     }
+                    stack.Push(LoopBoundsMarker.End);
                     continue;
                 }
                 var doWhileLoop = current as DoWhileBlock;
                 if (doWhileLoop != null)
                 {
+                    stack.Push(LoopBoundsMarker.Start);
                     foreach (var child in doWhileLoop.Children)
                     {
                         stack.Push(child);
                     }
                     stack.Push(doWhileLoop.Condition);
+                    stack.Push(LoopBoundsMarker.End);
                     continue;
                 }
                 var cond = current as ConditionalBlock;
