@@ -49,7 +49,69 @@ namespace UnwindMC.Tests
                   return;
                 }
                 ".StripIndent();
-            Assert.That(source.Replace("\r\n", "\n"), Is.EqualTo(expected.Replace("\r\n", "\n")));
+            AssertSourceCodeEquals(expected, source);
+        }
+
+        [Test]
+        public void TestEmissionFindMax()
+        {
+            var parameters = new Dictionary<ILOperand, Type>
+            {
+                { Stack(0), new Type(false, 1) },
+                { Stack(4), new Type(false, 0) },
+            };
+
+            var body = Scope(
+                Assign(Var("var0"), Var("arg1")),
+                Assign(Var("var1"), Val(int.MinValue)),
+                IfThenElse(NotEqual(Var("var0"), Val(0)),
+                    Scope(
+                        Assign(Var("var2"), Var("arg0")),
+                        Assign(Var("var3"), Val(int.MinValue)),
+                        DoWhile(
+                            Scope(
+                                Assign(Var("var4"), Dereference(Var("var2"))),
+                                IfThenElse(Less(Var("var3"), Var("var4")),
+                                    Scope(Assign(Var("var3"), Var("var4"))),
+                                    Scope()),
+                                Assign(Var("var2"), Add(Var("var2"), Val(1))),
+                                Assign(Var("var0"), Subtract(Var("var0"), Val(1)))),
+                            NotEqual(Var("var0"), Val(0)))),
+                    Scope()),
+                Ret());
+
+            var source = new CppEmitter("findMax", parameters, body).EmitSourceCode();
+            // TODO: resolve return type/value
+            // TODO: use proper types for integer constants
+            var expected =
+                @"void findMax(uint32_t *arg0, uint32_t arg1)
+                {
+                  auto var0 = arg1;
+                  auto var1 = -2147483648;
+                  if (var0 != 0)
+                  {
+                    auto var2 = arg0;
+                    auto var3 = -2147483648;
+                    do
+                    {
+                      auto var4 = *(var2);
+                      if (var3 < var4)
+                      {
+                        var3 = var4;
+                      }
+                      var2 = var2 + 1;
+                      var0 = var0 - 1;
+                    } while (var0 != 0);
+                  }
+                  return;
+                }
+                ".StripIndent();
+            AssertSourceCodeEquals(expected, source);
+        }
+
+        private static void AssertSourceCodeEquals(string expected, string actual)
+        {
+            Assert.That(actual.Replace("\r\n", "\n"), Is.EqualTo(expected.Replace("\r\n", "\n")));
         }
     }
 }

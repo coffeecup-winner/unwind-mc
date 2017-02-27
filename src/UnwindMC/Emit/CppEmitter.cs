@@ -86,6 +86,12 @@ namespace UnwindMC.Emit
                 Emit(sb, assignment);
                 return;
             }
+            var doWhile = statement as DoWhileNode;
+            if (doWhile != null)
+            {
+                Emit(sb, doWhile);
+                return;
+            }
             var call = statement as FunctionCallNode;
             if (call != null)
             {
@@ -134,6 +140,22 @@ namespace UnwindMC.Emit
                 .Append(Environment.NewLine);
         }
 
+        private void Emit(StringBuilder sb, DoWhileNode whileLoop)
+        {
+            sb.Append(_indent)
+                .Append("do")
+                .Append(Environment.NewLine);
+            Emit(sb, whileLoop.Body, skipNewline: true);
+            sb.Append(" ")
+                .Append("while")
+                .Append(" ")
+                .Append("(");
+            Emit(sb, whileLoop.Condition);
+            sb.Append(")")
+                .Append(";")
+                .Append(Environment.NewLine);
+        }
+
         private void Emit(StringBuilder sb, FunctionCallNode call)
         {
             sb.Append(_indent);
@@ -170,7 +192,7 @@ namespace UnwindMC.Emit
                 .Append(Environment.NewLine);
         }
 
-        private void Emit(StringBuilder sb, ScopeNode scope)
+        private void Emit(StringBuilder sb, ScopeNode scope, bool skipNewline = false)
         {
             sb.Append(_indent)
                 .Append("{")
@@ -190,8 +212,11 @@ namespace UnwindMC.Emit
             _indentLevel--;
             _indent = _indents[_indentLevel];
             sb.Append(_indent)
-                .Append("}")
-                .Append(Environment.NewLine);
+                .Append("}");
+            if (!skipNewline)
+            {
+                sb.Append(Environment.NewLine);
+            }
         }
 
         private void Emit(StringBuilder sb, WhileNode whileLoop)
