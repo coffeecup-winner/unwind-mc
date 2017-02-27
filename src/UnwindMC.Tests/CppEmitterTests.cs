@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.IL;
 using UnwindMC.Emit;
+using UnwindMC.Tests.Helpers;
 using static UnwindMC.Tests.Helpers.AstHelper;
 using static UnwindMC.Tests.Helpers.ILHelper;
 
@@ -33,21 +34,21 @@ namespace UnwindMC.Tests
 
             var source = new CppEmitter("foo", parameters, body).EmitSourceCode();
             var expected =
-@"void foo(void (**arg0)(), void (**arg1)())
-{
-  auto var0 = arg0;
-  while (var0 < arg1)
-  {
-    auto var1 = *(var0);
-    if (var1 != 0)
-    {
-      var1();
-    }
-    var0 = var0 + 1;
-  }
-  return;
-}
-";
+                @"void foo(void (**arg0)(), void (**arg1)())
+                {
+                  auto var0 = arg0;
+                  while (var0 < arg1)
+                  {
+                    auto var1 = *(var0);
+                    if (var1 != 0)
+                    {
+                      var1();
+                    }
+                    var0 = var0 + 1;
+                  }
+                  return;
+                }
+                ".StripIndent();
             Assert.That(source.Replace("\r\n", "\n"), Is.EqualTo(expected.Replace("\r\n", "\n")));
         }
     }
