@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnwindMC.Analysis.Flow;
@@ -18,6 +19,7 @@ namespace UnwindMC.Tests.Helpers
                 {
                     Assert.That(blocks[i], Is.TypeOf<SequentialBlock>());
                     var actualSeq = (SequentialBlock)blocks[i];
+                    Assert.That(actualSeq.Instructions.Count, Is.EqualTo(seq.Instructions.Count));
                     for (int j = 0; j < seq.Instructions.Count; j++)
                     {
                         ILHelper.AssertILEqual(seq.Instructions[j], actualSeq.Instructions[j]);
@@ -31,6 +33,7 @@ namespace UnwindMC.Tests.Helpers
                     var actualWhileLoop = (WhileBlock)blocks[i];
                     ILHelper.AssertILEqual(whileLoop.Condition, actualWhileLoop.Condition);
                     AssertFlowEqual(whileLoop.Children, actualWhileLoop.Children);
+                    continue;
                 }
                 var doWhileLoop = expected[i] as DoWhileBlock;
                 if (doWhileLoop != null)
@@ -39,6 +42,7 @@ namespace UnwindMC.Tests.Helpers
                     var actualDoWhileLoop = (DoWhileBlock)blocks[i];
                     ILHelper.AssertILEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
                     AssertFlowEqual(doWhileLoop.Children, actualDoWhileLoop.Children);
+                    continue;
                 }
                 var cond = expected[i] as ConditionalBlock;
                 if (cond != null)
@@ -48,7 +52,9 @@ namespace UnwindMC.Tests.Helpers
                     ILHelper.AssertILEqual(cond.Condition, actualCond.Condition);
                     AssertFlowEqual(cond.TrueBranch, actualCond.TrueBranch);
                     AssertFlowEqual(cond.FalseBranch, actualCond.FalseBranch);
+                    continue;
                 }
+                throw new NotSupportedException();
             }
         }
 

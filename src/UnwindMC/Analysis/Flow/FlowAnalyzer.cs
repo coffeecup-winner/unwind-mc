@@ -29,8 +29,10 @@ namespace UnwindMC.Analysis.Flow
                     // the instructions is the beginning of the do-while loop
                     var doWhile = doWhileLoops.Dequeue();
                     var body = instr.BFS(subGraph)
-                        .Where(i => i.Order <= doWhile.Item2);
+                        .Where(i => i.Order <= doWhile.Item2)
+                        .ToList();
                     var condition = body.Last();
+                    body.RemoveAt(body.Count - 1);
                     result.Add(seq);
                     result.Add(new DoWhileBlock(condition, Analyze(instr, body.ToSet(), doWhileLoops, conditionToIgnore: doWhile.Item2)));
                     var next = condition.DefaultChild;
