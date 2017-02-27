@@ -77,11 +77,19 @@ namespace UnwindMC.Analysis.Ast
                     scope.Add(BuildWhile(whileLoop));
                     continue;
                 }
+                var doWhileLoop = block as DoWhileBlock;
+                if (doWhileLoop != null)
+                {
+                    scope.Add(BuildDoWhile(doWhileLoop));
+                    continue;
+                }
                 var cond = block as ConditionalBlock;
                 if (cond != null)
                 {
                     scope.Add(BuildIfThenElse(cond));
+                    continue;
                 }
+                throw new NotSupportedException();
             }
             return scope;
         }
@@ -89,6 +97,11 @@ namespace UnwindMC.Analysis.Ast
         private IStatementNode BuildWhile(WhileBlock loop)
         {
             return new WhileNode(BuildExpression(loop.Condition), BuildScope(loop.Children));
+        }
+
+        private IStatementNode BuildDoWhile(DoWhileBlock doWhileLoop)
+        {
+            return new DoWhileNode(BuildScope(doWhileLoop.Children), BuildExpression(doWhileLoop.Condition));
         }
 
         private IfThenElseNode BuildIfThenElse(ConditionalBlock cond)
@@ -102,15 +115,16 @@ namespace UnwindMC.Analysis.Ast
             {
                 case ILInstructionType.Add:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
-                        new BinaryOperatorNode(Operator.Add,
-                            BuildExpression(instr.Target, instr.TargetId),
-                            BuildExpression(instr.Source, instr.SourceId)));
+                        BuildBinaryOperator(Operator.Add, instr));
                 case ILInstructionType.Assign:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId), BuildExpression(instr.Source, instr.SourceId));
                 case ILInstructionType.Call:
                     return new FunctionCallNode(BuildExpression(instr.Target, instr.TargetId));
                 case ILInstructionType.Return:
                     return new ReturnNode();
+                case ILInstructionType.Subtract:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.Subtract, instr));
                 default: throw new ArgumentException("Instruction is not a valid statement");
             }
         }
@@ -120,9 +134,7 @@ namespace UnwindMC.Analysis.Ast
             switch (instr.Type)
             {
                 case ILInstructionType.Compare:
-                    return new BinaryOperatorNode(GetBinaryOperator(instr.Condition),
-                        BuildExpression(instr.Target, instr.TargetId),
-                        BuildExpression(instr.Source, instr.SourceId));
+                    return BuildBinaryOperator(GetBinaryOperator(instr.Condition), instr);
                 default: throw new ArgumentException("Instruction is not a valid statement");
             }
         }
@@ -152,6 +164,13 @@ namespace UnwindMC.Analysis.Ast
                 case ILBranchType.Next: throw new InvalidOperationException("Next is not a valid operator");
                 default: throw new InvalidOperationException();
             }
+        }
+
+        private BinaryOperatorNode BuildBinaryOperator(Operator op, ILInstruction instr)
+        {
+            return new BinaryOperatorNode(op,
+                BuildExpression(instr.Target, instr.TargetId),
+                BuildExpression(instr.Source, instr.SourceId));
         }
 
         private VarNode BuildVar(ILOperand op, int id)

@@ -113,8 +113,7 @@ namespace UnwindMC.Tests
                                 Blocks(Sequential())),
                             Sequential(
                                 add0,
-                                sub0,
-                                cmp2))),
+                                sub0))),
                     Blocks(Sequential())),
                 Sequential(ret));
 

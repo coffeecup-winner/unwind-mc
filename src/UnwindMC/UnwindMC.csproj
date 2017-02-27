@@ -67,6 +67,7 @@
     <Compile Include="Analysis\Ast\VarNode.cs" />
     <Compile Include="Analysis\Ast\ScopeNode.cs" />
     <Compile Include="Analysis\Ast\IStatementNode.cs" />
+    <Compile Include="Analysis\Ast\DoWhileNode.cs" />
     <Compile Include="Analysis\Ast\WhileNode.cs" />
     <Compile Include="Analysis\Data\Type.cs" />
     <Compile Include="Analysis\Data\TypeBuilder.cs" />

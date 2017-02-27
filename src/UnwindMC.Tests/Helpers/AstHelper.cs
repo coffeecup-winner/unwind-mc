@@ -36,6 +36,15 @@ namespace UnwindMC.Tests.Helpers
                 AssertAstEqual(dereference.Pointer, actualDereference.Pointer);
                 return;
             }
+            var doWhileLoop = expected as DoWhileNode;
+            if (doWhileLoop != null)
+            {
+                Assert.That(actual, Is.InstanceOf<DoWhileNode>());
+                var actualDoWhileLoop = (DoWhileNode)actual;
+                AssertAstEqual(doWhileLoop.Body, actualDoWhileLoop.Body);
+                AssertAstEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
+                return;
+            }
             var call = expected as FunctionCallNode;
             if (call != null)
             {
@@ -120,6 +129,11 @@ namespace UnwindMC.Tests.Helpers
             return new DereferenceNode(pointer);
         }
 
+        public static DoWhileNode DoWhile(ScopeNode body, IExpressionNode condition)
+        {
+            return new DoWhileNode(body, condition);
+        }
+
         public static IfThenElseNode IfThenElse(IExpressionNode condition, ScopeNode trueBranch, ScopeNode falseBranch)
         {
             return new IfThenElseNode(condition, trueBranch, falseBranch);
@@ -143,6 +157,11 @@ namespace UnwindMC.Tests.Helpers
         public static ScopeNode Scope(params IStatementNode[] statements)
         {
             return new ScopeNode(statements);
+        }
+
+        public static BinaryOperatorNode Subtract(IExpressionNode left, IExpressionNode right)
+        {
+            return new BinaryOperatorNode(Operator.Subtract, left, right);
         }
 
         public static ValueNode Val(int value)
