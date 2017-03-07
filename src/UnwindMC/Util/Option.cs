@@ -21,17 +21,7 @@ namespace UnwindMC.Util
         }
 
         public bool HasValue => _hasValue;
-        public T Value
-        {
-            get
-            {
-                if (!_hasValue)
-                {
-                    throw new InvalidOperationException("Trying to get value from None");
-                }
-                return _value;
-            }
-        }
+        public T Value => _hasValue ? _value : throw new InvalidOperationException("Trying to get value from None");
 
         public Option<U> Map<U>(Func<T, U> map) =>
             _hasValue ? Option.Some(map(_value)) : Option<U>.None;
@@ -41,11 +31,10 @@ namespace UnwindMC.Util
 
         public override bool Equals(object obj)
         {
-            if (!(obj is Option<T>))
+            if (!(obj is Option<T> that))
             {
                 return false;
             }
-            var that = (Option<T>)obj;
             return (!_hasValue && !that._hasValue) || (_value.Equals(that._value));
         }
 

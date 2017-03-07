@@ -215,8 +215,7 @@ namespace UnwindMC.Analysis.IL
 
         private void AddOrUpdateStackValue(int offset)
         {
-            object value;
-            if (!_stackObjects.TryGetValue(offset, out value))
+            if (!_stackObjects.TryGetValue(offset, out object value))
             {
                 _stackObjects.Add(offset, null);
             }

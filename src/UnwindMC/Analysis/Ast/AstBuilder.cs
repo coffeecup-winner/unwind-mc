@@ -17,7 +17,6 @@ namespace UnwindMC.Analysis.Ast
         private Dictionary<int, string> _parameterNames;
         private Dictionary<string, Data.Type> _types;
         
-
         public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyList<Data.Type> parameterTypes, IReadOnlyList<Data.Type> variableTypes)
         {
             _blocks = blocks;
@@ -62,34 +61,25 @@ namespace UnwindMC.Analysis.Ast
             var scope = new ScopeNode();
             foreach (var block in blocks)
             {
-                var seq = block as SequentialBlock;
-                if (seq != null)
+                switch (block)
                 {
-                    foreach (var instr in seq.Instructions)
-                    {
-                        scope.Add(BuildStatement(instr));
-                    }
-                    continue;
+                    case SequentialBlock seq:
+                        foreach (var instr in seq.Instructions)
+                        {
+                            scope.Add(BuildStatement(instr));
+                        }
+                        break;
+                    case WhileBlock whileLoop:
+                        scope.Add(BuildWhile(whileLoop));
+                        break;
+                    case DoWhileBlock doWhileLoop:
+                        scope.Add(BuildDoWhile(doWhileLoop));
+                        break;
+                    case ConditionalBlock cond:
+                        scope.Add(BuildIfThenElse(cond));
+                        break;
+                    default: throw new NotSupportedException();
                 }
-                var whileLoop = block as WhileBlock;
-                if (whileLoop != null)
-                {
-                    scope.Add(BuildWhile(whileLoop));
-                    continue;
-                }
-                var doWhileLoop = block as DoWhileBlock;
-                if (doWhileLoop != null)
-                {
-                    scope.Add(BuildDoWhile(doWhileLoop));
-                    continue;
-                }
-                var cond = block as ConditionalBlock;
-                if (cond != null)
-                {
-                    scope.Add(BuildIfThenElse(cond));
-                    continue;
-                }
-                throw new NotSupportedException();
             }
             return scope;
         }
@@ -188,8 +178,7 @@ namespace UnwindMC.Analysis.Ast
             {
                 throw new InvalidOperationException("Invalid id");
             }
-            string name;
-            if (!_variableNames.TryGetValue(id, out name))
+            if (!_variableNames.TryGetValue(id, out string name))
             {
                 name = "var" + _nextVariableNameIdx++;
                 _variableNames[id] = name;

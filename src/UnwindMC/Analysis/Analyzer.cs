@@ -179,8 +179,7 @@ namespace UnwindMC.Analysis
                 return;
             }
             var address = instr.Operands[0].LValue.udword;
-            JumpTable table;
-            if (!_jumpTables.TryGetValue(address, out table))
+            if (!_jumpTables.TryGetValue(address, out var table))
             {
                 table = new JumpTable(instr.Offset, address);
                 ResolveJumpTable(table);

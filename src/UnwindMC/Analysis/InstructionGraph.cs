@@ -106,8 +106,7 @@ namespace UnwindMC.Analysis
 
         public ExtraData GetExtraData(ulong address)
         {
-            ExtraData data;
-            if (!_extraData.TryGetValue(address, out data))
+            if (!_extraData.TryGetValue(address, out var data))
             {
                 data = new ExtraData();
                 _extraData.Add(address, data);
@@ -119,8 +118,7 @@ namespace UnwindMC.Analysis
         {
             var link = new Link(offset, targetOffset, type);
 
-            List<Link> links;
-            if (!_instructionLinks.TryGetValue(offset, out links))
+            if (!_instructionLinks.TryGetValue(offset, out var links))
             {
                 links = new List<Link>();
                 _instructionLinks[offset] = links;
@@ -167,9 +165,8 @@ namespace UnwindMC.Analysis
         private void MarkDataBytes(ulong address, int length, string dataDisplayText)
         {
             int size;
-            Instruction instr;
             // check if there is an instruction at address, otherwise split an existing one
-            if (_instructions.TryGetValue(address, out instr))
+            if (_instructions.TryGetValue(address, out var instr))
             {
                 size = instr.Length;
             }
@@ -237,8 +234,7 @@ namespace UnwindMC.Analysis
             int disassembleLength = Math.Min(maxDisassembleLength, (int)(_firstAddressAfterCode - address));
             for (int j = 0; j < disassembleLength; j++)
             {
-                ExtraData data;
-                if (_extraData.TryGetValue(address + (uint)j, out data) && data.IsProtected)
+                if (_extraData.TryGetValue(address + (uint)j, out var data) && data.IsProtected)
                 {
                     disassembleLength = j;
                 }
@@ -250,8 +246,7 @@ namespace UnwindMC.Analysis
             for (i = 0; i < instructions.Count - 1; i++)
             {
                 var newInstr = instructions[i];
-                Instruction oldInstr;
-                if (_instructions.TryGetValue(newInstr.Offset, out oldInstr) && oldInstr.Length == newInstr.Length)
+                if (_instructions.TryGetValue(newInstr.Offset, out var oldInstr) && oldInstr.Length == newInstr.Length)
                 {
                     if (!fixedInstructions)
                     {
@@ -291,21 +286,20 @@ namespace UnwindMC.Analysis
         private bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process, bool reverse)
         {
             var visited = new HashSet<ulong>();
-            var stack = new Stack<Tuple<ulong, Link>>();
-            stack.Push(Tuple.Create(address, new Link(ulong.MaxValue, address, LinkType.Call)));
+            var stack = new Stack<(ulong address, Link link)>();
+            stack.Push((address, new Link(ulong.MaxValue, address, LinkType.Call)));
             visited.Add(address);
             var visitedAllLinks = true;
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
-                var instr = _instructions[current.Item1];
-                if (!process(instr, current.Item2))
+                var instr = _instructions[current.address];
+                if (!process(instr, current.link))
                 {
                     continue;
                 }
 
-                List<Link> links;
-                if (!(reverse ? _reverseLinks : _instructionLinks).TryGetValue(current.Item1, out links))
+                if (!(reverse ? _reverseLinks : _instructionLinks).TryGetValue(current.address, out var links))
                 {
                     Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
                     visitedAllLinks = false;
@@ -327,7 +321,7 @@ namespace UnwindMC.Analysis
                     }
                     if (!visited.Contains(linkAddress))
                     {
-                        stack.Push(Tuple.Create(linkAddress, link));
+                        stack.Push((linkAddress, link));
                         visited.Add(linkAddress);
                     }
                 }

@@ -36,22 +36,16 @@ namespace UnwindMC.Analysis
                 {
                     return null;
                 }
-                var seq = _blocks[0] as SequentialBlock;
-                if (seq != null)
+                switch (_blocks[0])
                 {
-                    return seq.Instructions[0];
+                    case SequentialBlock seq:
+                        return seq.Instructions[0];
+                    case WhileBlock loop:
+                        return loop.Condition;
+                    case ConditionalBlock cond:
+                        return cond.Condition;
+                    default: throw new InvalidOperationException("Unknown block type");
                 }
-                var loop = _blocks[0] as WhileBlock;
-                if (loop != null)
-                {
-                    return loop.Condition;
-                }
-                var cond = _blocks[0] as ConditionalBlock;
-                if (cond != null)
-                {
-                    return cond.Condition;
-                }
-                throw new InvalidOperationException("Unknown block type");
             }
         }
 

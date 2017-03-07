@@ -10,7 +10,7 @@ namespace UnwindMC.Analysis.Flow
     {
         public static List<IBlock> Analyze(ILInstruction il)
         {
-            var doWhileLoops = new Queue<Tuple<int, int>>();
+            var doWhileLoops = new Queue<(int, int)>();
             foreach (var loop in FindDoWhileLoops(il))
             {
                 doWhileLoops.Enqueue(loop);
@@ -18,23 +18,23 @@ namespace UnwindMC.Analysis.Flow
             return Analyze(il, null, doWhileLoops);
         }
 
-        private static List<IBlock> Analyze(ILInstruction il, ISet<ILInstruction> subGraph, Queue<Tuple<int, int>> doWhileLoops, int conditionToIgnore = -1)
+        private static List<IBlock> Analyze(ILInstruction il, ISet<ILInstruction> subGraph, Queue<(int childOrder, int order)> doWhileLoops, int conditionToIgnore = -1)
         {
             var result = new List<IBlock>();
             SequentialBlock seq = new SequentialBlock();
             foreach (var instr in il.BFS(subGraph))
             {
-                if (doWhileLoops.Count > 0 && doWhileLoops.Peek().Item1 == instr.Order)
+                if (doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder == instr.Order)
                 {
                     // the instructions is the beginning of the do-while loop
-                    var doWhile = doWhileLoops.Dequeue();
+                    var order = doWhileLoops.Dequeue().order;
                     var body = instr.BFS(subGraph)
-                        .Where(i => i.Order <= doWhile.Item2)
+                        .Where(i => i.Order <= order)
                         .ToList();
                     var condition = body.Last();
                     body.RemoveAt(body.Count - 1);
                     result.Add(seq);
-                    result.Add(new DoWhileBlock(condition, Analyze(instr, body.ToSet(), doWhileLoops, conditionToIgnore: doWhile.Item2)));
+                    result.Add(new DoWhileBlock(condition, Analyze(instr, body.ToSet(), doWhileLoops, conditionToIgnore: order)));
                     var next = condition.DefaultChild;
                     if (subGraph.Contains(next))
                     {
@@ -96,19 +96,19 @@ namespace UnwindMC.Analysis.Flow
             return result;
         }
 
-        public static IReadOnlyList<Tuple<int, int>> FindDoWhileLoops(ILInstruction il)
+        public static IReadOnlyList<(int, int)> FindDoWhileLoops(ILInstruction il)
         {
-            var result = new List<Tuple<int, int>>();
+            var result = new List<(int childOrder, int order)>();
             foreach (var instr in il.BFS())
             {
                 if (instr.ConditionalChild != null && instr.ConditionalChild.Order < instr.Order)
                 {
-                    result.Add(Tuple.Create(instr.ConditionalChild.Order, instr.Order));
+                    result.Add((instr.ConditionalChild.Order, instr.Order));
                 }
             }
             return result
-                .OrderBy(c => c.Item1)
-                .ThenByDescending(c => c.Item2)
+                .OrderBy(c => c.childOrder)
+                .ThenByDescending(c => c.order)
                 .ToList();
         }
 

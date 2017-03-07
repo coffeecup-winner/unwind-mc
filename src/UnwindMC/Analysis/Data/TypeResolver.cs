@@ -239,67 +239,51 @@ namespace UnwindMC.Analysis.Data
             var stack = new Stack<object>(blocks); // replace with Either
             while (stack.Count > 0)
             {
-                var current = stack.Pop();
-                var loopBoundsMarker = current as LoopBoundsMarker?;
-                if (loopBoundsMarker != null)
+                switch (stack.Pop())
                 {
-                    yield return Either.Left<LoopBoundsMarker, ILInstruction>(loopBoundsMarker.Value);
-                    continue;
+                    case LoopBoundsMarker loopBoundsMarker:
+                        yield return Either.Left<LoopBoundsMarker, ILInstruction>(loopBoundsMarker);
+                        break;
+                    case ILInstruction instr:
+                        yield return Either.Right<LoopBoundsMarker, ILInstruction>(instr);
+                        break;
+                    case SequentialBlock seq:
+                        for (int i = seq.Instructions.Count - 1; i >= 0; i--)
+                        {
+                            yield return Either.Right<LoopBoundsMarker, ILInstruction>(seq.Instructions[i]);
+                        }
+                        break;
+                    case WhileBlock whileLoop:
+                        stack.Push(LoopBoundsMarker.Start);
+                        stack.Push(whileLoop.Condition);
+                        foreach (var child in whileLoop.Children)
+                        {
+                            stack.Push(child);
+                        }
+                        stack.Push(LoopBoundsMarker.End);
+                        break;
+                    case DoWhileBlock doWhileLoop:
+                        stack.Push(LoopBoundsMarker.Start);
+                        foreach (var child in doWhileLoop.Children)
+                        {
+                            stack.Push(child);
+                        }
+                        stack.Push(doWhileLoop.Condition);
+                        stack.Push(LoopBoundsMarker.End);
+                        break;
+                    case ConditionalBlock cond:
+                        stack.Push(cond.Condition);
+                        foreach (var child in cond.TrueBranch)
+                        {
+                            stack.Push(child);
+                        }
+                        foreach (var child in cond.FalseBranch)
+                        {
+                            stack.Push(child);
+                        }
+                        break;
+                    default: throw new InvalidOperationException("Unknown block type");
                 }
-                var instr = current as ILInstruction;
-                if (instr != null)
-                {
-                    yield return Either.Right<LoopBoundsMarker, ILInstruction>(instr);
-                    continue;
-                }
-                var seq = current as SequentialBlock;
-                if (seq != null)
-                {
-                    for (int i = seq.Instructions.Count - 1; i >= 0; i--)
-                    {
-                        yield return Either.Right<LoopBoundsMarker, ILInstruction>(seq.Instructions[i]);
-                    }
-                    continue;
-                }
-                var whileLoop = current as WhileBlock;
-                if (whileLoop != null)
-                {
-                    stack.Push(LoopBoundsMarker.Start);
-                    stack.Push(whileLoop.Condition);
-                    foreach (var child in whileLoop.Children)
-                    {
-                        stack.Push(child);
-                    }
-                    stack.Push(LoopBoundsMarker.End);
-                    continue;
-                }
-                var doWhileLoop = current as DoWhileBlock;
-                if (doWhileLoop != null)
-                {
-                    stack.Push(LoopBoundsMarker.Start);
-                    foreach (var child in doWhileLoop.Children)
-                    {
-                        stack.Push(child);
-                    }
-                    stack.Push(doWhileLoop.Condition);
-                    stack.Push(LoopBoundsMarker.End);
-                    continue;
-                }
-                var cond = current as ConditionalBlock;
-                if (cond != null)
-                {
-                    stack.Push(cond.Condition);
-                    foreach (var child in cond.TrueBranch)
-                    {
-                        stack.Push(child);
-                    }
-                    foreach (var child in cond.FalseBranch)
-                    {
-                        stack.Push(child);
-                    }
-                    continue;
-                }
-                throw new InvalidOperationException("Unknown block type");
             }
         }
     }

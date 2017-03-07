@@ -40,8 +40,7 @@ namespace UnwindMC.Analysis.IL
 
         public override bool Equals(object obj)
         {
-            var that = obj as ILOperand;
-            if (that == null)
+            if (!(obj is ILOperand that))
             {
                 return false;
             }

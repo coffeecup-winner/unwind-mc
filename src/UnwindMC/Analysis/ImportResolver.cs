@@ -29,8 +29,7 @@ namespace UnwindMC.Analysis
         {
             uint entryAddress = _importAddressTableBytes.Array.ReadUInt32((int)(address - _imageBase));
             ushort hint = _importBytes.Array.ReadUInt16((int)entryAddress);
-            string name;
-            if (!_imports.TryGetValue(hint, out name))
+            if (!_imports.TryGetValue(hint, out string name))
             {
                 name = _importBytes.Array.ReadZString((int)entryAddress + 2);
                 _imports[hint] = name;

@@ -9,104 +9,74 @@ namespace UnwindMC.Tests.Helpers
     {
         public static void AssertAstEqual(INode expected, INode actual)
         {
-            var assignment = expected as AssignmentNode;
-            if (assignment != null)
+            switch (expected)
             {
-                Assert.That(actual, Is.InstanceOf<AssignmentNode>());
-                var actualAssignment = (AssignmentNode)actual;
-                AssertAstEqual(assignment.Var, actualAssignment.Var);
-                AssertAstEqual(assignment.Expression, actualAssignment.Expression);
-                return;
+                case AssignmentNode assignment:
+                    Assert.That(actual, Is.InstanceOf<AssignmentNode>());
+                    var actualAssignment = (AssignmentNode)actual;
+                    AssertAstEqual(assignment.Var, actualAssignment.Var);
+                    AssertAstEqual(assignment.Expression, actualAssignment.Expression);
+                    return;
+                case BinaryOperatorNode binary:
+                    Assert.That(actual, Is.InstanceOf<BinaryOperatorNode>());
+                    var actualBinary = (BinaryOperatorNode)actual;
+                    Assert.That(actualBinary.Operator, Is.EqualTo(binary.Operator));
+                    AssertAstEqual(binary.Left, actualBinary.Left);
+                    AssertAstEqual(binary.Right, actualBinary.Right);
+                    return;
+                case DereferenceNode dereference:
+                    Assert.That(actual, Is.InstanceOf<DereferenceNode>());
+                    var actualDereference = (DereferenceNode)actual;
+                    AssertAstEqual(dereference.Pointer, actualDereference.Pointer);
+                    return;
+                case DoWhileNode doWhileLoop:
+                    Assert.That(actual, Is.InstanceOf<DoWhileNode>());
+                    var actualDoWhileLoop = (DoWhileNode)actual;
+                    AssertAstEqual(doWhileLoop.Body, actualDoWhileLoop.Body);
+                    AssertAstEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
+                    return;
+                case FunctionCallNode call:
+                    Assert.That(actual, Is.InstanceOf<FunctionCallNode>());
+                    var actualCall = (FunctionCallNode)actual;
+                    AssertAstEqual(call.Function, actualCall.Function);
+                    return;
+                case IfThenElseNode ifThenElse:
+                    Assert.That(actual, Is.InstanceOf<IfThenElseNode>());
+                    var actualIfThenElse = (IfThenElseNode)actual;
+                    AssertAstEqual(ifThenElse.Condition, actualIfThenElse.Condition);
+                    AssertAstEqual(ifThenElse.TrueBranch, actualIfThenElse.TrueBranch);
+                    AssertAstEqual(ifThenElse.FalseBranch, actualIfThenElse.FalseBranch);
+                    return;
+                case ReturnNode ret:
+                    Assert.That(actual, Is.InstanceOf<ReturnNode>());
+                    return;
+                case ScopeNode scope:
+                    Assert.That(actual, Is.InstanceOf<ScopeNode>());
+                    var actualScope = (ScopeNode)actual;
+                    Assert.That(actualScope.ChildrenCount, Is.EqualTo(scope.ChildrenCount));
+                    foreach (var pair in actualScope.Zip(scope, (a, b) => (a, b)))
+                    {
+                        AssertAstEqual(pair.Item2, pair.Item1);
+                    }
+                    return;
+                case ValueNode value:
+                    Assert.That(actual, Is.InstanceOf<ValueNode>());
+                    var actualValue = (ValueNode)actual;
+                    Assert.That(actualValue.Value, Is.EqualTo(value.Value));
+                    return;
+                case VarNode var:
+                    Assert.That(actual, Is.InstanceOf<VarNode>());
+                    var actualVar = (VarNode)actual;
+                    Assert.That(actualVar.Name, Is.EqualTo(var.Name));
+                    return;
+                case WhileNode whileLoop:
+                    Assert.That(actual, Is.InstanceOf<WhileNode>());
+                    var actualWhileLoop = (WhileNode)actual;
+                    AssertAstEqual(whileLoop.Condition, actualWhileLoop.Condition);
+                    AssertAstEqual(whileLoop.Body, actualWhileLoop.Body);
+                    return;
+                default: throw new NotSupportedException();
             }
-            var binary = expected as BinaryOperatorNode;
-            if (binary != null)
-            {
-                Assert.That(actual, Is.InstanceOf<BinaryOperatorNode>());
-                var actualBinary = (BinaryOperatorNode)actual;
-                Assert.That(actualBinary.Operator, Is.EqualTo(binary.Operator));
-                AssertAstEqual(binary.Left, actualBinary.Left);
-                AssertAstEqual(binary.Right, actualBinary.Right);
-                return;
-            }
-            var dereference = expected as DereferenceNode;
-            if (dereference != null)
-            {
-                Assert.That(actual, Is.InstanceOf<DereferenceNode>());
-                var actualDereference = (DereferenceNode)actual;
-                AssertAstEqual(dereference.Pointer, actualDereference.Pointer);
-                return;
-            }
-            var doWhileLoop = expected as DoWhileNode;
-            if (doWhileLoop != null)
-            {
-                Assert.That(actual, Is.InstanceOf<DoWhileNode>());
-                var actualDoWhileLoop = (DoWhileNode)actual;
-                AssertAstEqual(doWhileLoop.Body, actualDoWhileLoop.Body);
-                AssertAstEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
-                return;
-            }
-            var call = expected as FunctionCallNode;
-            if (call != null)
-            {
-                Assert.That(actual, Is.InstanceOf<FunctionCallNode>());
-                var actualCall = (FunctionCallNode)actual;
-                AssertAstEqual(call.Function, actualCall.Function);
-                return;
-            }
-            var ifThenElse = expected as IfThenElseNode;
-            if (ifThenElse != null)
-            {
-                Assert.That(actual, Is.InstanceOf<IfThenElseNode>());
-                var actualIfThenElse = (IfThenElseNode)actual;
-                AssertAstEqual(ifThenElse.Condition, actualIfThenElse.Condition);
-                AssertAstEqual(ifThenElse.TrueBranch, actualIfThenElse.TrueBranch);
-                AssertAstEqual(ifThenElse.FalseBranch, actualIfThenElse.FalseBranch);
-                return;
-            }
-            var ret = expected as ReturnNode;
-            if (ret != null)
-            {
-                Assert.That(actual, Is.InstanceOf<ReturnNode>());
-                return;
-            }
-            var scope = expected as ScopeNode;
-            if (scope != null)
-            {
-                Assert.That(actual, Is.InstanceOf<ScopeNode>());
-                var actualScope = (ScopeNode)actual;
-                Assert.That(actualScope.ChildrenCount, Is.EqualTo(scope.ChildrenCount));
-                foreach (var pair in actualScope.Zip(scope, (a, b) => Tuple.Create(a, b)))
-                {
-                    AssertAstEqual(pair.Item2, pair.Item1);
-                }
-                return;
-            }
-            var value = expected as ValueNode;
-            if (value != null)
-            {
-                Assert.That(actual, Is.InstanceOf<ValueNode>());
-                var actualValue = (ValueNode)actual;
-                Assert.That(actualValue.Value, Is.EqualTo(value.Value));
-                return;
-            }
-            var var = expected as VarNode;
-            if (var != null)
-            {
-                Assert.That(actual, Is.InstanceOf<VarNode>());
-                var actualVar = (VarNode)actual;
-                Assert.That(actualVar.Name, Is.EqualTo(var.Name));
-                return;
-            }
-            var whileLoop = expected as WhileNode;
-            if (whileLoop != null)
-            {
-                Assert.That(actual, Is.InstanceOf<WhileNode>());
-                var actualWhileLoop = (WhileNode)actual;
-                AssertAstEqual(whileLoop.Condition, actualWhileLoop.Condition);
-                AssertAstEqual(whileLoop.Body, actualWhileLoop.Body);
-                return;
-            }
-            throw new NotSupportedException();
         }
 
         public static BinaryOperatorNode Add(IExpressionNode left, IExpressionNode right)

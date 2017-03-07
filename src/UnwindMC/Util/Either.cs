@@ -37,21 +37,7 @@ namespace UnwindMC.Util
 
         public bool IsLeft => _isLeft;
         public bool IsRight => !_isLeft;
-        public TLeft Left
-        {
-            get
-            {
-                if (!_isLeft) throw new InvalidOperationException();
-                return _left;
-            }
-        }
-        public TRight Right
-        {
-            get
-            {
-                if (_isLeft) throw new InvalidOperationException();
-                return _right;
-            }
-        }
+        public TLeft Left => _isLeft ? _left : throw new InvalidOperationException();
+        public TRight Right => !_isLeft ? _right : throw new InvalidOperationException();
     }
 }

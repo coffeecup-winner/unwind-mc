@@ -1,6 +1,5 @@
 ﻿using NDis86;
 using NUnit.Framework;
-using System;
 using System.Collections.Generic;
 using UnwindMC.Analysis.IL;
 
@@ -11,14 +10,12 @@ namespace UnwindMC.Tests.Helpers
         public static void AssertILEqual(ILInstruction expected, ILInstruction actual)
         {
             var verified = new HashSet<ILInstruction>();
-            var queue = new Queue<Tuple<ILInstruction, ILInstruction>>();
-            queue.Enqueue(Tuple.Create(expected, actual));
+            var queue = new Queue<(ILInstruction, ILInstruction)>();
+            queue.Enqueue((expected, actual));
             verified.Add(expected);
             while (queue.Count > 0)
             {
-                var pair = queue.Dequeue();
-                var expectedInstr = pair.Item1;
-                var actualInstr = pair.Item2;
+                var (expectedInstr, actualInstr) = queue.Dequeue();
                 Assert.That(actualInstr.Type, Is.EqualTo(expectedInstr.Type));
                 Assert.That(actualInstr.Branch, Is.EqualTo(expectedInstr.Branch));
                 Assert.That(actualInstr.Source, Is.EqualTo(expectedInstr.Source));
@@ -29,11 +26,11 @@ namespace UnwindMC.Tests.Helpers
                 Assert.That(actualInstr.Order, Is.EqualTo(expectedInstr.Order));
                 if (expectedInstr.DefaultChild != null && verified.Add(expectedInstr.DefaultChild))
                 {
-                    queue.Enqueue(Tuple.Create(expectedInstr.DefaultChild, actualInstr.DefaultChild));
+                    queue.Enqueue((expectedInstr.DefaultChild, actualInstr.DefaultChild));
                 }
                 if (expectedInstr.ConditionalChild != null && verified.Add(expectedInstr.ConditionalChild))
                 {
-                    queue.Enqueue(Tuple.Create(expectedInstr.ConditionalChild, actualInstr.ConditionalChild));
+                    queue.Enqueue((expectedInstr.ConditionalChild, actualInstr.ConditionalChild));
                 }
             }
         }

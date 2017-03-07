@@ -13,8 +13,7 @@
 
         public override bool Equals(object obj)
         {
-            var that = obj as ILBranch;
-            if (that == null)
+            if (!(obj is ILBranch that))
             {
                 return false;
             }

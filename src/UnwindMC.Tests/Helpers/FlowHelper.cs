@@ -14,47 +14,38 @@ namespace UnwindMC.Tests.Helpers
             Assert.That(blocks.Count, Is.EqualTo(blocks.Count));
             for (int i = 0; i < expected.Count; i++)
             {
-                var seq = expected[i] as SequentialBlock;
-                if (seq != null)
+                switch (expected[i])
                 {
-                    Assert.That(blocks[i], Is.TypeOf<SequentialBlock>());
-                    var actualSeq = (SequentialBlock)blocks[i];
-                    Assert.That(actualSeq.Instructions.Count, Is.EqualTo(seq.Instructions.Count));
-                    for (int j = 0; j < seq.Instructions.Count; j++)
-                    {
-                        ILHelper.AssertILEqual(seq.Instructions[j], actualSeq.Instructions[j]);
-                    }
-                    continue;
+                    case SequentialBlock seq:
+                        Assert.That(blocks[i], Is.TypeOf<SequentialBlock>());
+                        var actualSeq = (SequentialBlock)blocks[i];
+                        Assert.That(actualSeq.Instructions.Count, Is.EqualTo(seq.Instructions.Count));
+                        for (int j = 0; j < seq.Instructions.Count; j++)
+                        {
+                            ILHelper.AssertILEqual(seq.Instructions[j], actualSeq.Instructions[j]);
+                        }
+                        break;
+                    case WhileBlock whileLoop:
+                        Assert.That(blocks[i], Is.TypeOf<WhileBlock>());
+                        var actualWhileLoop = (WhileBlock)blocks[i];
+                        ILHelper.AssertILEqual(whileLoop.Condition, actualWhileLoop.Condition);
+                        AssertFlowEqual(whileLoop.Children, actualWhileLoop.Children);
+                        break;
+                    case DoWhileBlock doWhileLoop:
+                        Assert.That(blocks[i], Is.TypeOf<DoWhileBlock>());
+                        var actualDoWhileLoop = (DoWhileBlock)blocks[i];
+                        ILHelper.AssertILEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
+                        AssertFlowEqual(doWhileLoop.Children, actualDoWhileLoop.Children);
+                        break;
+                    case ConditionalBlock cond:
+                        Assert.That(blocks[i], Is.TypeOf<ConditionalBlock>());
+                        var actualCond = (ConditionalBlock)blocks[i];
+                        ILHelper.AssertILEqual(cond.Condition, actualCond.Condition);
+                        AssertFlowEqual(cond.TrueBranch, actualCond.TrueBranch);
+                        AssertFlowEqual(cond.FalseBranch, actualCond.FalseBranch);
+                        break;
+                    default: throw new NotSupportedException();
                 }
-                var whileLoop = expected[i] as WhileBlock;
-                if (whileLoop != null)
-                {
-                    Assert.That(blocks[i], Is.TypeOf<WhileBlock>());
-                    var actualWhileLoop = (WhileBlock)blocks[i];
-                    ILHelper.AssertILEqual(whileLoop.Condition, actualWhileLoop.Condition);
-                    AssertFlowEqual(whileLoop.Children, actualWhileLoop.Children);
-                    continue;
-                }
-                var doWhileLoop = expected[i] as DoWhileBlock;
-                if (doWhileLoop != null)
-                {
-                    Assert.That(blocks[i], Is.TypeOf<DoWhileBlock>());
-                    var actualDoWhileLoop = (DoWhileBlock)blocks[i];
-                    ILHelper.AssertILEqual(doWhileLoop.Condition, actualDoWhileLoop.Condition);
-                    AssertFlowEqual(doWhileLoop.Children, actualDoWhileLoop.Children);
-                    continue;
-                }
-                var cond = expected[i] as ConditionalBlock;
-                if (cond != null)
-                {
-                    Assert.That(blocks[i], Is.TypeOf<ConditionalBlock>());
-                    var actualCond = (ConditionalBlock)blocks[i];
-                    ILHelper.AssertILEqual(cond.Condition, actualCond.Condition);
-                    AssertFlowEqual(cond.TrueBranch, actualCond.TrueBranch);
-                    AssertFlowEqual(cond.FalseBranch, actualCond.FalseBranch);
-                    continue;
-                }
-                throw new NotSupportedException();
             }
         }
 

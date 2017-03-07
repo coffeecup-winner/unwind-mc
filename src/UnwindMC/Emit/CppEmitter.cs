@@ -80,49 +80,31 @@ namespace UnwindMC.Emit
 
         private void Emit(StringBuilder sb, IStatementNode statement)
         {
-            var assignment = statement as AssignmentNode;
-            if (assignment != null)
+            switch (statement)
             {
-                Emit(sb, assignment);
-                return;
+                case AssignmentNode assignment:
+                    Emit(sb, assignment);
+                    return;
+                case DoWhileNode doWhile:
+                    Emit(sb, doWhile);
+                    return;
+                case FunctionCallNode call:
+                    Emit(sb, call);
+                    return;
+                case IfThenElseNode ifThenElse:
+                    Emit(sb, ifThenElse);
+                    return;
+                case ReturnNode ret:
+                    Emit(sb, ret);
+                    return;
+                case ScopeNode scope:
+                    Emit(sb, scope);
+                    return;
+                case WhileNode whileLoop:
+                    Emit(sb, whileLoop);
+                    return;
+                default: throw new NotSupportedException();
             }
-            var doWhile = statement as DoWhileNode;
-            if (doWhile != null)
-            {
-                Emit(sb, doWhile);
-                return;
-            }
-            var call = statement as FunctionCallNode;
-            if (call != null)
-            {
-                Emit(sb, call);
-                return;
-            }
-            var ifThenElse = statement as IfThenElseNode;
-            if (ifThenElse != null)
-            {
-                Emit(sb, ifThenElse);
-                return;
-            }
-            var ret = statement as ReturnNode;
-            if (ret != null)
-            {
-                Emit(sb, ret);
-                return;
-            }
-            var scope = statement as ScopeNode;
-            if (scope != null)
-            {
-                Emit(sb, scope);
-                return;
-            }
-            var whileLoop = statement as WhileNode;
-            if (whileLoop != null)
-            {
-                Emit(sb, whileLoop);
-                return;
-            }
-            throw new NotSupportedException();
         }
 
         private void Emit(StringBuilder sb, AssignmentNode assignment)
@@ -233,31 +215,22 @@ namespace UnwindMC.Emit
 
         private void Emit(StringBuilder sb, IExpressionNode expression)
         {
-            var binary = expression as BinaryOperatorNode;
-            if (binary != null)
+            switch (expression)
             {
-                Emit(sb, binary);
-                return;
+                case BinaryOperatorNode binary:
+                    Emit(sb, binary);
+                    return;
+                case DereferenceNode dereference:
+                    Emit(sb, dereference);
+                    return;
+                case ValueNode value:
+                    Emit(sb, value);
+                    return;
+                case VarNode var:
+                    Emit(sb, var);
+                    return;
+                default: throw new NotSupportedException();
             }
-            var dereference = expression as DereferenceNode;
-            if (dereference != null)
-            {
-                Emit(sb, dereference);
-                return;
-            }
-            var value = expression as ValueNode;
-            if (value != null)
-            {
-                Emit(sb, value);
-                return;
-            }
-            var var = expression as VarNode;
-            if (var != null)
-            {
-                Emit(sb, var);
-                return;
-            }
-            throw new NotSupportedException();
         }
 
         private void Emit(StringBuilder sb, BinaryOperatorNode binary)
