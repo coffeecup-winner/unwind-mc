@@ -15,10 +15,12 @@ namespace UnwindMC.Tests
         [Test]
         public void TestEmissionWithFunctionPointers()
         {
-            var parameters = new Dictionary<ILOperand, Type>
+            var types = new Dictionary<string, Type>
             {
-                { Stack(0), new Type(true, 1) },
-                { Stack(4), new Type(true, 1) },
+                { "arg0", new Type(true, 1) },
+                { "arg1", new Type(true, 1) },
+                { "var0", new Type(true, 1) },
+                { "var1", new Type(true, 0) },
             };
 
             var body = Scope(
@@ -32,14 +34,14 @@ namespace UnwindMC.Tests
                         Assign(Var("var0"), Add(Var("var0"), Val(1))))),
                 Ret());
 
-            var source = new CppEmitter("foo", parameters, body).EmitSourceCode();
+            var source = new CppEmitter("foo", types, 2, body).EmitSourceCode();
             var expected =
                 @"void foo(void (**arg0)(), void (**arg1)())
                 {
-                  auto var0 = arg0;
+                  void (**var0)() = arg0;
                   while (var0 < arg1)
                   {
-                    auto var1 = *(var0);
+                    void (*var1)() = *(var0);
                     if (var1 != 0)
                     {
                       var1();
@@ -55,10 +57,15 @@ namespace UnwindMC.Tests
         [Test]
         public void TestEmissionFindMax()
         {
-            var parameters = new Dictionary<ILOperand, Type>
+            var types = new Dictionary<string, Type>
             {
-                { Stack(0), new Type(false, 1) },
-                { Stack(4), new Type(false, 0) },
+                { "arg0", new Type(false, 1) },
+                { "arg1", new Type(false, 0) },
+                { "var0", new Type(false, 0) },
+                { "var1", new Type(false, 0) },
+                { "var2", new Type(false, 1) },
+                { "var3", new Type(false, 0) },
+                { "var4", new Type(false, 0) },
             };
 
             var body = Scope(
@@ -80,21 +87,20 @@ namespace UnwindMC.Tests
                     Scope()),
                 Ret());
 
-            var source = new CppEmitter("findMax", parameters, body).EmitSourceCode();
+            var source = new CppEmitter("findMax", types, 2, body).EmitSourceCode();
             // TODO: resolve return type/value
-            // TODO: use proper types for integer constants
             var expected =
                 @"void findMax(uint32_t *arg0, uint32_t arg1)
                 {
-                  auto var0 = arg1;
-                  auto var1 = -2147483648;
+                  uint32_t var0 = arg1;
+                  uint32_t var1 = -2147483648;
                   if (var0 != 0)
                   {
-                    auto var2 = arg0;
-                    auto var3 = -2147483648;
+                    uint32_t *var2 = arg0;
+                    uint32_t var3 = -2147483648;
                     do
                     {
-                      auto var4 = *(var2);
+                      uint32_t var4 = *(var2);
                       if (var3 < var4)
                       {
                         var3 = var4;

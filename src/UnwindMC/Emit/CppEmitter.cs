@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnwindMC.Analysis.Ast;
-using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Emit
 {
@@ -12,7 +11,8 @@ namespace UnwindMC.Emit
         private const int IndentSize = 2;
 
         private readonly string _name;
-        private readonly IReadOnlyDictionary<ILOperand, Analysis.Data.Type> _parameters;
+        IReadOnlyDictionary<string, Analysis.Data.Type> _types;
+        private readonly int _parametersCount;
         private readonly ScopeNode _body;
         private readonly Dictionary<int, string> _indents;
 
@@ -20,10 +20,11 @@ namespace UnwindMC.Emit
         private string _indent;
         private HashSet<string> _declaredVariables;
 
-        public CppEmitter(string name, IReadOnlyDictionary<ILOperand, Analysis.Data.Type> parameters, ScopeNode body)
+        public CppEmitter(string name, IReadOnlyDictionary<string, Analysis.Data.Type> types, int parametersCount, ScopeNode body)
         {
             _name = name;
-            _parameters = parameters;
+            _types = types;
+            _parametersCount = parametersCount;
             _body = body;
             _indents = new Dictionary<int, string> { { 0, "" } };
         }
@@ -45,27 +46,27 @@ namespace UnwindMC.Emit
                 .Append(" ")
                 .Append(_name)
                 .Append("(");
-            int index = 0;
-            foreach (var pair in _parameters.OrderBy(p => p.Key.Offset))
+            for (int i = 0; i < _parametersCount; i++)
             {
-                if (index != 0)
+                if (i != 0)
                 {
                     sb.Append(", ");
                 }
-                EmitParameter(sb, pair.Value, "arg" + index++); // TODO: move argument names to function
+                EmitDeclaration(sb, "arg" + i); // TODO: move argument names to function
             }
             sb.Append(")")
                 .Append(Environment.NewLine);
         }
 
-        private static void EmitParameter(StringBuilder sb, Analysis.Data.Type value, string name)
+        private void EmitDeclaration(StringBuilder sb, string name)
         {
-            if (value.IsFunction)
+            var type = _types[name];
+            if (type.IsFunction)
             {
                 sb.Append("void")
                     .Append(" ")
                     .Append("(")
-                    .Append(new string('*', value.IndirectionLevel + 1))
+                    .Append(new string('*', type.IndirectionLevel + 1))
                     .Append(name)
                     .Append(")")
                     .Append("()");
@@ -73,7 +74,7 @@ namespace UnwindMC.Emit
             else
             {
                 sb.Append("uint32_t ")
-                    .Append(new string('*', value.IndirectionLevel))
+                    .Append(new string('*', type.IndirectionLevel))
                     .Append(name);
             }
         }
@@ -112,11 +113,13 @@ namespace UnwindMC.Emit
             sb.Append(_indent);
             if (_declaredVariables.Add(assignment.Var.Name))
             {
-                sb.Append("auto")
-                    .Append(" ");
+                EmitDeclaration(sb, assignment.Var.Name);
             }
-            sb.Append(assignment.Var.Name)
-                .Append(" = ");
+            else
+            {
+                sb.Append(assignment.Var.Name);
+            }
+            sb.Append(" = ");
             Emit(sb, assignment.Expression);
             sb.Append(";")
                 .Append(Environment.NewLine);
