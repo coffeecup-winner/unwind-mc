@@ -166,7 +166,7 @@ namespace UnwindMC.Analysis.IL
                     {
                         throw new InvalidOperationException("Stack imbalance");
                     }
-                    result = new[] { new ILInstruction(ILInstructionType.Return) };
+                    result = new[] { new ILInstruction(ILInstructionType.Return, source: ILOperand.FromRegister(OperandType.EAX)) };
                     break;
                 case MnemonicCode.Itest:
                     operands = Convert(instr.Operands);

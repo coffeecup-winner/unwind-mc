@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnwindMC.Analysis.Ast.Transformations;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.Ast
 {
@@ -111,7 +112,7 @@ namespace UnwindMC.Analysis.Ast
                 case ILInstructionType.Call:
                     return new FunctionCallNode(BuildExpression(instr.Target, instr.TargetId));
                 case ILInstructionType.Return:
-                    return new ReturnNode();
+                    return new ReturnNode(instr.SourceId == -1 ? Option<VarNode>.None : Option.Some(BuildVar(instr.Source, instr.SourceId)));
                 case ILInstructionType.Subtract:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
                         BuildBinaryOperator(Operator.Subtract, instr));

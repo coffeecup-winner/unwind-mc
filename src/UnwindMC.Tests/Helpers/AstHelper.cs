@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using UnwindMC.Analysis.Ast;
+using UnwindMC.Util;
 
 namespace UnwindMC.Tests.Helpers
 {
@@ -121,7 +122,12 @@ namespace UnwindMC.Tests.Helpers
 
         public static ReturnNode Ret()
         {
-            return new ReturnNode();
+            return new ReturnNode(Option<VarNode>.None);
+        }
+
+        public static ReturnNode Ret(VarNode var)
+        {
+            return new ReturnNode(Option.Some(var));
         }
 
         public static ScopeNode Scope(params IStatementNode[] statements)

@@ -93,18 +93,18 @@ namespace UnwindMC.Tests
             var cmp2 = Compare(Register(OperandType.ECX), Value(0));
             var ret = Return();
 
-            asn0.SetVariableIds(0, -1);
-            asn1.SetVariableIds(4, -1);
-            cmp0.SetVariableIds(0, -1);
-            asn2.SetVariableIds(1, -1);
-            asn3.SetVariableIds(2, -1);
-            asn4.SetVariableIds(3, 1);
-            cmp1.SetVariableIds(2, 3);
-            asn5.SetVariableIds(2, 3);
-            add0.SetVariableIds(1, -1);
-            sub0.SetVariableIds(0, -1);
-            cmp2.SetVariableIds(0, -1);
-            ret.SetVariableIds(-1, -1);
+            asn0.SetVariableIds(1, -1);
+            asn1.SetVariableIds(0, -1);
+            cmp0.SetVariableIds(1, -1);
+            asn2.SetVariableIds(2, -1);
+            asn3.SetVariableIds(0, -1);
+            asn4.SetVariableIds(3, 2);
+            cmp1.SetVariableIds(0, 3);
+            asn5.SetVariableIds(0, 3);
+            add0.SetVariableIds(2, -1);
+            sub0.SetVariableIds(1, -1);
+            cmp2.SetVariableIds(1, -1);
+            ret.SetVariableIds(-1, 0);
 
             asn0.AddDefaultChild(asn1);
             asn1.AddDefaultChild(cmp0);
@@ -150,9 +150,8 @@ namespace UnwindMC.Tests
             var variableTypes = new List<Type>
             {
                 new Type(false, 0),
+                new Type(false, 0),
                 new Type(false, 1),
-                new Type(false, 0),
-                new Type(false, 0),
                 new Type(false, 0),
             };
 
@@ -163,18 +162,18 @@ namespace UnwindMC.Tests
                 IfThenElse(NotEqual(Var("var0"), Val(0)),
                     Scope(
                         Assign(Var("var2"), Var("arg0")),
-                        Assign(Var("var3"), Val(int.MinValue)),
+                        Assign(Var("var1"), Val(int.MinValue)),
                         DoWhile(
                             Scope(
-                                Assign(Var("var4"), Dereference(Var("var2"))),
-                                IfThenElse(Less(Var("var3"), Var("var4")),
-                                    Scope(Assign(Var("var3"), Var("var4"))),
+                                Assign(Var("var3"), Dereference(Var("var2"))),
+                                IfThenElse(Less(Var("var1"), Var("var3")),
+                                    Scope(Assign(Var("var1"), Var("var3"))),
                                     Scope()),
                                 Assign(Var("var2"), Add(Var("var2"), Val(1))),
                                 Assign(Var("var0"), Subtract(Var("var0"), Val(1)))),
                             NotEqual(Var("var0"), Val(0)))),
                     Scope()),
-                Ret());
+                Ret(Var("var1")));
             AssertAstEqual(expected, ast);
         }
     }

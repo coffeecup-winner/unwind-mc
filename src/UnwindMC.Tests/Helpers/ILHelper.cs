@@ -71,7 +71,7 @@ namespace UnwindMC.Tests.Helpers
 
         public static ILInstruction Return()
         {
-            return new ILInstruction(ILInstructionType.Return);
+            return new ILInstruction(ILInstructionType.Return, source: ILOperand.FromRegister(OperandType.EAX));
         }
 
         public static ILInstruction Subtract(ILOperand target, ILOperand source)

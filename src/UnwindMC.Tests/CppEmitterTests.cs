@@ -65,7 +65,6 @@ namespace UnwindMC.Tests
                 { "var1", new Type(false, 0) },
                 { "var2", new Type(false, 1) },
                 { "var3", new Type(false, 0) },
-                { "var4", new Type(false, 0) },
             };
 
             var body = Scope(
@@ -74,42 +73,42 @@ namespace UnwindMC.Tests
                 IfThenElse(NotEqual(Var("var0"), Val(0)),
                     Scope(
                         Assign(Var("var2"), Var("arg0")),
-                        Assign(Var("var3"), Val(int.MinValue)),
+                        Assign(Var("var1"), Val(int.MinValue)),
                         DoWhile(
                             Scope(
-                                Assign(Var("var4"), Dereference(Var("var2"))),
-                                IfThenElse(Less(Var("var3"), Var("var4")),
-                                    Scope(Assign(Var("var3"), Var("var4"))),
+                                Assign(Var("var3"), Dereference(Var("var2"))),
+                                IfThenElse(Less(Var("var1"), Var("var3")),
+                                    Scope(Assign(Var("var1"), Var("var3"))),
                                     Scope()),
                                 Assign(Var("var2"), Add(Var("var2"), Val(1))),
                                 Assign(Var("var0"), Subtract(Var("var0"), Val(1)))),
                             NotEqual(Var("var0"), Val(0)))),
                     Scope()),
-                Ret());
+                Ret(Var("var1")));
 
             var source = new CppEmitter("findMax", types, 2, body).EmitSourceCode();
             // TODO: resolve return type/value
             var expected =
-                @"void findMax(uint32_t *arg0, uint32_t arg1)
+                @"uint32_t findMax(uint32_t *arg0, uint32_t arg1)
                 {
                   uint32_t var0 = arg1;
                   uint32_t var1 = -2147483648;
                   if (var0 != 0)
                   {
                     uint32_t *var2 = arg0;
-                    uint32_t var3 = -2147483648;
+                    var1 = -2147483648;
                     do
                     {
-                      uint32_t var4 = *(var2);
-                      if (var3 < var4)
+                      uint32_t var3 = *(var2);
+                      if (var1 < var3)
                       {
-                        var3 = var4;
+                        var1 = var3;
                       }
                       var2 = var2 + 1;
                       var0 = var0 - 1;
                     } while (var0 != 0);
                   }
-                  return;
+                  return var1;
                 }
                 ".StripIndent();
             AssertSourceCodeEquals(expected, source);

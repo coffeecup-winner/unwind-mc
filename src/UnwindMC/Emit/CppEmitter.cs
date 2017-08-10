@@ -1,13 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using UnwindMC.Analysis.Ast;
+using UnwindMC.Util;
 
 namespace UnwindMC.Emit
 {
     public class CppEmitter
     {
+        private class ReturnNodeFinder : NodeVisitorBase
+        {
+            private ReturnNode _ret;
+
+            public ReturnNode Return => _ret;
+
+            public override void Visit(ReturnNode ret)
+            {
+                _ret = ret;
+            }
+        }
+
         private const int IndentSize = 2;
 
         private readonly string _name;
@@ -35,16 +47,15 @@ namespace UnwindMC.Emit
             _indent = _indents[0];
             _declaredVariables = new HashSet<string>();
             var sb = new StringBuilder();
-            EmitSignature(sb);
+            EmitSignature(sb, _body.Visit(new ReturnNodeFinder()).Return);
             Emit(sb, _body);
             return sb.ToString();
         }
 
-        private void EmitSignature(StringBuilder sb)
+        private void EmitSignature(StringBuilder sb, ReturnNode ret)
         {
-            sb.Append("void")
-                .Append(" ")
-                .Append(_name)
+            EmitType(sb, ret.Var);
+            sb.Append(_name)
                 .Append("(");
             for (int i = 0; i < _parametersCount; i++)
             {
@@ -56,6 +67,25 @@ namespace UnwindMC.Emit
             }
             sb.Append(")")
                 .Append(Environment.NewLine);
+        }
+
+        private void EmitType(StringBuilder sb, Option<VarNode> var)
+        {
+            if (!var.HasValue)
+            {
+                sb.Append("void ");
+                return;
+            }
+            var type = _types[var.Value.Name];
+            if (type.IsFunction)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                sb.Append("uint32_t ")
+                    .Append(new string('*', type.IndirectionLevel));
+            }
         }
 
         private void EmitDeclaration(StringBuilder sb, string name)
@@ -172,8 +202,13 @@ namespace UnwindMC.Emit
         private void Emit(StringBuilder sb, ReturnNode ret)
         {
             sb.Append(_indent)
-                .Append("return")
-                .Append(";")
+                .Append("return");
+            if (ret.Var.HasValue)
+            {
+                sb.Append(" ")
+                    .Append(ret.Var.Value.Name);
+            }
+            sb.Append(";")
                 .Append(Environment.NewLine);
         }
 
