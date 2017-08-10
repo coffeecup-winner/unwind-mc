@@ -103,9 +103,9 @@ namespace UnwindMC.Analysis
                 var import = TryGetImportAddress(instr, 1)
                     .OrElse(() => TryGetImportAddress(instr, 0))
                     .Map(_importResolver.GetImportName);
-                if (import.HasValue)
+                if (import.TryGet(out var name))
                 {
-                    _graph.GetExtraData(instr.Offset).ImportName = import.Value;
+                    _graph.GetExtraData(instr.Offset).ImportName = name;
                 }
             }
             Logger.Info("Done");
@@ -234,13 +234,12 @@ namespace UnwindMC.Analysis
                 return false;
             });
 
-            if (!casesCountOption.HasValue)
+            if (!casesCountOption.TryGet(out var casesCount))
             {
                 Logger.Info("Done");
                 return;
             }
 
-            int casesCount = casesCountOption.Value;
             int jumpsCount;
             if (indirectAddress == 0)
             {

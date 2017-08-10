@@ -69,14 +69,14 @@ namespace UnwindMC.Emit
                 .Append(Environment.NewLine);
         }
 
-        private void EmitType(StringBuilder sb, Option<VarNode> var)
+        private void EmitType(StringBuilder sb, Option<VarNode> node)
         {
-            if (!var.HasValue)
+            if (!node.TryGet(out var var))
             {
                 sb.Append("void ");
                 return;
             }
-            var type = _types[var.Value.Name];
+            var type = _types[var.Name];
             if (type.IsFunction)
             {
                 throw new NotImplementedException();
@@ -203,10 +203,10 @@ namespace UnwindMC.Emit
         {
             sb.Append(_indent)
                 .Append("return");
-            if (ret.Var.HasValue)
+            if (ret.Var.TryGet(out var var))
             {
                 sb.Append(" ")
-                    .Append(ret.Var.Value.Name);
+                    .Append(var.Name);
             }
             sb.Append(";")
                 .Append(Environment.NewLine);
