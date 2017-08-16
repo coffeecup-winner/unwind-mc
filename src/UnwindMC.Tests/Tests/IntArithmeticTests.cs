@@ -16,9 +16,9 @@ namespace UnwindMC.Tests.Tests
                     return a + b;
                 }";
             const string expected = @"
-                uint32_t sub_000000(uint32_t arg0, uint32_t arg1)
+                int sub_000000(int arg0, int arg1)
                 {
-                  uint32_t var0 = arg0;
+                  int var0 = arg0;
                   var0 = var0 + arg1;
                   return var0;
                 }

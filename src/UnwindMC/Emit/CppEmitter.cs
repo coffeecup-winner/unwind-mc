@@ -83,7 +83,7 @@ namespace UnwindMC.Emit
             }
             else
             {
-                sb.Append("uint32_t ")
+                sb.Append("int ")
                     .Append(new string('*', type.IndirectionLevel));
             }
         }
@@ -103,7 +103,7 @@ namespace UnwindMC.Emit
             }
             else
             {
-                sb.Append("uint32_t ")
+                sb.Append("int ")
                     .Append(new string('*', type.IndirectionLevel))
                     .Append(name);
             }

@@ -89,17 +89,17 @@ namespace UnwindMC.Tests
             var source = new CppEmitter("findMax", types, 2, body).EmitSourceCode();
             // TODO: resolve return type/value
             var expected =
-                @"uint32_t findMax(uint32_t *arg0, uint32_t arg1)
+                @"int findMax(int *arg0, int arg1)
                 {
-                  uint32_t var0 = arg1;
-                  uint32_t var1 = -2147483648;
+                  int var0 = arg1;
+                  int var1 = -2147483648;
                   if (var0 != 0)
                   {
-                    uint32_t *var2 = arg0;
+                    int *var2 = arg0;
                     var1 = -2147483648;
                     do
                     {
-                      uint32_t var3 = *(var2);
+                      int var3 = *(var2);
                       if (var1 < var3)
                       {
                         var1 = var3;
