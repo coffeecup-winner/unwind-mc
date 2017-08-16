@@ -26,6 +26,78 @@ namespace UnwindMC.Tests.SourceTests
             TestDecompiler(code, expected);
         }
 
+        [Test]
+        public void Subtract()
+        {
+            const string code = @"
+                int add(int a, int b) {
+                    return a - b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 - arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Negate()
+        {
+            const string code = @"
+                int add(int a) {
+                    return -a;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0)
+                {
+                  int var0 = arg0;
+                  var0 = -var0;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Multiply()
+        {
+            const string code = @"
+                int add(int a, int b) {
+                    return a * b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 * arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Divide()
+        {
+            const string code = @"
+                int add(int a, int b) {
+                    return a / b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 / arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
         private static void TestDecompiler(string code, string expected)
         {
             code = Trim(code);

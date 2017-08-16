@@ -109,6 +109,9 @@ namespace UnwindMC.Analysis.IL
         Assign,
         Call,
         Compare,
+        Divide,
+        Multiply,
+        Negate,
         Return,
         Subtract,
     }

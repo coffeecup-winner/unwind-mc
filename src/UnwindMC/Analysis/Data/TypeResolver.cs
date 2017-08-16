@@ -83,8 +83,13 @@ namespace UnwindMC.Analysis.Data
                 var instr = item.Right;
                 switch (instr.Type)
                 {
+                    case ILInstructionType.Negate:
+                        instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, instr.Source));
+                        break;
                     case ILInstructionType.Add:
                     case ILInstructionType.Compare:
+                    case ILInstructionType.Divide:
+                    case ILInstructionType.Multiply:
                     case ILInstructionType.Subtract:
                         if (typesToRemove[_currentLevel].ContainsKey(instr.Target))
                         {

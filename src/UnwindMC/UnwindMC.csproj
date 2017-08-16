@@ -57,6 +57,7 @@
     <Compile Include="Analysis\AssignmentTracker.cs" />
     <Compile Include="Analysis\Ast\AssignmentNode.cs" />
     <Compile Include="Analysis\Ast\AstBuilder.cs" />
+    <Compile Include="Analysis\Ast\UnaryOperatorNode.cs" />
     <Compile Include="Analysis\Ast\BinaryOperatorNode.cs" />
     <Compile Include="Analysis\Ast\DereferenceNode.cs" />
     <Compile Include="Analysis\Ast\FunctionCallNode.cs" />

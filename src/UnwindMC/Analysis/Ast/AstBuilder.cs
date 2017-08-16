@@ -111,6 +111,15 @@ namespace UnwindMC.Analysis.Ast
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId), BuildExpression(instr.Source, instr.SourceId));
                 case ILInstructionType.Call:
                     return new FunctionCallNode(BuildExpression(instr.Target, instr.TargetId));
+                case ILInstructionType.Divide:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.Divide, instr));
+                case ILInstructionType.Multiply:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.Multiply, instr));
+                case ILInstructionType.Negate:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildUnaryOperator(Operator.Negate, instr));
                 case ILInstructionType.Return:
                     return new ReturnNode(instr.SourceId == -1 ? Option<VarNode>.None : Option.Some(BuildVar(instr.Source, instr.SourceId)));
                 case ILInstructionType.Subtract:
@@ -162,6 +171,12 @@ namespace UnwindMC.Analysis.Ast
             return new BinaryOperatorNode(op,
                 BuildExpression(instr.Target, instr.TargetId),
                 BuildExpression(instr.Source, instr.SourceId));
+        }
+
+        private UnaryOperatorNode BuildUnaryOperator(Operator op, ILInstruction instr)
+        {
+            return new UnaryOperatorNode(op,
+                BuildExpression(instr.Target, instr.TargetId));
         }
 
         private VarNode BuildVar(ILOperand op, int id)

@@ -261,6 +261,9 @@ namespace UnwindMC.Emit
                 case DereferenceNode dereference:
                     Emit(sb, dereference);
                     return;
+                case UnaryOperatorNode unary:
+                    Emit(sb, unary);
+                    return;
                 case ValueNode value:
                     Emit(sb, value);
                     return;
@@ -304,6 +307,18 @@ namespace UnwindMC.Emit
                 .Append("(");
             Emit(sb, dereference.Pointer);
             sb.Append(")");
+        }
+
+        private void Emit(StringBuilder sb, UnaryOperatorNode binary)
+        {
+            string op;
+            switch (binary.Operator)
+            {
+                case Operator.Negate: op = "-"; break;
+                default: throw new NotSupportedException();
+            }
+            sb.Append(op);
+            Emit(sb, binary.Operand);
         }
 
         private void Emit(StringBuilder sb, ValueNode value)

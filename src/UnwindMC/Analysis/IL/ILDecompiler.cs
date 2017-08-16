@@ -115,6 +115,9 @@ namespace UnwindMC.Analysis.IL
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Call, operands[0]) };
                     break;
+                case MnemonicCode.Icdq:
+                    result = new ILInstruction[0]; // Size extension seems to be irrelevant at the moment
+                    break;
                 case MnemonicCode.Icmovl:
                     operands = Convert(instr.Operands);
                     result = new[]
@@ -130,6 +133,14 @@ namespace UnwindMC.Analysis.IL
                 case MnemonicCode.Idec:
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Subtract, operands[0], ILOperand.FromValue(1)) };
+                    break;
+                case MnemonicCode.Iidiv:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Divide, ILOperand.FromRegister(OperandType.EAX), operands[0]) };
+                    break;
+                case MnemonicCode.Iimul:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Multiply, operands[0], operands[1]) };
                     break;
                 case MnemonicCode.Ijae:
                     result = new[] { new ILInstruction(ILInstructionType.Virtual, branch: new ILBranch(ILBranchType.GreaterOrEqual, instr.GetTargetAddress())) };
@@ -155,6 +166,10 @@ namespace UnwindMC.Analysis.IL
                     }
                     result = new[] { new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]) };
                     break;
+                case MnemonicCode.Ineg:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Negate, operands[0]) };
+                    break;
                 case MnemonicCode.Ipush:
                     _stackOffset -= 4;
                     AddOrUpdateStackValue(_stackOffset);
@@ -171,6 +186,10 @@ namespace UnwindMC.Analysis.IL
                         throw new InvalidOperationException("Stack imbalance");
                     }
                     result = new[] { new ILInstruction(ILInstructionType.Return, source: ILOperand.FromRegister(OperandType.EAX)) };
+                    break;
+                case MnemonicCode.Isub:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Subtract, operands[0], operands[1]) };
                     break;
                 case MnemonicCode.Itest:
                     operands = Convert(instr.Operands);

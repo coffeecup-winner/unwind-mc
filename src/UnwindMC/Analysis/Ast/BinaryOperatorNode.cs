@@ -12,6 +12,7 @@
         Or,
         And,
 
+        Negate,
         Add,
         Subtract,
         Multiply,
