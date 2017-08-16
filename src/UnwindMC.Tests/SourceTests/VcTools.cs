@@ -6,7 +6,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnwindMC.Tests.Helpers;
 
-namespace UnwindMC.Tests.Tests
+namespace UnwindMC.Tests.SourceTests
 {
     static class VcTools
     {

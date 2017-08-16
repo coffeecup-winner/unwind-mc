@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 
-namespace UnwindMC.Tests.Tests
+namespace UnwindMC.Tests.SourceTests
 {
     [TestFixture]
     public class IntArithmeticTests
