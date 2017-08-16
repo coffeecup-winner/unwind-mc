@@ -4,6 +4,7 @@ using UnwindMC.Analysis.Ast;
 using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Emit;
 
 namespace UnwindMC.Analysis
 {
@@ -13,6 +14,7 @@ namespace UnwindMC.Analysis
         private IReadOnlyList<Data.Type> _parameterTypes;
         private IReadOnlyList<Data.Type> _variableTypes;
         private ScopeNode _ast;
+        private string _code;
 
         public Function(ulong address)
         {
@@ -28,6 +30,7 @@ namespace UnwindMC.Analysis
         public IReadOnlyList<Data.Type> ParameterTypes => _parameterTypes;
         public IReadOnlyList<Data.Type> VariableTypes => _variableTypes;
         public ScopeNode Ast => _ast;
+        public string Code => _code;
         public ILInstruction FirstInstruction
         {
             get
@@ -80,6 +83,25 @@ namespace UnwindMC.Analysis
             _ast = new AstBuilder(_blocks, _parameterTypes, _variableTypes).BuildAst();
             Status = FunctionStatus.AstBuilt;
         }
+
+        public void EmitSourceCode()
+        {
+            if (Status != FunctionStatus.AstBuilt)
+            {
+                throw new InvalidOperationException("Cannot emit source code when AST is not built");
+            }
+            var types = new Dictionary<string, Data.Type>();
+            for (int i = 0; i < _parameterTypes.Count; i++)
+            {
+                types.Add("arg" + i, _parameterTypes[i]);
+            }
+            for (int i = 0; i < _variableTypes.Count; i++)
+            {
+                types.Add("var" + i, _variableTypes[i]);
+            }
+            _code = new CppEmitter(Name, types, _parameterTypes.Count, _ast).EmitSourceCode();
+            Status = FunctionStatus.SourceCodeEmitted;
+        }
     }
 
     public enum FunctionStatus
@@ -91,5 +113,6 @@ namespace UnwindMC.Analysis
         BodyResolved,
         ArgumentsResolved,
         AstBuilt,
+        SourceCodeEmitted,
     }
 }

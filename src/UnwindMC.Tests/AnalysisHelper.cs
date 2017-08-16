@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using UnwindMC.Analysis;
 
 namespace UnwindMC.Tests
@@ -19,27 +20,40 @@ namespace UnwindMC.Tests
                 .ToList();
 
             var parts = lines
-                .Select(l => l.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(2).ToArray())
+                .Select(l =>
+                {
+                    var data = l.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries).ToArray();
+                    data[0] = data[0].TrimEnd(':');
+                    return data;
+                })
                 .ToArray();
 
             var address = ulong.Parse(parts[0][0], NumberStyles.HexNumber);
             var bytes = new List<byte>();
-            foreach (string b in parts.Select(p => p[1]))
+            var canonLines = new List<string>();
+            foreach (var data in parts)
             {
-                string rest = b;
-                while (rest.Length >= 2)
+                var hex = new StringBuilder();
+                int i = 1;
+                for (; i < data.Length; i++)
                 {
-                    string @byte = rest.Substring(0, 2);
-                    rest = rest.Substring(2);
-                    bytes.Add(byte.Parse(@byte, NumberStyles.HexNumber));
+                    string @byte = data[i];
+                    if (!byte.TryParse(@byte, NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var b))
+                    {
+                        break;
+                    }
+                    bytes.Add(b);
+                    hex.Append(@byte);
                 }
+                var line = $"{data[0]} {hex,20}".ToLower();
+                canonLines.Add(line);
             }
 
             var analyzer = new Analyzer(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver>());
             analyzer.AddFunction(address);
             analyzer.Analyze();
 
-            Assert.That(analyzer.Graph.Instructions.Select(i => string.Format("{0:x8} {1,20} {2}", i.Offset, i.Hex, i.Assembly)), Is.EqualTo(lines));
+            Assert.That(analyzer.Graph.Instructions.Select(i => $"{i.Offset:x8} {i.Hex,20}"), Is.EqualTo(canonLines));
 
             return analyzer;
         }

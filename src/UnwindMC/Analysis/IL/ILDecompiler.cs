@@ -149,6 +149,10 @@ namespace UnwindMC.Analysis.IL
                     break;
                 case MnemonicCode.Imov:
                     operands = Convert(instr.Operands);
+                    if (operands[0].Type == ILOperandType.Register && operands[0].Register == OperandType.EBP)
+                    {
+                        return new ILInstruction[0];
+                    }
                     result = new[] { new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]) };
                     break;
                 case MnemonicCode.Ipush:
@@ -228,7 +232,7 @@ namespace UnwindMC.Analysis.IL
                 case OperandType.Register:
                     return ILOperand.FromRegister(operand.Base);
                 case OperandType.Memory:
-                    if (operand.Base == OperandType.ESP)
+                    if (operand.Base == OperandType.ESP || operand.Base == OperandType.EBP)
                     {
                         return ILOperand.FromStack(_stackOffset + (int)operand.GetMemoryOffset());
                     }
