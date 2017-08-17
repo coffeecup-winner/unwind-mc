@@ -287,8 +287,11 @@ namespace UnwindMC.Emit
                 case Operator.LessOrEqual: op = "<="; break;
                 case Operator.Greater: op = ">"; break;
                 case Operator.GreaterOrEqual: op = ">="; break;
-                case Operator.Or: op = "||"; break;
-                case Operator.And: op = "&&"; break;
+                case Operator.And: op = "&"; break;
+                case Operator.Or: op = "|"; break;
+                case Operator.Xor: op = "^"; break;
+                case Operator.ShiftLeft: op = "<<"; break;
+                case Operator.ShiftRight: op = ">>"; break;
                 case Operator.Add: op = "+"; break;
                 case Operator.Subtract: op = "-"; break;
                 case Operator.Multiply: op = "*"; break;
@@ -309,16 +312,17 @@ namespace UnwindMC.Emit
             sb.Append(")");
         }
 
-        private void Emit(StringBuilder sb, UnaryOperatorNode binary)
+        private void Emit(StringBuilder sb, UnaryOperatorNode unary)
         {
             string op;
-            switch (binary.Operator)
+            switch (unary.Operator)
             {
                 case Operator.Negate: op = "-"; break;
+                case Operator.Not: op = "~"; break;
                 default: throw new NotSupportedException();
             }
             sb.Append(op);
-            Emit(sb, binary.Operand);
+            Emit(sb, unary.Operand);
         }
 
         private void Emit(StringBuilder sb, ValueNode value)

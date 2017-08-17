@@ -1,25 +1,5 @@
 ﻿namespace UnwindMC.Analysis.Ast
 {
-    public enum Operator
-    {
-        Equal,
-        NotEqual,
-        Less,
-        LessOrEqual,
-        Greater,
-        GreaterOrEqual,
-
-        Or,
-        And,
-
-        Negate,
-        Add,
-        Subtract,
-        Multiply,
-        Divide,
-        Modulo,
-    }
-
     public class BinaryOperatorNode : IExpressionNode
     {
         private Operator _op;

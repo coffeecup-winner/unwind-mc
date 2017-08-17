@@ -111,6 +111,10 @@ namespace UnwindMC.Analysis.IL
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Add, operands[0], operands[1]) };
                     break;
+                case MnemonicCode.Iand:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.And, operands[0], operands[1]) };
+                    break;
                 case MnemonicCode.Icall:
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Call, operands[0]) };
@@ -170,6 +174,14 @@ namespace UnwindMC.Analysis.IL
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Negate, operands[0]) };
                     break;
+                case MnemonicCode.Inot:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Not, operands[0]) };
+                    break;
+                case MnemonicCode.Ior:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Or, operands[0], operands[1]) };
+                    break;
                 case MnemonicCode.Ipush:
                     _stackOffset -= 4;
                     AddOrUpdateStackValue(_stackOffset);
@@ -187,6 +199,14 @@ namespace UnwindMC.Analysis.IL
                     }
                     result = new[] { new ILInstruction(ILInstructionType.Return, source: ILOperand.FromRegister(OperandType.EAX)) };
                     break;
+                case MnemonicCode.Ishl:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.ShiftLeft, operands[0], operands[1]) };
+                    break;
+                case MnemonicCode.Isar:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.ShiftRight, operands[0], operands[1]) };
+                    break;
                 case MnemonicCode.Isub:
                     operands = Convert(instr.Operands);
                     result = new[] { new ILInstruction(ILInstructionType.Subtract, operands[0], operands[1]) };
@@ -199,7 +219,11 @@ namespace UnwindMC.Analysis.IL
                         break;
                     }
                     else goto default;
-                default: throw new NotSupportedException();
+                case MnemonicCode.Ixor:
+                    operands = Convert(instr.Operands);
+                    result = new[] { new ILInstruction(ILInstructionType.Xor, operands[0], operands[1]) };
+                    break;
+                default: throw new NotSupportedException($"Instruction `{instr}` is not supported yet");
             }
             _prevInstr = instr;
             return result;

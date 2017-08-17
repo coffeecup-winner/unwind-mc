@@ -30,7 +30,7 @@ namespace UnwindMC.Tests.SourceTests
         public void Subtract()
         {
             const string code = @"
-                int add(int a, int b) {
+                int subtract(int a, int b) {
                     return a - b;
                 }";
             const string expected = @"
@@ -48,7 +48,7 @@ namespace UnwindMC.Tests.SourceTests
         public void Negate()
         {
             const string code = @"
-                int add(int a) {
+                int negate(int a) {
                     return -a;
                 }";
             const string expected = @"
@@ -66,7 +66,7 @@ namespace UnwindMC.Tests.SourceTests
         public void Multiply()
         {
             const string code = @"
-                int add(int a, int b) {
+                int multiply(int a, int b) {
                     return a * b;
                 }";
             const string expected = @"
@@ -84,7 +84,7 @@ namespace UnwindMC.Tests.SourceTests
         public void Divide()
         {
             const string code = @"
-                int add(int a, int b) {
+                int divide(int a, int b) {
                     return a / b;
                 }";
             const string expected = @"
@@ -92,6 +92,114 @@ namespace UnwindMC.Tests.SourceTests
                 {
                   int var0 = arg0;
                   var0 = var0 / arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Not()
+        {
+            const string code = @"
+                int not(int a) {
+                    return ~a;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0)
+                {
+                  int var0 = arg0;
+                  var0 = ~var0;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void And()
+        {
+            const string code = @"
+                int and(int a, int b) {
+                    return a & b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 & arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Or()
+        {
+            const string code = @"
+                int or(int a, int b) {
+                    return a | b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 | arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test]
+        public void Xor()
+        {
+            const string code = @"
+                int xor(int a, int b) {
+                    return a ^ b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 ^ arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test, Ignore(TODO.SupportWordRegisters)]
+        public void LeftShift()
+        {
+            const string code = @"
+                int xor(int a, int b) {
+                    return a << b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 << arg1;
+                  return var0;
+                }
+                ";
+            TestDecompiler(code, expected);
+        }
+
+        [Test, Ignore(TODO.SupportWordRegisters)]
+        public void RightShift()
+        {
+            const string code = @"
+                int xor(int a, int b) {
+                    return a >> b;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0, int arg1)
+                {
+                  int var0 = arg0;
+                  var0 = var0 >> arg1;
                   return var0;
                 }
                 ";

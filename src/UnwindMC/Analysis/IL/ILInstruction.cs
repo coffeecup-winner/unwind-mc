@@ -106,13 +106,19 @@ namespace UnwindMC.Analysis.IL
         Virtual,
 
         Add,
+        And,
         Assign,
         Call,
         Compare,
         Divide,
         Multiply,
         Negate,
+        Not,
+        Or,
         Return,
+        ShiftLeft,
+        ShiftRight,
         Subtract,
+        Xor,
     }
 }

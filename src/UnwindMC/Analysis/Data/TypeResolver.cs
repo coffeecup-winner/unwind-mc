@@ -84,13 +84,19 @@ namespace UnwindMC.Analysis.Data
                 switch (instr.Type)
                 {
                     case ILInstructionType.Negate:
+                    case ILInstructionType.Not:
                         instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, instr.Source));
                         break;
                     case ILInstructionType.Add:
+                    case ILInstructionType.And:
                     case ILInstructionType.Compare:
                     case ILInstructionType.Divide:
                     case ILInstructionType.Multiply:
+                    case ILInstructionType.Or:
+                    case ILInstructionType.ShiftLeft:
+                    case ILInstructionType.ShiftRight:
                     case ILInstructionType.Subtract:
+                    case ILInstructionType.Xor:
                         if (typesToRemove[_currentLevel].ContainsKey(instr.Target))
                         {
                             typesToRemove[_currentLevel].Remove(instr.Target);

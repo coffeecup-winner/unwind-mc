@@ -107,6 +107,9 @@ namespace UnwindMC.Analysis.Ast
                 case ILInstructionType.Add:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
                         BuildBinaryOperator(Operator.Add, instr));
+                case ILInstructionType.And:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.And, instr));
                 case ILInstructionType.Assign:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId), BuildExpression(instr.Source, instr.SourceId));
                 case ILInstructionType.Call:
@@ -120,11 +123,26 @@ namespace UnwindMC.Analysis.Ast
                 case ILInstructionType.Negate:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
                         BuildUnaryOperator(Operator.Negate, instr));
+                case ILInstructionType.Not:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildUnaryOperator(Operator.Not, instr));
+                case ILInstructionType.Or:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.Or, instr));
                 case ILInstructionType.Return:
                     return new ReturnNode(instr.SourceId == -1 ? Option<VarNode>.None : Option.Some(BuildVar(instr.Source, instr.SourceId)));
+                case ILInstructionType.ShiftLeft:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.ShiftLeft, instr));
+                case ILInstructionType.ShiftRight:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.ShiftRight, instr));
                 case ILInstructionType.Subtract:
                     return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
                         BuildBinaryOperator(Operator.Subtract, instr));
+                case ILInstructionType.Xor:
+                    return new AssignmentNode(BuildVar(instr.Target, instr.TargetId),
+                        BuildBinaryOperator(Operator.Xor, instr));
                 default: throw new ArgumentException("Instruction is not a valid statement");
             }
         }
