@@ -10,6 +10,7 @@ namespace UnwindMC.Analysis.IL
     {
         private readonly Dictionary<int, object> _stackObjects = new Dictionary<int, object>();
         private int _stackOffset;
+        private int _framePointerOffset;
         private Instruction _prevInstr;
 
         private ILDecompiler()
@@ -164,8 +165,22 @@ namespace UnwindMC.Analysis.IL
                     break;
                 case MnemonicCode.Imov:
                     operands = Convert(instr.Operands);
-                    if (operands[0].Type == ILOperandType.Register && operands[0].Register == OperandType.EBP)
+                    if (operands[0].IsRegister(OperandType.EBP))
                     {
+                        if (!operands[1].IsRegister(OperandType.ESP))
+                        {
+                            throw new NotSupportedException();
+                        }
+                        _framePointerOffset = _stackOffset;
+                        return new ILInstruction[0];
+                    }
+                    if (operands[0].IsRegister(OperandType.ESP))
+                    {
+                        if (!operands[1].IsRegister(OperandType.EBP))
+                        {
+                            throw new NotSupportedException();
+                        }
+                        _stackOffset = _framePointerOffset;
                         return new ILInstruction[0];
                     }
                     result = new[] { new ILInstruction(ILInstructionType.Assign, operands[0], operands[1]) };
@@ -213,7 +228,7 @@ namespace UnwindMC.Analysis.IL
                     break;
                 case MnemonicCode.Itest:
                     operands = Convert(instr.Operands);
-                    if (operands[0].Type == ILOperandType.Register && operands[0].Type == ILOperandType.Register && operands[0].Register == operands[1].Register)
+                    if (operands[0].Type == ILOperandType.Register && operands[1].IsRegister(operands[0].Register))
                     {
                         result = new[] { new ILInstruction(ILInstructionType.Compare, operands[0], ILOperand.FromValue(0)) };
                         break;
@@ -275,9 +290,13 @@ namespace UnwindMC.Analysis.IL
                 case OperandType.Register:
                     return ILOperand.FromRegister(operand.Base);
                 case OperandType.Memory:
-                    if (operand.Base == OperandType.ESP || operand.Base == OperandType.EBP)
+                    if (operand.Base == OperandType.ESP)
                     {
                         return ILOperand.FromStack(_stackOffset + (int)operand.GetMemoryOffset());
+                    }
+                    else if (operand.Base == OperandType.EBP)
+                    {
+                        return ILOperand.FromStack(_framePointerOffset + (int)operand.GetMemoryOffset());
                     }
                     else if (operand.Index == OperandType.None)
                     {

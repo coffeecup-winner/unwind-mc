@@ -18,6 +18,11 @@ namespace UnwindMC.Analysis.IL
         public int Value { get; }
         public int Offset { get; }
 
+        public bool IsRegister(OperandType reg)
+        {
+            return Type == ILOperandType.Register && Register == reg;
+        }
+
         public static ILOperand FromValue(int value)
         {
             return new ILOperand(ILOperandType.Value, OperandType.None, 0, value);

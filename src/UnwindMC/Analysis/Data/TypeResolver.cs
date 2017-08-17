@@ -19,17 +19,20 @@ namespace UnwindMC.Analysis.Data
         public struct Result
         {
             public readonly IReadOnlyList<Type> ParameterTypes;
+            public readonly IReadOnlyList<Type> LocalTypes;
             public readonly IReadOnlyList<Type> VariableTypes;
 
-            public Result(IReadOnlyList<Type> parameterTypes, IReadOnlyList<Type> variableTypes)
+            public Result(IReadOnlyList<Type> parameterTypes, IReadOnlyList<Type> localTypes, IReadOnlyList<Type> variableTypes)
             {
                 ParameterTypes = parameterTypes;
+                LocalTypes = localTypes;
                 VariableTypes = variableTypes;
             }
         }
 
         private readonly Dictionary<int, Dictionary<ILOperand, TypeBuilder>> _types = new Dictionary<int, Dictionary<ILOperand, TypeBuilder>>();
         private readonly Dictionary<ILOperand, TypeBuilder> _parameterTypes = new Dictionary<ILOperand, TypeBuilder>();
+        private readonly Dictionary<ILOperand, TypeBuilder> _localTypes = new Dictionary<ILOperand, TypeBuilder>();
         private readonly Dictionary<ILOperand, int> _currentIds = new Dictionary<ILOperand, int>();
         private int _currentLevel;
         private int _nextId;
@@ -210,7 +213,12 @@ namespace UnwindMC.Analysis.Data
             {
                 parameterTypes.Add(pair.Value.Build());
             }
-            return new Result(parameterTypes, variableTypes);
+            var localTypes = new List<Type>();
+            foreach (var pair in _localTypes.OrderByDescending(p => p.Key.Offset))
+            {
+                localTypes.Add(pair.Value.Build());
+            }
+            return new Result(parameterTypes, localTypes, variableTypes);
         }
 
         private static bool FunctionReturnsValue(IReadOnlyList<IBlock> blocks)
@@ -220,23 +228,15 @@ namespace UnwindMC.Analysis.Data
             return blocks
                 .OfType<SequentialBlock>()
                 .SelectMany(b => b.Instructions)
-                .Any(i => i.Target != null && i.Target.Type == ILOperandType.Register && i.Target.Register == OperandType.EAX);
-        }
-
-        private bool TypeExists(ILOperand operand)
-        {
-            for (int i = _currentLevel; i >= 0; i--)
-            {
-                if (_types[i].ContainsKey(operand))
-                {
-                    return true;
-                }
-            }
-            return false;
+                .Any(i => i.Target != null && i.Target.IsRegister(OperandType.EAX));
         }
 
         private int GetScopeLevel(ILOperand operand)
         {
+            if (_parameterTypes.ContainsKey(operand) || _localTypes.ContainsKey(operand))
+            {
+                return 0;
+            }
             for (int i = _currentLevel; i >= 0; i--)
             {
                 if (_types[i].ContainsKey(operand))
@@ -247,8 +247,28 @@ namespace UnwindMC.Analysis.Data
             throw new KeyNotFoundException();
         }
 
+        private bool TypeExists(ILOperand operand)
+        {
+            if (operand.Type == ILOperandType.Stack)
+            {
+                return operand.Offset >= 0 ? _parameterTypes.ContainsKey(operand) : _localTypes.ContainsKey(operand);
+            }
+            for (int i = _currentLevel; i >= 0; i--)
+            {
+                if (_types[i].ContainsKey(operand))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private TypeBuilder GetType(ILOperand operand)
         {
+            if (operand.Type == ILOperandType.Stack)
+            {
+                return operand.Offset >= 0 ? _parameterTypes[operand] : _localTypes[operand];
+            }
             for (int i = _currentLevel; i >= 0; i--)
             {
                 if (_types[i].ContainsKey(operand))
@@ -277,7 +297,14 @@ namespace UnwindMC.Analysis.Data
                             : GetType(source);
             if (target.Type == ILOperandType.Stack)
             {
-                _parameterTypes[target] = typeBuilder;
+                if (target.Offset >= 0)
+                {
+                    _parameterTypes[target] = typeBuilder;
+                }
+                else
+                {
+                    _localTypes[target] = typeBuilder;
+                }
             }
             else
             {

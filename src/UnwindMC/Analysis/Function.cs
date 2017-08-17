@@ -12,6 +12,7 @@ namespace UnwindMC.Analysis
     {
         private List<IBlock> _blocks;
         private IReadOnlyList<Data.Type> _parameterTypes;
+        private IReadOnlyList<Data.Type> _localTypes;
         private IReadOnlyList<Data.Type> _variableTypes;
         private ScopeNode _ast;
         private string _code;
@@ -28,6 +29,7 @@ namespace UnwindMC.Analysis
         public FunctionStatus Status { get; set; }
         public IReadOnlyList<IBlock> Blocks => _blocks;
         public IReadOnlyList<Data.Type> ParameterTypes => _parameterTypes;
+        public IReadOnlyList<Data.Type> LocalTypes => _localTypes;
         public IReadOnlyList<Data.Type> VariableTypes => _variableTypes;
         public ScopeNode Ast => _ast;
         public string Code => _code;
@@ -70,6 +72,7 @@ namespace UnwindMC.Analysis
             }
             var types = TypeResolver.ResolveTypes(_blocks);
             _parameterTypes = types.ParameterTypes;
+            _localTypes = types.LocalTypes;
             _variableTypes = types.VariableTypes;
             Status = FunctionStatus.ArgumentsResolved;
         }
@@ -80,7 +83,7 @@ namespace UnwindMC.Analysis
             {
                 throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
             }
-            _ast = new AstBuilder(_blocks, _parameterTypes, _variableTypes).BuildAst();
+            _ast = new AstBuilder(_blocks, _parameterTypes, _localTypes, _variableTypes).BuildAst();
             Status = FunctionStatus.AstBuilt;
         }
 
@@ -90,10 +93,15 @@ namespace UnwindMC.Analysis
             {
                 throw new InvalidOperationException("Cannot emit source code when AST is not built");
             }
+            // TODO: these should be returned from AST step
             var types = new Dictionary<string, Data.Type>();
             for (int i = 0; i < _parameterTypes.Count; i++)
             {
                 types.Add("arg" + i, _parameterTypes[i]);
+            }
+            for (int i = 0; i < _localTypes.Count; i++)
+            {
+                types.Add("loc" + i, _variableTypes[i]);
             }
             for (int i = 0; i < _variableTypes.Count; i++)
             {

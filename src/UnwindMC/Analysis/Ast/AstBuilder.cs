@@ -11,17 +11,21 @@ namespace UnwindMC.Analysis.Ast
     {
         private readonly IReadOnlyList<IBlock> _blocks;
         private readonly IReadOnlyList<Data.Type> _parameterTypes;
+        private readonly IReadOnlyList<Data.Type> _localTypes;
         private readonly IReadOnlyList<Data.Type> _variableTypes;
 
         private int _nextVariableNameIdx;
         private Dictionary<int, string> _variableNames;
         private Dictionary<int, string> _parameterNames;
+        private Dictionary<int, string> _localNames;
         private Dictionary<string, Data.Type> _types;
         
-        public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyList<Data.Type> parameterTypes, IReadOnlyList<Data.Type> variableTypes)
+        public AstBuilder(IReadOnlyList<IBlock> blocks, IReadOnlyList<Data.Type> parameterTypes,
+            IReadOnlyList<Data.Type> localTypes, IReadOnlyList<Data.Type> variableTypes)
         {
             _blocks = blocks;
             _parameterTypes = parameterTypes;
+            _localTypes = localTypes;
             _variableTypes = variableTypes;
         }
 
@@ -30,6 +34,7 @@ namespace UnwindMC.Analysis.Ast
             _nextVariableNameIdx = 0;
             _variableNames = new Dictionary<int, string>();
             _parameterNames = new Dictionary<int, string>();
+            _localNames = new Dictionary<int, string>();
             _types = new Dictionary<string, Data.Type>();
             int offset = 0;
             for (int index = 0; index < _parameterTypes.Count; index++)
@@ -38,6 +43,14 @@ namespace UnwindMC.Analysis.Ast
                 _parameterNames[offset] = name;
                 _types[name] = _parameterTypes[index];
                 offset += _parameterTypes[index].Size;
+            }
+            offset = -8; // TODO: this will not always be correct
+            for (int index = 0; index < _localTypes.Count; index++)
+            {
+                offset -= _localTypes[index].Size;
+                var name = "loc" + index;
+                _localNames[offset] = name;
+                _types[name] = _localTypes[index];
             }
             var ast = BuildScope(_blocks);
             RunTransformations(ast);
@@ -163,7 +176,7 @@ namespace UnwindMC.Analysis.Ast
             {
                 case ILOperandType.Pointer: return new DereferenceNode(new VarNode(GetVarName(id)));
                 case ILOperandType.Register: return new VarNode(GetVarName(id));
-                case ILOperandType.Stack: return new VarNode(_parameterNames[op.Offset]);
+                case ILOperandType.Stack: return new VarNode(op.Offset >= 0 ? _parameterNames[op.Offset] : _localNames[op.Offset]);
                 case ILOperandType.Value: return new ValueNode(op.Value);
                 default: throw new InvalidOperationException();
             }
@@ -202,6 +215,7 @@ namespace UnwindMC.Analysis.Ast
             switch (op.Type)
             {
                 case ILOperandType.Register: return new VarNode(GetVarName(id));
+                case ILOperandType.Stack: return new VarNode(op.Offset >= 0 ? _parameterNames[op.Offset] : _localNames[op.Offset]);
                 default: throw new NotSupportedException();
             }
         }

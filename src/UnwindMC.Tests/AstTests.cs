@@ -63,7 +63,7 @@ namespace UnwindMC.Tests
                 new Type(true, 0),
             };
 
-            var ast = new AstBuilder(blocks, parameterTypes, variableTypes).BuildAst();
+            var ast = new AstBuilder(blocks, parameterTypes, new Type[0], variableTypes).BuildAst();
             var expected = Scope(
                 Assign(Var("var0"), Var("arg0")),
                 While(Less(Var("var0"), Var("arg1")),
@@ -155,7 +155,7 @@ namespace UnwindMC.Tests
                 new Type(false, 0),
             };
 
-            var ast = new AstBuilder(blocks, parameterTypes, variableTypes).BuildAst();
+            var ast = new AstBuilder(blocks, parameterTypes, new Type[0], variableTypes).BuildAst();
             var expected = Scope(
                 Assign(Var("var0"), Var("arg1")),
                 Assign(Var("var1"), Val(int.MinValue)),

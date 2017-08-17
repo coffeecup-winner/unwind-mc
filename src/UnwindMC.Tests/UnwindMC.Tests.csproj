@@ -74,7 +74,9 @@
     <Compile Include="Helpers\TempDirectory.cs" />
     <Compile Include="ILDecompilationTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SourceTests\FlowControlTests.cs" />
     <Compile Include="SourceTests\IntArithmeticTests.cs" />
+    <Compile Include="SourceTests\SourceTester.cs" />
     <Compile Include="SourceTests\TODO.cs" />
     <Compile Include="SourceTests\VcTools.cs" />
     <Compile Include="TypeResolutionTests.cs" />
