@@ -13,18 +13,18 @@ namespace UnwindMC.Tests
         public void TestILWithFunctionPointers()
         {
             var analyzer = AnalysisHelper.Analyze(@"
-                00400000: 56            push esi
-                00400001: 8b 74 24 08   mov esi, [esp+0x8]
-                00400005: 3b 74 24 0c   cmp esi, [esp+0xc]
-                00400009: 73 0d         jae 0x400018
-                0040000b: 8b 06         mov eax, [esi]
-                0040000d: 85 c0         test eax, eax
-                0040000f: 74 02         jz 0x400013
-                00400011: ff d0         call eax
-                00400013: 83 c6 04      add esi, 0x4
-                00400016: eb ed         jmp 0x400005
-                00400018: 5e            pop esi
-                00400019: c3            ret");
+                00400000: 56                 push esi
+                00400001: 8b 74 24 08        mov esi, [esp+0x8]
+                00400005: 3b 74 24 0c        cmp esi, [esp+0xc]
+                00400009: 73 0d              jae 0x400018
+                0040000b: 8b 06              mov eax, [esi]
+                0040000d: 85 c0              test eax, eax
+                0040000f: 74 02              jz 0x400013
+                00400011: ff d0              call eax
+                00400013: 83 c6 04           add esi, 0x4
+                00400016: eb ed              jmp 0x400005
+                00400018: 5e                 pop esi
+                00400019: c3                 ret");
             var il = ILDecompiler.Decompile(analyzer.Graph, 0x400000);
 
             var asn0 = Assign(Register(OperandType.ESI), Stack(0));
@@ -53,21 +53,21 @@ namespace UnwindMC.Tests
         public void TestILFindMax()
         {
             var analyzer = AnalysisHelper.Analyze(@"
-                08048400: 56                push esi
-                08048401: 8b 4c 24 0c       mov ecx, [esp+0xc]
-                08048405: b8 00 00 00 80    mov eax, 0x80000000
-                0804840a: 85 c9             test ecx, ecx
-                0804840c: 74 16             jz 0x8048424
-                0804840e: 8b 54 24 08       mov edx, [esp+0x8]
-                08048412: b8 00 00 00 80    mov eax, 0x80000000
-                08048417: 8b 32             mov esi, [edx]
-                08048419: 39 f0             cmp eax, esi
-                0804841b: 0f 4c c6          cmovl eax, esi
-                0804841e: 83 c2 04          add edx, 0x4
-                08048421: 49                dec ecx
-                08048422: 75 f3             jnz 0x8048417
-                08048424: 5e                pop esi
-                08048425: c3                ret");
+                08048400: 56                 push esi
+                08048401: 8b 4c 24 0c        mov ecx, [esp+0xc]
+                08048405: b8 00 00 00 80     mov eax, 0x80000000
+                0804840a: 85 c9              test ecx, ecx
+                0804840c: 74 16              jz 0x8048424
+                0804840e: 8b 54 24 08        mov edx, [esp+0x8]
+                08048412: b8 00 00 00 80     mov eax, 0x80000000
+                08048417: 8b 32              mov esi, [edx]
+                08048419: 39 f0              cmp eax, esi
+                0804841b: 0f 4c c6           cmovl eax, esi
+                0804841e: 83 c2 04           add edx, 0x4
+                08048421: 49                 dec ecx
+                08048422: 75 f3              jnz 0x8048417
+                08048424: 5e                 pop esi
+                08048425: c3                 ret");
             var il = ILDecompiler.Decompile(analyzer.Graph, 0x8048400);
 
             var asn0 = Assign(Register(OperandType.ECX), Stack(4));

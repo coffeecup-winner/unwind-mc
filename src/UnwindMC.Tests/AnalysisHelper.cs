@@ -5,48 +5,70 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnwindMC.Analysis;
 
 namespace UnwindMC.Tests
 {
     internal static class AnalysisHelper
     {
+        private static readonly Regex NormalLineRegex = new Regex(
+            @"^(?<address>[0-9A-F]{8}): (((?<bytes>[0-9A-F]{2})|  ) ){6} (?<asm>.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex AdditionalBytesLineRegex = new Regex(
+            @"^(?<bytes>[0-9A-F]{2})( (?<bytes>[0-9A-F]{2}))*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         public static Analyzer Analyze(string function)
         {
             var lines = function
-                .Split(new[] { '\r', '\n' })
-                .Where(l => !string.IsNullOrWhiteSpace(l))
-                .Select(l => l.TrimStart())
-                .ToList();
-
-            var parts = lines
-                .Select(l =>
-                {
-                    var data = l.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries).ToArray();
-                    data[0] = data[0].TrimEnd(':');
-                    return data;
-                })
+                .Split('\r', '\n')
+                .SkipWhile(string.IsNullOrWhiteSpace)
+                .Select(l => l.Trim())
                 .ToArray();
 
-            var address = ulong.Parse(parts[0][0], NumberStyles.HexNumber);
+            var match = NormalLineRegex.Match(lines[0]);
+            var address = ulong.Parse(match.Groups["address"].Value, NumberStyles.HexNumber);
             var bytes = new List<byte>();
             var canonLines = new List<string>();
-            foreach (var data in parts)
+            for (var i = 0; i < lines.Length; i++)
             {
+                string addressText = match.Groups["address"].Value;
                 var hex = new StringBuilder();
-                int i = 1;
-                for (; i < data.Length; i++)
+                foreach (var capture in match.Groups["bytes"].Captures)
                 {
-                    string @byte = data[i];
-                    if (!byte.TryParse(@byte, NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var b))
-                    {
-                        break;
-                    }
+                    byte b = byte.Parse(capture.ToString(), NumberStyles.HexNumber);
                     bytes.Add(b);
-                    hex.Append(@byte);
+                    hex.Append($"{b:x2}");
                 }
-                var line = $"{data[0]} {hex,20}".ToLower();
-                canonLines.Add(line);
+                if (i != lines.Length - 1)
+                {
+                    var next = lines[i + 1];
+                    match = NormalLineRegex.Match(next);
+                    if (!match.Success)
+                    {
+                        match = AdditionalBytesLineRegex.Match(next);
+                        if (!match.Success)
+                        {
+                            throw new InvalidOperationException("Line in incorrect format: " + next);
+                        }
+                        foreach (var capture in match.Groups["bytes"].Captures)
+                        {
+                            byte b = byte.Parse(capture.ToString(), NumberStyles.HexNumber);
+                            bytes.Add(b);
+                            hex.Append($"{b:x2}");
+                        }
+                        if (i != lines.Length - 2)
+                        {
+                            ++i;
+                            next = lines[i + 1];
+                            match = NormalLineRegex.Match(next);
+                            if (!match.Success)
+                            {
+                                throw new InvalidOperationException("Line in incorrect format: " + next);
+                            }
+                        }
+                    }
+                }
+                canonLines.Add($"{addressText} {hex,20}".ToLower());
             }
 
             var analyzer = new Analyzer(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver>());
