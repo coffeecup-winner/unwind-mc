@@ -141,7 +141,8 @@ namespace UnwindMC.Emit
         private void Emit(StringBuilder sb, AssignmentNode assignment)
         {
             sb.Append(_indent);
-            if (_declaredVariables.Add(assignment.Var.Name))
+            // TODO: reword how variables are passed and treated in each step
+            if (!assignment.Var.Name.StartsWith("arg") && _declaredVariables.Add(assignment.Var.Name))
             {
                 EmitDeclaration(sb, assignment.Var.Name);
             }

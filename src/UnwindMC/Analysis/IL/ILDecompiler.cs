@@ -313,6 +313,7 @@ namespace UnwindMC.Analysis.IL
                         return ILOperand.FromPointer(operand.Base, (int)operand.GetMemoryOffset());
                     }
                     throw new NotSupportedException();
+                case OperandType.Constant:
                 case OperandType.Immediate:
                     return ILOperand.FromValue((int)operand.GetValue());
                 default: throw new NotSupportedException();

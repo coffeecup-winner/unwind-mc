@@ -138,7 +138,10 @@ namespace UnwindMC.Analysis.Data
                     case ILInstructionType.Assign:
                         if (!TypeExists(instr.Target))
                         {
-                            throw new InvalidOperationException("Assignment appears to not be used in the execution path");
+                            if (instr.Target.Type != ILOperandType.Stack)
+                            {
+                                throw new InvalidOperationException("Assignment appears to not be used in the execution path");
+                            }
                         }
                         ILOperand operand;
                         if (instr.Source.Type == ILOperandType.Pointer)
@@ -169,6 +172,10 @@ namespace UnwindMC.Analysis.Data
                             }
                             else
                             {
+                                if (!TypeExists(instr.Target))
+                                {
+                                    AssignTypeBuilder(instr.Target, null);
+                                }
                                 AssignTypeBuilder(operand, instr.Target);
                             }
                         }
@@ -177,13 +184,17 @@ namespace UnwindMC.Analysis.Data
                             GetType(operand).AddIndirectionLevel();
                         }
                         instr.SetVariableIds(GetCurrentId(_currentIds, instr.Target), GetCurrentId(_currentIds, operand));
-                        if (_currentLevel == 0)
+                        if (instr.Target.Type != ILOperandType.Stack)
                         {
-                            FinalizeType(variableTypes, instr.TargetId, instr.Target);
-                        }
-                        else
-                        {
-                            typesToRemove[_currentLevel].Add(instr.Target, instr.TargetId);
+                            if (_currentLevel == 0)
+                            {
+                                FinalizeType(variableTypes, instr.TargetId, instr.Target);
+                            }
+                            else
+                            {
+                                typesToRemove[_currentLevel].Add(instr.Target, instr.TargetId);
+                            }
+                            break;
                         }
                         break;
                     case ILInstructionType.Call:
