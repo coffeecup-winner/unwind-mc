@@ -62,6 +62,7 @@ namespace UnwindMC.Analysis.Ast
             var transformers = new INodeVisitor[]
             {
                 new FixupPointerArithmetics(_types),
+                new FixupZeroAssignment(),
             };
 
             foreach (var transformer in transformers)

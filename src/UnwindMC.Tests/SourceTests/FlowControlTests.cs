@@ -16,11 +16,10 @@ namespace UnwindMC.Tests.SourceTests
                     }
                     return x;
                 }";
-            // TODO: zeroing out local variables should not expose `and`, the code below is incorrect
             const string expected = @"
                 int sub_000000(int arg0)
                 {
-                  int loc0 = loc0 & 0;
+                  int loc0 = 0;
                   if (arg0 != 0)
                   {
                     loc0 = 1;
@@ -45,11 +44,10 @@ namespace UnwindMC.Tests.SourceTests
                     }
                     return x;
                 }";
-            // TODO: zeroing out local variables should not expose `and`, the code below is incorrect
             const string expected = @"
                 int sub_000000(int arg0)
                 {
-                  int loc0 = loc0 & 0;
+                  int loc0 = 0;
                   if (arg0 != 0)
                   {
                     loc0 = 1;
@@ -77,11 +75,10 @@ namespace UnwindMC.Tests.SourceTests
                     }
                     return x;
                 }";
-            // TODO: zeroing out local variables should not expose `and`, the code below is incorrect
             const string expected = @"
                 int sub_000000(int arg0)
                 {
-                  int loc0 = loc0 & 0;
+                  int loc0 = 0;
                   if (arg0 == 0)
                   {
                     loc0 = 2;
