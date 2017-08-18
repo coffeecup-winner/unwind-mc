@@ -50,6 +50,7 @@ namespace UnwindMC.Analysis.IL
             }
             ILInstruction current = null;
             ILBranch lastBranch = null;
+            bool isEmptyThen = false;
             foreach (var pair in il)
             {
                 if (pair.Value.Type == ILInstructionType.None)
@@ -71,7 +72,14 @@ namespace UnwindMC.Analysis.IL
                     current.AddDefaultChild(il.Values[index]);
                     if (pair.Value.Branch.Type == ILBranchType.Next)
                     {
-                        current = null;
+                        if (lastBranch != null)
+                        {
+                            isEmptyThen = true;
+                        }
+                        else
+                        {
+                            current = null;
+                        }
                     }
                     else
                     {
@@ -81,17 +89,19 @@ namespace UnwindMC.Analysis.IL
                 }
                 if (lastBranch != null)
                 {
+                    var branchType = isEmptyThen ? Complement(lastBranch.Type) : lastBranch.Type;
                     if (addresses[current.DefaultChild] > addresses[pair.Value])
                     {
-                        current.AddConditionalChild(Complement(lastBranch.Type), pair.Value);
+                        current.AddConditionalChild(Complement(branchType), pair.Value);
                     }
                     else
                     {
-                        current.AddConditionalChild(lastBranch.Type, current.DefaultChild);
+                        current.AddConditionalChild(branchType, current.DefaultChild);
                         current.AddDefaultChild(pair.Value);
                     }
                     current = pair.Value;
                     lastBranch = null;
+                    isEmptyThen = false;
                     continue;
                 }
                 current.AddDefaultChild(pair.Value);
