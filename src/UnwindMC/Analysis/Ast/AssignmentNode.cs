@@ -3,22 +3,27 @@
     public class AssignmentNode : IStatementNode
     {
         private VarNode _var;
+        private IExpressionNode _expression;
 
         public AssignmentNode(VarNode var, IExpressionNode expression)
         {
             _var = var;
-            Expression = expression;
+            _expression = expression;
         }
 
         public VarNode Var => _var;
-        // TODO: make nodes editable only from inside visitor
-        public IExpressionNode Expression { get; set; }
+        public IExpressionNode Expression => _expression;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _var.Accept(visitor);
-            Expression.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _var = newNode._var;
+                _expression = newNode._expression;
+            }
+            _var.Accept(transformer);
+            Expression.Accept(transformer);
         }
     }
 }

@@ -5,7 +5,7 @@ namespace UnwindMC.Analysis.Ast
 {
     public class ScopeNode : IStatementNode, IEnumerable<IStatementNode>
     {
-        private readonly List<IStatementNode> _children;
+        private List<IStatementNode> _children;
 
         public ScopeNode(IStatementNode[] statements = null)
         {
@@ -19,12 +19,16 @@ namespace UnwindMC.Analysis.Ast
             _children.Add(node);
         }
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _children = newNode._children;
+            }
             foreach (var child in _children)
             {
-                child.Accept(visitor);
+                child.Accept(transformer);
             }
         }
 

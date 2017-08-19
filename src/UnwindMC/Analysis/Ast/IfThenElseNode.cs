@@ -17,12 +17,18 @@
         public ScopeNode TrueBranch => _trueBranch;
         public ScopeNode FalseBranch => _falseBranch;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _condition.Accept(visitor);
-            _trueBranch.Accept(visitor);
-            _falseBranch.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _condition = newNode._condition;
+                _trueBranch = newNode._trueBranch;
+                _falseBranch = newNode._falseBranch;
+            }
+            _condition.Accept(transformer);
+            _trueBranch.Accept(transformer);
+            _falseBranch.Accept(transformer);
         }
     }
 }

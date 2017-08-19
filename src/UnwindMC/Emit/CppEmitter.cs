@@ -8,15 +8,16 @@ namespace UnwindMC.Emit
 {
     public class CppEmitter
     {
-        private class ReturnNodeFinder : NodeVisitorBase
+        private class ReturnNodeFinder : NodeTransformerBase
         {
             private ReturnNode _ret;
 
             public ReturnNode Return => _ret;
 
-            public override void Visit(ReturnNode ret)
+            public override ReturnNode Transform(ReturnNode ret)
             {
                 _ret = ret;
+                return ret;
             }
         }
 
@@ -47,7 +48,7 @@ namespace UnwindMC.Emit
             _indent = _indents[0];
             _declaredVariables = new HashSet<string>();
             var sb = new StringBuilder();
-            EmitSignature(sb, _body.Visit(new ReturnNodeFinder()).Return);
+            EmitSignature(sb, _body.Transform(new ReturnNodeFinder()).Return);
             Emit(sb, _body);
             return sb.ToString();
         }

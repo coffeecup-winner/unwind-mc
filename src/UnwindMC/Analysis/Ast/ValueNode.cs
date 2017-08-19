@@ -2,16 +2,22 @@
 {
     public class ValueNode : IExpressionNode
     {
+        private int _value;
+
         public ValueNode(int value)
         {
-            Value = value;
+            _value = value;
         }
 
-        public int Value { get; set; }
+        public int Value => _value;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _value = newNode._value;
+            }
         }
     }
 }

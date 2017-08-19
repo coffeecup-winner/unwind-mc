@@ -17,11 +17,17 @@
         public IExpressionNode Left => _left;
         public IExpressionNode Right => _right;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _left.Accept(visitor);
-            _right.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _op = newNode._op;
+                _left = newNode._left;
+                _right = newNode._right;
+            }
+            _left.Accept(transformer);
+            _right.Accept(transformer);
         }
     }
 }

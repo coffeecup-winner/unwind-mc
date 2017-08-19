@@ -4,7 +4,7 @@ namespace UnwindMC.Analysis.Ast
 {
     public class ReturnNode : IStatementNode
     {
-        private readonly Option<VarNode> _var;
+        private Option<VarNode> _var;
 
         public ReturnNode(Option<VarNode> var)
         {
@@ -13,9 +13,13 @@ namespace UnwindMC.Analysis.Ast
 
         public Option<VarNode> Var => _var;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _var = newNode._var;
+            }
         }
     }
 }

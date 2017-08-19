@@ -2,16 +2,16 @@
 {
     public interface INode
     {
-        void Accept(INodeVisitor visitor);
+        void Accept(INodeTransformer transformer);
     }
 
     public static class NodeExtensions
     {
-        public static TVisitor Visit<TVisitor>(this INode node, TVisitor visitor)
-        where TVisitor : INodeVisitor
+        public static TTransformer Transform<TTransformer>(this INode node, TTransformer transformer)
+        where TTransformer : INodeTransformer
         {
-            node.Accept(visitor);
-            return visitor;
+            node.Accept(transformer);
+            return transformer;
         }
     }
 }

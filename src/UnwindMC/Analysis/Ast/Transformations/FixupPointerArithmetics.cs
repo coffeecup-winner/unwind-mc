@@ -4,20 +4,20 @@ using Type = UnwindMC.Analysis.Data.Type;
 
 namespace UnwindMC.Analysis.Ast.Transformations
 {
-    public class FixupPointerArithmetics : NodeVisitorBase
+    public class FixupPointerArithmetics : NodeTransformerBase
     {
-        IReadOnlyDictionary<string, Type> _variableTypes;
+        private readonly IReadOnlyDictionary<string, Type> _variableTypes;
 
         public FixupPointerArithmetics(IReadOnlyDictionary<string, Type> variableTypes)
         {
             _variableTypes = variableTypes;
         }
 
-        public override void Visit(BinaryOperatorNode node)
+        public override BinaryOperatorNode Transform(BinaryOperatorNode node)
         {
             if (node.Operator != Operator.Add && node.Operator != Operator.Subtract)
             {
-                return;
+                return node;
             }
             VarNode var = node.Left as VarNode;
             if (var == null)
@@ -25,13 +25,14 @@ namespace UnwindMC.Analysis.Ast.Transformations
                 var = node.Right as VarNode;
                 if (var == null)
                 {
-                    return;
+                    return node;
                 }
             }
-            ValueNode value = (node.Left == var ? node.Right : node.Left) as ValueNode;
+            bool isVarLeft = node.Left == var;
+            ValueNode value = (isVarLeft ? node.Right : node.Left) as ValueNode;
             if (value == null)
             {
-                return;
+                return node;
             }
 
             var type = _variableTypes[var.Name];
@@ -41,8 +42,11 @@ namespace UnwindMC.Analysis.Ast.Transformations
                 {
                     throw new InvalidOperationException("Value size must be divisible by type size");
                 }
-                value.Value /= type.Size;
+                var newValue = new ValueNode(value.Value / type.Size);
+                return new BinaryOperatorNode(node.Operator, isVarLeft ? (IExpressionNode) var : newValue, isVarLeft ? (IExpressionNode) newValue : var);
             }
+
+            return node;
         }
     }
 }

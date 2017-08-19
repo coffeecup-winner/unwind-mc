@@ -11,10 +11,14 @@
 
         public IExpressionNode Pointer => _pointer;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _pointer.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _pointer = newNode._pointer;
+            }
+            _pointer.Accept(transformer);
         }
     }
 }

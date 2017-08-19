@@ -14,11 +14,16 @@
         public IExpressionNode Condition => _condition;
         public ScopeNode Body => _body;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _condition.Accept(visitor);
-            _body.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _condition = newNode._condition;
+                _body = newNode._body;
+            }
+            _condition.Accept(transformer);
+            _body.Accept(transformer);
         }
     }
 }

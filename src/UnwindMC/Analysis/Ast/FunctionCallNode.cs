@@ -11,10 +11,14 @@
 
         public IExpressionNode Function => _function;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _function.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _function = newNode._function;
+            }
+            _function.Accept(transformer);
         }
     }
 }

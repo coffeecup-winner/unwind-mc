@@ -14,10 +14,15 @@
         public Operator Operator => _op;
         public IExpressionNode Operand => _operand;
 
-        public void Accept(INodeVisitor visitor)
+        public void Accept(INodeTransformer transformer)
         {
-            visitor.Visit(this);
-            _operand.Accept(visitor);
+            var newNode = transformer.Transform(this);
+            if (newNode != this)
+            {
+                _op = newNode._op;
+                _operand = newNode._operand;
+            }
+            _operand.Accept(transformer);
         }
     }
 }

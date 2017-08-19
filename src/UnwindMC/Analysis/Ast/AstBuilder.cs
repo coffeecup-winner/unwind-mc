@@ -59,7 +59,7 @@ namespace UnwindMC.Analysis.Ast
 
         private void RunTransformations(ScopeNode ast)
         {
-            var transformers = new INodeVisitor[]
+            var transformers = new INodeTransformer[]
             {
                 new FixupPointerArithmetics(_types),
                 new FixupZeroAssignment(),

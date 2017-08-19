@@ -1,16 +1,16 @@
 ﻿namespace UnwindMC.Analysis.Ast.Transformations
 {
-    public class FixupZeroAssignment : NodeVisitorBase
+    public class FixupZeroAssignment : NodeTransformerBase
     {
-        public override void Visit(AssignmentNode node)
+        public override AssignmentNode Transform(AssignmentNode node)
         {
             if (node.Expression is BinaryOperatorNode binary && binary.Operator == Operator.And
                 && binary.Left is VarNode var && var.Name == node.Var.Name
                 && binary.Right is ValueNode val && val.Value == 0)
             {
-                node.Expression = binary.Right;
+                return new AssignmentNode(node.Var, binary.Right);
             }
-            base.Visit(node);
+            return node;
         }
     }
 }
