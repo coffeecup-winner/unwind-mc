@@ -121,5 +121,37 @@ namespace UnwindMC.Tests.SourceTests
                 ";
             SourceTester.TestDecompiler(code, expected);
         }
+
+        [Test]
+        public void DoWhile()
+        {
+            const string code = @"
+                int ifElse(int a) {
+                    int x = 1;
+                    do {
+                        x *= 2;
+                        --a;
+                    } while (a);
+                    return x;
+                }";
+            const string expected = @"
+                int sub_000000(int arg0)
+                {
+                  int loc0 = 1;
+                  do
+                  {
+                    int var0 = loc0;
+                    var0 = var0 << 1;
+                    loc0 = var0;
+                    var0 = arg0;
+                    var0 = var0 - 1;
+                    arg0 = var0;
+                  } while (arg0 != 0);
+                  int var1 = loc0;
+                  return var1;
+                }
+                ";
+            SourceTester.TestDecompiler(code, expected);
+        }
     }
 }

@@ -36,7 +36,7 @@ namespace UnwindMC.Analysis.Flow
                     result.Add(seq);
                     result.Add(new DoWhileBlock(condition, Analyze(instr, body.ToSet(), doWhileLoops, conditionToIgnore: order)));
                     var next = condition.DefaultChild;
-                    if (subGraph.Contains(next))
+                    if (subGraph == null || subGraph.Contains(next))
                     {
                         result.AddRange(Analyze(next, next.BFS(subGraph).ToSet(), doWhileLoops, conditionToIgnore));
                     }

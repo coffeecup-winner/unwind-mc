@@ -260,11 +260,11 @@ namespace UnwindMC.Analysis.IL
             {
                 return null;
             }
-            ILOperand[] operands;
             switch (_prevInstr.Code)
             {
                 case MnemonicCode.Idec:
-                    operands = Convert(_prevInstr.Operands);
+                case MnemonicCode.Imov: // TODO: this line is a heuristic and might be wrong in some cases
+                    var operands = Convert(_prevInstr.Operands);
                     return new ILInstruction(ILInstructionType.Compare, operands[0], ILOperand.FromValue(0));
                 default: throw new NotSupportedException();
             }
