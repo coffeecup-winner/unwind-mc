@@ -54,6 +54,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Analysis\Analyzer.cs" />
+    <Compile Include="Analysis\Asm\FlagsRegister.cs" />
+    <Compile Include="Analysis\Asm\AffectedFlagsTable.cs" />
     <Compile Include="Analysis\AssignmentTracker.cs" />
     <Compile Include="Analysis\Ast\AssignmentNode.cs" />
     <Compile Include="Analysis\Ast\AstBuilder.cs" />
