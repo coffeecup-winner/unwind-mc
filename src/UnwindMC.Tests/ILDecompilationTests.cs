@@ -1,7 +1,6 @@
 ﻿using NDis86;
 using NUnit.Framework;
 using UnwindMC.Analysis.IL;
-
 using static UnwindMC.Tests.Helpers.ILHelper;
 
 namespace UnwindMC.Tests

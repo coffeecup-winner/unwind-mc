@@ -1,9 +1,12 @@
-﻿using NDis86;
-using NLog;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System;
+using NDis86;
+using NLog;
+using UnwindMC.Analysis.Asm;
+using UnwindMC.Analysis.Imports;
 using UnwindMC.Collections;
+using UnwindMC.Decompilation;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis

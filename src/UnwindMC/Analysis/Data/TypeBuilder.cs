@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace UnwindMC.Analysis.Data
+﻿namespace UnwindMC.Analysis.Data
 {
     public class TypeBuilder
     {

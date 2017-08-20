@@ -1,7 +1,7 @@
-﻿using NUnit.Framework;
-using System;
+﻿using System;
 using System.Linq;
-using UnwindMC.Analysis.Ast;
+using NUnit.Framework;
+using UnwindMC.Generation.Ast;
 using UnwindMC.Util;
 
 namespace UnwindMC.Tests.Helpers

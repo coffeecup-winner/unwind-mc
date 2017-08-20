@@ -1,5 +1,5 @@
-﻿using NDis86;
-using System.Text;
+﻿using System.Text;
+using NDis86;
 
 namespace UnwindMC.Analysis.IL
 {

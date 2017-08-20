@@ -1,11 +1,9 @@
-﻿using NUnit.Framework;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using NUnit.Framework;
 using UnwindMC.Analysis.Data;
-using UnwindMC.Analysis.IL;
-using UnwindMC.Emit;
+using UnwindMC.Generation.Emit;
 using UnwindMC.Tests.Helpers;
 using static UnwindMC.Tests.Helpers.AstHelper;
-using static UnwindMC.Tests.Helpers.ILHelper;
 
 namespace UnwindMC.Tests
 {

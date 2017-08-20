@@ -1,9 +1,9 @@
-﻿using NDis86;
+﻿using System.Collections.Generic;
+using NDis86;
 using NUnit.Framework;
-using System.Collections.Generic;
-using UnwindMC.Analysis.Ast;
 using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Generation.Ast;
 using static UnwindMC.Tests.Helpers.AstHelper;
 using static UnwindMC.Tests.Helpers.FlowHelper;
 using static UnwindMC.Tests.Helpers.ILHelper;

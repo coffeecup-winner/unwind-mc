@@ -1,9 +1,9 @@
-﻿using NDis86;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NDis86;
+using UnwindMC.Analysis.Asm;
 using UnwindMC.Collections;
-using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.IL
 {

@@ -1,5 +1,5 @@
 ﻿using System;
-using UnwindMC.Project;
+using UnwindMC.Decompilation;
 
 namespace UnwindMC
 {

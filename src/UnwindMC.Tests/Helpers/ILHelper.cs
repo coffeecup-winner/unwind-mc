@@ -1,6 +1,6 @@
-﻿using NDis86;
+﻿using System.Collections.Generic;
+using NDis86;
 using NUnit.Framework;
-using System.Collections.Generic;
 using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Tests.Helpers
