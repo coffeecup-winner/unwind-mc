@@ -76,8 +76,9 @@ namespace UnwindMC.Analysis
                     Logger.Debug("The specified address is not a valid start of instruction, re-disassembling");
                     _graph.Redisassemble(function.Address);
                 }
-                Func<InstructionGraph.Link, bool> edgeFilter = e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0;
-                var visitedAllLinks = _graph.DFS(function.Address, edgeFilter, (instr, link) =>
+                var visitedAllLinks = _graph
+                    .WithEdgeFilter(e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0)
+                    .DFS(function.Address, (instr, link) =>
                 {
                     _graph.GetExtraData(instr.Offset).FunctionAddress = function.Address;
                     if (instr.Code == MnemonicCode.Iret)
@@ -205,7 +206,10 @@ namespace UnwindMC.Analysis
             OperandType lowByteIdx = OperandType.None;
             ulong indirectAddress = 0;
             var casesCountOption = Option<int>.None;
-            _graph.ReverseEdges().DFS(table.Reference, e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch) != 0, (instr, link) =>
+            _graph
+                .WithEdgeFilter(e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch) != 0)
+                .ReverseEdges()
+                .DFS(table.Reference, (instr, link) =>
             {
                 // find out the jump index register
                 if (idx == OperandType.None)

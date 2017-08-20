@@ -24,7 +24,9 @@ namespace UnwindMC.Analysis.IL
         {
             var ilConverter = new ILDecompiler();
             var instructions = new Dictionary<ulong, ILInstruction>();
-            graph.DFS(address, e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0, (instr, link) =>
+            graph
+                .WithEdgeFilter(e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0)
+                .DFS(address, (instr, link) =>
             {
                 var ilInstructions = ilConverter.Convert(instr);
                 if (ilInstructions.Length > instr.Length)

@@ -51,6 +51,7 @@ namespace UnwindMC.Analysis
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
         private readonly bool _isReversed;
+        private readonly Func<Link, bool> _edgePredicate;
 
         public InstructionGraph(ArraySegment<byte> bytes, ulong pc)
         {
@@ -67,11 +68,12 @@ namespace UnwindMC.Analysis
                 _instructions.Add(instr.Offset, instr);
             }
             _isReversed = false;
+            _edgePredicate = _ => true;
         }
 
         private InstructionGraph(Disassembler disassembler, ArraySegment<byte> bytes, ulong firstAddress, ulong firstAddressAfterCode,
             SortedDictionary<ulong, Instruction> instructions, Dictionary<ulong, ExtraData> extraData, Dictionary<ulong, List<Link>> instructionLinks,
-            Dictionary<ulong, List<Link>> reverseLinks, bool isReversed)
+            Dictionary<ulong, List<Link>> reverseLinks, bool isReversed, Func<Link, bool> edgePredicate)
         {
             _disassembler = disassembler;
             _bytes = bytes;
@@ -82,6 +84,7 @@ namespace UnwindMC.Analysis
             _instructionLinks = instructionLinks;
             _reverseLinks = reverseLinks;
             _isReversed = isReversed;
+            _edgePredicate = edgePredicate;
         }
 
         public ICollection<Instruction> Instructions => _instructions.Values;
@@ -102,12 +105,7 @@ namespace UnwindMC.Analysis
             return _instructions.ContainsKey(vertex.Offset);
         }
 
-        public IGraph<ulong, Instruction, Link> GetSubgraph(ISet<Instruction> subgraph)
-        {
-            throw new NotSupportedException();
-        }
-
-        public IEnumerable<Either<(ulong vertex, Link edge), string>> GetAdjacent(ulong vertexId, Func<Link, bool> filterEdges)
+        public IEnumerable<Either<(ulong vertex, Link edge), string>> GetAdjacent(ulong vertexId)
         {
             if (!(_isReversed ? _reverseLinks : _instructionLinks).TryGetValue(vertexId, out var links))
             {
@@ -116,7 +114,7 @@ namespace UnwindMC.Analysis
             }
             foreach (var link in links)
             {
-                if (!filterEdges(link))
+                if (!_edgePredicate(link))
                 {
                     continue;
                 }
@@ -127,10 +125,21 @@ namespace UnwindMC.Analysis
             }
         }
 
+        public IGraph<ulong, Instruction, Link> GetSubgraph(ISet<Instruction> subgraph)
+        {
+            throw new NotSupportedException();
+        }
+
+        public IGraph<ulong, Instruction, Link> WithEdgeFilter(Func<Link, bool> predicate)
+        {
+            return new InstructionGraph(_disassembler, _bytes, _firstAddress, _firstAddressAfterCode, _instructions,
+                _extraData, _instructionLinks, _reverseLinks, _isReversed, predicate);
+        }
+
         public IGraph<ulong, Instruction, Link> ReverseEdges()
         {
             return new InstructionGraph(_disassembler, _bytes, _firstAddress, _firstAddressAfterCode, _instructions,
-                _extraData, _instructionLinks, _reverseLinks, !_isReversed);
+                _extraData, _instructionLinks, _reverseLinks, !_isReversed, _edgePredicate);
         }
 
         public bool InBounds(ulong address)

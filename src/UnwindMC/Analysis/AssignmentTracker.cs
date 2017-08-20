@@ -21,7 +21,10 @@ namespace UnwindMC.Analysis
         {
             var result = Option<LValue>.None;
             bool skippedInitialInstruction = false;
-            _graph.ReverseEdges().DFS(address, e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0, (instr, link) =>
+            _graph
+                .WithEdgeFilter(e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0)
+                .ReverseEdges()
+                .DFS(address, (instr, link) =>
             {
                 if (!skippedInitialInstruction)
                 {

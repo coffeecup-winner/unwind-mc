@@ -10,8 +10,10 @@ namespace UnwindMC.Collections
     {
         bool Contains(TVertexId vertex);
         TVertex GetVertex(TVertexId vertexId);
+        IEnumerable<Either<(TVertexId vertex, TEdge edge), string>> GetAdjacent(TVertexId vertex);
+
         IGraph<TVertexId, TVertex, TEdge> GetSubgraph(ISet<TVertex> subgraph);
-        IEnumerable<Either<(TVertexId vertex, TEdge edge), string>> GetAdjacent(TVertexId vertex, Func<TEdge, bool> filterEdges);
+        IGraph<TVertexId, TVertex, TEdge> WithEdgeFilter(Func<TEdge, bool> predicate);
         IGraph<TVertexId, TVertex, TEdge> ReverseEdges();
     }
 
@@ -19,7 +21,7 @@ namespace UnwindMC.Collections
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        public static bool DFS<TVertexId, TVertex, TEdge>(this IGraph<TVertexId, TVertex, TEdge> graph, TVertexId start, Func<TEdge, bool> filterEdges, Func<TVertex, TEdge, bool> process)
+        public static bool DFS<TVertexId, TVertex, TEdge>(this IGraph<TVertexId, TVertex, TEdge> graph, TVertexId start, Func<TVertex, TEdge, bool> process)
         {
             var visited = new HashSet<TVertexId>();
             var stack = new Stack<(TVertexId vertexId, TEdge edge)>();
@@ -34,7 +36,7 @@ namespace UnwindMC.Collections
                     continue;
                 }
 
-                foreach (var adj in graph.GetAdjacent(current.vertexId, filterEdges).Reverse())
+                foreach (var adj in graph.GetAdjacent(current.vertexId).Reverse())
                 {
                     if (adj.IsRight)
                     {
@@ -64,10 +66,10 @@ namespace UnwindMC.Collections
             var visited = new HashSet<TVertexId> { start };
             while (queue.Count > 0)
             {
-                var instr = queue.Dequeue();
-                yield return graph.GetVertex(instr);
+                var vertexId = queue.Dequeue();
+                yield return graph.GetVertex(vertexId);
 
-                foreach (var adj in graph.GetAdjacent(instr, _ => true))
+                foreach (var adj in graph.GetAdjacent(vertexId))
                 {
                     if (adj.IsRight)
                     {
