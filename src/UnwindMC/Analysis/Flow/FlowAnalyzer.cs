@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnwindMC.Analysis.IL;
+using UnwindMC.Collections;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.Flow
@@ -21,14 +22,15 @@ namespace UnwindMC.Analysis.Flow
         private static List<IBlock> Analyze(ILInstruction il, ISet<ILInstruction> subGraph, Queue<(int childOrder, int order)> doWhileLoops, int conditionToIgnore = -1)
         {
             var result = new List<IBlock>();
-            SequentialBlock seq = new SequentialBlock();
-            foreach (var instr in il.BFS(subGraph))
+            var seq = new SequentialBlock();
+            var graph = new ILGraph();
+            foreach (var instr in graph.BFS(il, subGraph))
             {
                 if (doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder == instr.Order)
                 {
                     // the instructions is the beginning of the do-while loop
                     var order = doWhileLoops.Dequeue().order;
-                    var body = instr.BFS(subGraph)
+                    var body = graph.BFS(instr, subGraph)
                         .Where(i => i.Order <= order)
                         .ToList();
                     var condition = body.Last();
@@ -38,7 +40,7 @@ namespace UnwindMC.Analysis.Flow
                     var next = condition.DefaultChild;
                     if (subGraph == null || subGraph.Contains(next))
                     {
-                        result.AddRange(Analyze(next, next.BFS(subGraph).ToSet(), doWhileLoops, conditionToIgnore));
+                        result.AddRange(Analyze(next, graph.BFS(next, subGraph).ToSet(), doWhileLoops, conditionToIgnore));
                     }
                     return result;
                 }
@@ -51,8 +53,8 @@ namespace UnwindMC.Analysis.Flow
                 result.Add(seq);
                 
                 // loop detection
-                var left = instr.ConditionalChild.BFS(subGraph).ToList();
-                var right = instr.DefaultChild.BFS(subGraph).ToList();
+                var left = graph.BFS(instr.ConditionalChild, subGraph).ToList();
+                var right = graph.BFS(instr.DefaultChild, subGraph).ToList();
 
                 bool isConditional = left[left.Count - 1] == right[right.Count - 1];
                 if (isConditional)
@@ -99,7 +101,7 @@ namespace UnwindMC.Analysis.Flow
         public static IReadOnlyList<(int, int)> FindDoWhileLoops(ILInstruction il)
         {
             var result = new List<(int childOrder, int order)>();
-            foreach (var instr in il.BFS())
+            foreach (var instr in new ILGraph().BFS(il))
             {
                 if (instr.ConditionalChild != null && instr.ConditionalChild.Order < instr.Order)
                 {
@@ -110,41 +112,6 @@ namespace UnwindMC.Analysis.Flow
                 .OrderBy(c => c.childOrder)
                 .ThenByDescending(c => c.order)
                 .ToList();
-        }
-
-        private static IEnumerable<ILInstruction> BFS(this ILInstruction instruction, ISet<ILInstruction> subGraph = null)
-        {
-            // this BFS does not follow up-links
-            if ((subGraph != null && !subGraph.Contains(instruction)))
-            {
-                yield break;
-            }
-            var queue = new Queue<ILInstruction>();
-            queue.Enqueue(instruction);
-            var visited = new HashSet<ILInstruction> { instruction };
-            while (queue.Count > 0)
-            {
-                var instr = queue.Dequeue();
-                yield return instr;
-
-                if (instr.ConditionalChild != null && instr.ConditionalChild.Order > instr.Order)
-                {
-                    if (visited.Add(instr.ConditionalChild) &&
-                        (subGraph == null || subGraph.Contains(instr.ConditionalChild)))
-                    {
-                        queue.Enqueue(instr.ConditionalChild);
-                    }
-                }
-
-                if (instr.DefaultChild != null && instr.DefaultChild.Order > instr.Order)
-                {
-                    if (visited.Add(instr.DefaultChild) &&
-                        (subGraph == null || subGraph.Contains(instr.DefaultChild)))
-                    {
-                        queue.Enqueue(instr.DefaultChild);
-                    }
-                }
-            }
         }
     }
 }

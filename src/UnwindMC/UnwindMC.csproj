@@ -90,6 +90,7 @@
     <Compile Include="Analysis\IImportResolver.cs" />
     <Compile Include="Analysis\IL\ILBranch.cs" />
     <Compile Include="Analysis\IL\ILDecompiler.cs" />
+    <Compile Include="Analysis\IL\ILGraph.cs" />
     <Compile Include="Analysis\IL\ILInstruction.cs" />
     <Compile Include="Analysis\IL\ILOperand.cs" />
     <Compile Include="Analysis\ImportResolver.cs" />
@@ -97,6 +98,7 @@
     <Compile Include="Analysis\JumpTable.cs" />
     <Compile Include="Analysis\RegisterHelper.cs" />
     <Compile Include="Analysis\ResultDumper.cs" />
+    <Compile Include="Collections\IGraph.cs" />
     <Compile Include="Decompiler.cs" />
     <Compile Include="Emit\CppEmitter.cs" />
     <Compile Include="PEFile.cs" />
