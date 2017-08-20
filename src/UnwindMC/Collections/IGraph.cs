@@ -11,7 +11,6 @@ namespace UnwindMC.Collections
         bool Contains(TVertexId vertex);
         TVertex GetVertex(TVertexId vertexId);
         IGraph<TVertexId, TVertex, TEdge> GetSubgraph(ISet<TVertex> subgraph);
-        IEnumerable<TVertexId> GetNeighbors(TVertexId vertex);
         IEnumerable<Either<(TVertexId vertex, TEdge edge), string>> GetAdjacent(TVertexId vertex, Func<TEdge, bool> filterEdges);
         IGraph<TVertexId, TVertex, TEdge> ReverseEdges();
     }
@@ -26,7 +25,7 @@ namespace UnwindMC.Collections
             var stack = new Stack<(TVertexId vertexId, TEdge edge)>();
             stack.Push((start, default(TEdge)));
             visited.Add(start);
-            var visitedAllLinks = true;
+            var visitedAllEdges = true;
             while (stack.Count > 0)
             {
                 var current = stack.Pop();
@@ -40,7 +39,7 @@ namespace UnwindMC.Collections
                     if (adj.IsRight)
                     {
                         Logger.Warn(adj.Right);
-                        visitedAllLinks = false;
+                        visitedAllEdges = false;
                         continue;
                     }
                     var edge = adj.Left;
@@ -51,7 +50,7 @@ namespace UnwindMC.Collections
                     }
                 }
             }
-            return visitedAllLinks;
+            return visitedAllEdges;
         }
 
         public static IEnumerable<TVertex> BFS<TVertexId, TVertex, TEdge>(this IGraph<TVertexId, TVertex, TEdge> graph, TVertexId start)
@@ -68,11 +67,17 @@ namespace UnwindMC.Collections
                 var instr = queue.Dequeue();
                 yield return graph.GetVertex(instr);
 
-                foreach (var neighbor in graph.GetNeighbors(instr))
+                foreach (var adj in graph.GetAdjacent(instr, _ => true))
                 {
-                    if (visited.Add(neighbor))
+                    if (adj.IsRight)
                     {
-                        queue.Enqueue(neighbor);
+                        Logger.Warn(adj.Right);
+                        continue;
+                    }
+                    var edge = adj.Left;
+                    if (visited.Add(edge.vertex))
+                    {
+                        queue.Enqueue(edge.vertex);
                     }
                 }
             }

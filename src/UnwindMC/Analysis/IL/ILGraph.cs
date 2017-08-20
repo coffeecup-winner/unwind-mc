@@ -31,26 +31,21 @@ namespace UnwindMC.Analysis.IL
             return new ILGraph(subgraph);
         }
 
-        public IEnumerable<ILInstruction> GetNeighbors(ILInstruction vertex)
+        public IEnumerable<Either<(ILInstruction vertex, object edge), string>> GetAdjacent(ILInstruction vertex, Func<object, bool> filterEdges)
         {
             if (vertex.ConditionalChild != null && vertex.ConditionalChild.Order > vertex.Order && Contains(vertex.ConditionalChild))
             {
-                yield return vertex.ConditionalChild;
+                yield return (vertex.ConditionalChild, null);
             }
             if (vertex.DefaultChild != null && vertex.DefaultChild.Order > vertex.Order && Contains(vertex.DefaultChild))
             {
-                yield return vertex.DefaultChild;
+                yield return (vertex.DefaultChild, null);
             }
-        }
-
-        public IEnumerable<Either<(ILInstruction vertex, object edge), string>> GetAdjacent(ILInstruction vertex, Func<object, bool> filterEdges)
-        {
-            throw new NotImplementedException();
         }
 
         public IGraph<ILInstruction, ILInstruction, object> ReverseEdges()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
 }

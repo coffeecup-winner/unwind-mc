@@ -107,11 +107,6 @@ namespace UnwindMC.Analysis
             throw new NotSupportedException();
         }
 
-        public IEnumerable<ulong> GetNeighbors(ulong vertex)
-        {
-            throw new NotSupportedException();
-        }
-
         public IEnumerable<Either<(ulong vertex, Link edge), string>> GetAdjacent(ulong vertexId, Func<Link, bool> filterEdges)
         {
             if (!(_isReversed ? _reverseLinks : _instructionLinks).TryGetValue(vertexId, out var links))
