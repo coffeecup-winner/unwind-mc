@@ -1,6 +1,7 @@
 ﻿using NDis86;
 using NLog;
 using System;
+using UnwindMC.Collections;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
@@ -20,7 +21,7 @@ namespace UnwindMC.Analysis
         {
             var result = Option<LValue>.None;
             bool skippedInitialInstruction = false;
-            _graph.ReverseDFS(address, InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump, (instr, link) =>
+            _graph.ReverseEdges().DFS(address, e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0, (instr, link) =>
             {
                 if (!skippedInitialInstruction)
                 {

@@ -3,11 +3,12 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnwindMC.Collections;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
 {
-    public class InstructionGraph
+    public class InstructionGraph : IGraph<ulong, Instruction, InstructionGraph.Link>
     {
         private readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -49,6 +50,7 @@ namespace UnwindMC.Analysis
         private readonly Dictionary<ulong, ExtraData> _extraData = new Dictionary<ulong, ExtraData>();
         private readonly Dictionary<ulong, List<Link>> _instructionLinks = new Dictionary<ulong, List<Link>>();
         private readonly Dictionary<ulong, List<Link>> _reverseLinks = new Dictionary<ulong, List<Link>>();
+        private readonly bool _isReversed;
 
         public InstructionGraph(ArraySegment<byte> bytes, ulong pc)
         {
@@ -64,6 +66,22 @@ namespace UnwindMC.Analysis
             {
                 _instructions.Add(instr.Offset, instr);
             }
+            _isReversed = false;
+        }
+
+        private InstructionGraph(Disassembler disassembler, ArraySegment<byte> bytes, ulong firstAddress, ulong firstAddressAfterCode,
+            SortedDictionary<ulong, Instruction> instructions, Dictionary<ulong, ExtraData> extraData, Dictionary<ulong, List<Link>> instructionLinks,
+            Dictionary<ulong, List<Link>> reverseLinks, bool isReversed)
+        {
+            _disassembler = disassembler;
+            _bytes = bytes;
+            _firstAddress = firstAddress;
+            _firstAddressAfterCode = firstAddressAfterCode;
+            _instructions = instructions;
+            _extraData = extraData;
+            _instructionLinks = instructionLinks;
+            _reverseLinks = reverseLinks;
+            _isReversed = isReversed;
         }
 
         public ICollection<Instruction> Instructions => _instructions.Values;
@@ -72,6 +90,52 @@ namespace UnwindMC.Analysis
         public bool Contains(ulong address)
         {
             return _instructions.ContainsKey(address);
+        }
+
+        public Instruction GetVertex(ulong vertexId)
+        {
+            return _instructions[vertexId];
+        }
+
+        public bool Contains(Instruction vertex)
+        {
+            return _instructions.ContainsKey(vertex.Offset);
+        }
+
+        public IGraph<ulong, Instruction, Link> GetSubgraph(ISet<Instruction> subgraph)
+        {
+            throw new NotSupportedException();
+        }
+
+        public IEnumerable<ulong> GetNeighbors(ulong vertex)
+        {
+            throw new NotSupportedException();
+        }
+
+        public IEnumerable<Either<(ulong vertex, Link edge), string>> GetAdjacent(ulong vertexId, Func<Link, bool> filterEdges)
+        {
+            if (!(_isReversed ? _reverseLinks : _instructionLinks).TryGetValue(vertexId, out var links))
+            {
+                yield return "DFS: Couldn't find links for " + GetVertex(vertexId);
+                yield break;
+            }
+            foreach (var link in links)
+            {
+                if (!filterEdges(link))
+                {
+                    continue;
+                }
+                var linkAddress = _isReversed ? link.Address : link.TargetAddress;
+                yield return InBounds(linkAddress)
+                    ? (Either<(ulong vertex, Link edge), string>)(linkAddress, link)
+                    : "DFS: Jump outside of code section";
+            }
+        }
+
+        public IGraph<ulong, Instruction, Link> ReverseEdges()
+        {
+            return new InstructionGraph(_disassembler, _bytes, _firstAddress, _firstAddressAfterCode, _instructions,
+                _extraData, _instructionLinks, _reverseLinks, !_isReversed);
         }
 
         public bool InBounds(ulong address)
@@ -271,62 +335,6 @@ namespace UnwindMC.Analysis
             {
                 throw new Exception("FIXME: extra disassemble size was too small");
             }
-        }
-
-        public bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process)
-        {
-            return DFS(address, type, process, reverse: false);
-        }
-
-        public bool ReverseDFS(ulong address, LinkType type, Func<Instruction, Link, bool> process)
-        {
-            return DFS(address, type, process, reverse: true);
-        }
-
-        private bool DFS(ulong address, LinkType type, Func<Instruction, Link, bool> process, bool reverse)
-        {
-            var visited = new HashSet<ulong>();
-            var stack = new Stack<(ulong address, Link link)>();
-            stack.Push((address, new Link(ulong.MaxValue, address, LinkType.Call)));
-            visited.Add(address);
-            var visitedAllLinks = true;
-            while (stack.Count > 0)
-            {
-                var current = stack.Pop();
-                var instr = _instructions[current.address];
-                if (!process(instr, current.link))
-                {
-                    continue;
-                }
-
-                if (!(reverse ? _reverseLinks : _instructionLinks).TryGetValue(current.address, out var links))
-                {
-                    Logger.Warn("DFS: Couldn't find links for " + instr.Assembly);
-                    visitedAllLinks = false;
-                    continue;
-                }
-                for (int i = links.Count - 1; i >= 0; i--)
-                {
-                    var link = links[i];
-                    if ((type & link.Type) == 0)
-                    {
-                        continue;
-                    }
-                    var linkAddress = (reverse ? link.Address : link.TargetAddress);
-                    if (!InBounds(linkAddress))
-                    {
-                        Logger.Warn("DFS: Jump outside of code section");
-                        visitedAllLinks = false;
-                        continue;
-                    }
-                    if (!visited.Contains(linkAddress))
-                    {
-                        stack.Push((linkAddress, link));
-                        visited.Add(linkAddress);
-                    }
-                }
-            }
-            return visitedAllLinks;
         }
 
         private int ToByteArrayIndex(ulong address)

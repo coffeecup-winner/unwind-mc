@@ -35,6 +35,9 @@ namespace UnwindMC.Util
             _right = right;
         }
 
+        public static implicit operator Either<TLeft, TRight>(TLeft left) => new Either<TLeft, TRight>(left);
+        public static implicit operator Either<TLeft, TRight>(TRight right) => new Either<TLeft, TRight>(right);
+
         public bool IsLeft => _isLeft;
         public bool IsRight => !_isLeft;
         public TLeft Left => _isLeft ? _left : throw new InvalidOperationException();

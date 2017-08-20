@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnwindMC.Collections;
+using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.IL
 {
-    public class ILGraph : IGraph<ILInstruction>
+    public class ILGraph : IGraph<ILInstruction, ILInstruction, object>
     {
         private readonly ISet<ILInstruction> _subgraph;
 
@@ -19,7 +21,12 @@ namespace UnwindMC.Analysis.IL
             return _subgraph == null || _subgraph.Contains(vertex);
         }
 
-        public IGraph<ILInstruction> GetSubgraph(ISet<ILInstruction> subgraph)
+        public ILInstruction GetVertex(ILInstruction vertexId)
+        {
+            return vertexId;
+        }
+
+        public IGraph<ILInstruction, ILInstruction, object> GetSubgraph(ISet<ILInstruction> subgraph)
         {
             return new ILGraph(subgraph);
         }
@@ -34,6 +41,16 @@ namespace UnwindMC.Analysis.IL
             {
                 yield return vertex.DefaultChild;
             }
+        }
+
+        public IEnumerable<Either<(ILInstruction vertex, object edge), string>> GetAdjacent(ILInstruction vertex, Func<object, bool> filterEdges)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IGraph<ILInstruction, ILInstruction, object> ReverseEdges()
+        {
+            throw new NotImplementedException();
         }
     }
 }

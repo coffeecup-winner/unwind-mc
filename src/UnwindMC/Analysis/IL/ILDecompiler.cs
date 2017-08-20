@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnwindMC.Collections;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis.IL
@@ -22,9 +23,8 @@ namespace UnwindMC.Analysis.IL
         public static ILInstruction Decompile(InstructionGraph graph, ulong address)
         {
             var ilConverter = new ILDecompiler();
-            var allowedLinks = InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump;
             var instructions = new Dictionary<ulong, ILInstruction>();
-            graph.DFS(address, allowedLinks, (instr, link) =>
+            graph.DFS(address, e => (e.Type & InstructionGraph.LinkType.Next | InstructionGraph.LinkType.Branch | InstructionGraph.LinkType.SwitchCaseJump) != 0, (instr, link) =>
             {
                 var ilInstructions = ilConverter.Convert(instr);
                 if (ilInstructions.Length > instr.Length)
