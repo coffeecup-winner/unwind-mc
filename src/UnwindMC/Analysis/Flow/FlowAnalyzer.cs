@@ -23,14 +23,14 @@ namespace UnwindMC.Analysis.Flow
         {
             var result = new List<IBlock>();
             var seq = new SequentialBlock();
-            var graph = new ILGraph();
-            foreach (var instr in graph.BFS(il, subGraph))
+            var graph = new ILGraph().GetSubgraph(subGraph);
+            foreach (var instr in graph.BFS(il))
             {
                 if (doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder == instr.Order)
                 {
                     // the instructions is the beginning of the do-while loop
                     var order = doWhileLoops.Dequeue().order;
-                    var body = graph.BFS(instr, subGraph)
+                    var body = graph.BFS(instr)
                         .Where(i => i.Order <= order)
                         .ToList();
                     var condition = body.Last();
@@ -38,9 +38,9 @@ namespace UnwindMC.Analysis.Flow
                     result.Add(seq);
                     result.Add(new DoWhileBlock(condition, Analyze(instr, body.ToSet(), doWhileLoops, conditionToIgnore: order)));
                     var next = condition.DefaultChild;
-                    if (subGraph == null || subGraph.Contains(next))
+                    if (graph.Contains(next))
                     {
-                        result.AddRange(Analyze(next, graph.BFS(next, subGraph).ToSet(), doWhileLoops, conditionToIgnore));
+                        result.AddRange(Analyze(next, graph.BFS(next).ToSet(), doWhileLoops, conditionToIgnore));
                     }
                     return result;
                 }
@@ -53,8 +53,8 @@ namespace UnwindMC.Analysis.Flow
                 result.Add(seq);
                 
                 // loop detection
-                var left = graph.BFS(instr.ConditionalChild, subGraph).ToList();
-                var right = graph.BFS(instr.DefaultChild, subGraph).ToList();
+                var left = graph.BFS(instr.ConditionalChild).ToList();
+                var right = graph.BFS(instr.DefaultChild).ToList();
 
                 bool isConditional = left[left.Count - 1] == right[right.Count - 1];
                 if (isConditional)
