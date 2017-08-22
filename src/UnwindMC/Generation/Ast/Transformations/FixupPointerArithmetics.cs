@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnwindMC.Util;
 using Type = UnwindMC.Analysis.Data.Type;
+using static UnwindMC.Generation.Ast.PatternMatching;
+using static UnwindMC.Util.PatternMatching;
 
 namespace UnwindMC.Generation.Ast.Transformations
 {
@@ -15,26 +18,18 @@ namespace UnwindMC.Generation.Ast.Transformations
 
         public override BinaryOperatorNode Transform(BinaryOperatorNode node)
         {
-            if (node.Operator != Operator.Add && node.Operator != Operator.Subtract)
-            {
-                return node;
-            }
-            VarNode var = node.Left as VarNode;
-            if (var == null)
-            {
-                var = node.Right as VarNode;
-                if (var == null)
-                {
-                    return node;
-                }
-            }
-            bool isVarLeft = node.Left == var;
-            ValueNode value = (isVarLeft ? node.Right : node.Left) as ValueNode;
-            if (value == null)
-            {
-                return node;
-            }
+            var var = Capture<VarNode>();
+            var value = Capture<ValueNode>();
+            return Match(node,
+                Binary(var % Var(_), C(Operator.Add), value % Value(_)).Then(() => Fixup(node, var, value)),
+                Binary(value % Value(_), C(Operator.Add), var % Var(_)).Then(() => Fixup(node, value, var)),
+                Binary(var % Var(_), C(Operator.Subtract), value % Value(_)).Then(() => Fixup(node, var, value)),
+                Binary(value % Value(_), C(Operator.Subtract), var % Var(_)).Then(() => Fixup(node, value, var)),
+                Otherwise(node));
+        }
 
+        private BinaryOperatorNode Fixup(BinaryOperatorNode node, VarNode var, ValueNode value)
+        {
             var type = _variableTypes[var.Name];
             if (type.IndirectionLevel > 0 || type.IsFunction)
             {
@@ -42,11 +37,14 @@ namespace UnwindMC.Generation.Ast.Transformations
                 {
                     throw new InvalidOperationException("Value size must be divisible by type size");
                 }
-                var newValue = new ValueNode(value.Value / type.Size);
-                return new BinaryOperatorNode(node.Operator, isVarLeft ? (IExpressionNode) var : newValue, isVarLeft ? (IExpressionNode) newValue : var);
+                return new BinaryOperatorNode(node.Operator, var, new ValueNode(value.Value / type.Size));
             }
-
             return node;
+        }
+
+        private BinaryOperatorNode Fixup(BinaryOperatorNode node, ValueNode value, VarNode var)
+        {
+            return Fixup(node, var, value);
         }
     }
 }

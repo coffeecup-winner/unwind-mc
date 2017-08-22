@@ -13,7 +13,7 @@ namespace UnwindMC.Benchmarks
             new AssignmentNode(new VarNode("x"), new BinaryOperatorNode(Operator.Or, new VarNode("x"), new ValueNode(0))),
             new AssignmentNode(new VarNode("x"), new BinaryOperatorNode(Operator.And, new VarNode("y"), new ValueNode(0))),
             new AssignmentNode(new VarNode("x"), new BinaryOperatorNode(Operator.And, new VarNode("x"), new ValueNode(1))),
-            new AssignmentNode(new VarNode("x"), new BinaryOperatorNode(Operator.And, new VarNode("x"), new ValueNode(0)))
+            new AssignmentNode(new VarNode("x"), new BinaryOperatorNode(Operator.And, new VarNode("x"), new ValueNode(0))),
         };
         private AssignmentNode _node;
 

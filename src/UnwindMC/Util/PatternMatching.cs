@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnwindMC.Util.Internal.PatternMatching;
 
 namespace UnwindMC.Util
@@ -22,6 +23,18 @@ namespace UnwindMC.Util
 
         public static readonly IPattern<object> _ = new Wildcard();
 
+        public static TOut MatchOrDefault<TIn, TOut>(TIn var, params PatternExpression<TOut>[] patterns)
+        {
+            foreach (var expression in patterns)
+            {
+                if (expression.TryMatch(var, out var result))
+                {
+                    return result;
+                }
+            }
+            return default(TOut);
+        }
+
         public static TOut Match<TIn, TOut>(TIn var, params PatternExpression<TOut>[] patterns)
         {
             foreach (var expression in patterns)
@@ -39,14 +52,19 @@ namespace UnwindMC.Util
         public static Pattern<T> C<T>(T value) => new Pattern<T>(value);
 
         public static ConditionedPattern<TIn> When<TIn>(this IPattern<TIn> pattern, Func<bool> predicate)
-        {
-            return new ConditionedPattern<TIn>(pattern, predicate);
-        }
+            => new ConditionedPattern<TIn>(pattern, predicate);
 
         public static PatternExpression<TOut> Then<TIn, TOut>(this IPattern<TIn> pattern, Func<TOut> getResult)
-        {
-            return new PatternExpression<TOut>(pattern, getResult);
-        }
+            => new PatternExpression<TOut>(pattern, getResult);
+
+        public static PatternExpression<TOut> Then<TIn, TOut>(this IPattern<TIn> pattern, TOut result)
+            => new PatternExpression<TOut>(pattern, () => result);
+
+        public static PatternExpression<TOut> Otherwise<TOut>(Func<TOut> getResult)
+            => _.Then(getResult);
+
+        public static PatternExpression<TOut> Otherwise<TOut>(TOut result)
+            => _.Then(result);
     }
 
     public class Capture<T> : IPattern<T>
