@@ -1,4 +1,6 @@
-﻿namespace UnwindMC.Generation.Ast
+﻿using UnwindMC.Util;
+
+namespace UnwindMC.Generation.Ast
 {
     public class ValueNode : IExpressionNode
     {
@@ -18,6 +20,28 @@
             {
                 _value = newNode._value;
             }
+        }
+    }
+
+    public static partial class PatternMatching
+    {
+        private struct ValueNodePattern : IPattern<ValueNode>
+        {
+            private readonly IPattern _value;
+
+            public ValueNodePattern(IPattern value)
+            {
+                _value = value;
+            }
+
+            public bool Match(ValueNode var) => _value.Match(var.Value);
+
+            public bool Match(object var) => var is ValueNode obj && Match(obj);
+        }
+
+        public static IPattern Value(IPattern value)
+        {
+            return new ValueNodePattern(value);
         }
     }
 }

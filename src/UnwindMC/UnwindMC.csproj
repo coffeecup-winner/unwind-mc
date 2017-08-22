@@ -106,15 +106,21 @@
     <Compile Include="Decompilation\DecompilationProject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util\ByteArrayExtensions.cs" />
+    <Compile Include="Util\Internal\PatternMatching\ConditionedPattern.cs" />
     <Compile Include="Util\Either.cs" />
     <Compile Include="Analysis\Asm\InstructionExtensions.cs" />
     <Compile Include="Util\LinqExtensions.cs" />
+    <Compile Include="Util\Internal\PatternMatching\Pattern.cs" />
+    <Compile Include="Util\Internal\PatternMatching\PatternedCapture.cs" />
+    <Compile Include="Util\Internal\PatternMatching\PatternExpression.cs" />
+    <Compile Include="Util\PatternMatching.cs" />
     <Compile Include="Util\Option.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
