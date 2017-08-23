@@ -1,10 +1,7 @@
-﻿open UnwindMC.Decompilation
-
-[<EntryPoint>]
+﻿[<EntryPoint>]
 let main argv =
     match argv with
     | [| projectRootPath |] ->
-        let decompiler = new Decompiler(DecompilationProject.Load(projectRootPath))
-        decompiler.Decompile()
+        Decompiler.decompile (DecompilationProject.load projectRootPath)
     | _ -> printfn "Usage: unwind-mc <project-root-path>"
     0

@@ -8,12 +8,13 @@
     <ProjectGuid>{94846242-360F-4EFE-921F-8D8C06D0D1F6}</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>UnwindMC</RootNamespace>
-    <AssemblyName>unwind-mc</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <AssemblyName>UnwindMC.Library</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -49,7 +50,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
+      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\net461\System.ValueTuple.dll</HintPath>
     </Reference>
     <Reference Include="YamlDotNet, Version=4.2.1.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\YamlDotNet.4.2.1\lib\net35\YamlDotNet.dll</HintPath>
@@ -100,12 +101,8 @@
     <Compile Include="Analysis\Asm\InstructionGraph.cs" />
     <Compile Include="Analysis\Asm\JumpTable.cs" />
     <Compile Include="Analysis\Asm\RegisterHelper.cs" />
-    <Compile Include="Decompilation\ResultDumper.cs" />
     <Compile Include="Collections\IGraph.cs" />
-    <Compile Include="Decompilation\Decompiler.cs" />
     <Compile Include="Generation\Emit\CppEmitter.cs" />
-    <Compile Include="Decompilation\PEFile.cs" />
-    <Compile Include="Decompilation\DecompilationProject.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util\ByteArrayExtensions.cs" />
     <Compile Include="Util\Either.cs" />

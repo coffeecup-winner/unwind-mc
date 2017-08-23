@@ -21,7 +21,7 @@ namespace UnwindMC.Tests
         public static Analyzer Analyze(string function)
         {
             var lines = function
-                .Split('\r', '\n')
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                 .SkipWhile(string.IsNullOrWhiteSpace)
                 .Select(l => l.Trim())
                 .ToArray();
