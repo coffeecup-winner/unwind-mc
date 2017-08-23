@@ -85,9 +85,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\UnwindMC\UnwindMC.csproj">
+    <ProjectReference Include="..\UnwindMC.Library\UnwindMC.Library.csproj">
       <Project>{94846242-360f-4efe-921f-8d8c06d0d1f6}</Project>
-      <Name>UnwindMC</Name>
+      <Name>UnwindMC.Library</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets" Condition="Exists('$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets')" />
