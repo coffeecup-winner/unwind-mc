@@ -5,7 +5,6 @@ using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 using UnwindMC.Generation.Ast;
-using UnwindMC.Generation.Emit;
 
 namespace UnwindMC.Decompilation
 {
@@ -88,7 +87,7 @@ namespace UnwindMC.Decompilation
             Status = FunctionStatus.AstBuilt;
         }
 
-        public void EmitSourceCode()
+        public void EmitSourceCode(Func<string, IReadOnlyDictionary<string, Analysis.Data.Type>, int, ScopeNode, string> emit)
         {
             if (Status != FunctionStatus.AstBuilt)
             {
@@ -108,7 +107,7 @@ namespace UnwindMC.Decompilation
             {
                 types.Add("var" + i, _variableTypes[i]);
             }
-            _code = new CppEmitter(Name, types, _parameterTypes.Count, _ast).EmitSourceCode();
+            _code = emit(Name, types, _parameterTypes.Count, _ast);
             Status = FunctionStatus.SourceCodeEmitted;
         }
     }

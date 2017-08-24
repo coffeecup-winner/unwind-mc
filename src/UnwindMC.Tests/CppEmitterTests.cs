@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using NUnit.Framework;
 using UnwindMC.Analysis.Data;
-using UnwindMC.Generation.Emit;
 using UnwindMC.Tests.Helpers;
 using static UnwindMC.Tests.Helpers.AstHelper;
 
@@ -32,7 +31,7 @@ namespace UnwindMC.Tests
                         Assign(Var("var0"), Add(Var("var0"), Val(1))))),
                 Ret());
 
-            var source = new CppEmitter("foo", types, 2, body).EmitSourceCode();
+            var source = CppEmitter.emit("foo", types, 2, body);
             var expected =
                 @"void foo(void (**arg0)(), void (**arg1)())
                 {
@@ -84,7 +83,7 @@ namespace UnwindMC.Tests
                     Scope()),
                 Ret(Var("var1")));
 
-            var source = new CppEmitter("findMax", types, 2, body).EmitSourceCode();
+            var source = CppEmitter.emit("findMax", types, 2, body);
             // TODO: resolve return type/value
             var expected =
                 @"int findMax(int *arg0, int arg1)

@@ -58,6 +58,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Generation\Text\CppEmitter.fs" />
     <Compile Include="Decompilation\DecompilationProject.fs" />
     <Compile Include="Decompilation\PEFile.fs" />
     <Compile Include="Decompilation\ResultDumper.fs" />
