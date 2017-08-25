@@ -4,7 +4,6 @@ using UnwindMC.Analysis.Asm;
 using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
-using UnwindMC.Generation.Ast;
 
 namespace UnwindMC.Decompilation
 {
@@ -14,7 +13,6 @@ namespace UnwindMC.Decompilation
         private IReadOnlyList<Analysis.Data.Type> _parameterTypes;
         private IReadOnlyList<Analysis.Data.Type> _localTypes;
         private IReadOnlyList<Analysis.Data.Type> _variableTypes;
-        private ScopeNode _ast;
         private string _code;
 
         public Function(ulong address)
@@ -31,7 +29,6 @@ namespace UnwindMC.Decompilation
         public IReadOnlyList<Analysis.Data.Type> ParameterTypes => _parameterTypes;
         public IReadOnlyList<Analysis.Data.Type> LocalTypes => _localTypes;
         public IReadOnlyList<Analysis.Data.Type> VariableTypes => _variableTypes;
-        public ScopeNode Ast => _ast;
         public string Code => _code;
         public ILInstruction FirstInstruction
         {
@@ -77,17 +74,18 @@ namespace UnwindMC.Decompilation
             Status = FunctionStatus.ArgumentsResolved;
         }
 
-        public void BuildAst()
+        public TAst BuildAst<TAst>(Func<IReadOnlyList<IBlock>, IReadOnlyList<Analysis.Data.Type>, IReadOnlyList<Analysis.Data.Type>, IReadOnlyList<Analysis.Data.Type>, TAst> buildAst)
         {
             if (Status != FunctionStatus.ArgumentsResolved)
             {
                 throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
             }
-            _ast = new AstBuilder(_blocks, _parameterTypes, _localTypes, _variableTypes).BuildAst();
+            var result = buildAst(_blocks, _parameterTypes, _localTypes, _variableTypes);
             Status = FunctionStatus.AstBuilt;
+            return result;
         }
 
-        public void EmitSourceCode(Func<string, IReadOnlyDictionary<string, Analysis.Data.Type>, int, ScopeNode, string> emit)
+        public void EmitSourceCode<TAst>(TAst ast, Func<string, IReadOnlyDictionary<string, Analysis.Data.Type>, int, TAst, string> emit)
         {
             if (Status != FunctionStatus.AstBuilt)
             {
@@ -107,7 +105,7 @@ namespace UnwindMC.Decompilation
             {
                 types.Add("var" + i, _variableTypes[i]);
             }
-            _code = emit(Name, types, _parameterTypes.Count, _ast);
+            _code = emit(Name, types, _parameterTypes.Count, ast);
             Status = FunctionStatus.SourceCodeEmitted;
         }
     }

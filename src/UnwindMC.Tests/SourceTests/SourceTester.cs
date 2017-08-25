@@ -25,8 +25,8 @@ namespace UnwindMC.Tests.SourceTests
             var function = analyzer.Functions[0x0];
             function.ResolveBody(analyzer.Graph);
             function.ResolveTypes();
-            function.BuildAst();
-            function.EmitSourceCode(CppEmitter.emit);
+            var ast = function.BuildAst(AstBuilder.buildAst);
+            function.EmitSourceCode(ast, CppEmitter.emit);
 
             Console.WriteLine("==================================== RESULT ====================================");
             Console.WriteLine(function.Code);

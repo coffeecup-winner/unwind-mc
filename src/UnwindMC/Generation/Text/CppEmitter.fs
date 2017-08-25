@@ -1,83 +1,84 @@
 ﻿module rec CppEmitter
 
-open System;
-open System.Collections.Generic;
-open System.Text;
-open UnwindMC.Generation.Ast;
-open UnwindMC.Util;
+open System
+open System.Collections.Generic
+open System.Text
+open Ast
 
-type ReturnNodeFinder() =
-    inherit NodeTransformerBase()
-
-    let mutable _ret: ReturnNode = null
-
-    member self.ret: ReturnNode = _ret
-    override self.Transform(ret: ReturnNode): ReturnNode =
-        _ret <- ret
-        ret
+let private findRootVar (stmt: Statement): Var option =
+    match stmt with
+    | Assignment _ -> None
+    | DoWhile (loop, _) -> findRootVar loop
+    | FunctionCall _ -> None
+    | IfThenElse (_, trueBranch, falseBranch) ->
+        let root = findRootVar trueBranch
+        if root.IsSome then root else findRootVar falseBranch
+    | Return var -> var
+    | Scope stmts -> stmts |> Seq.fold (fun o s -> if o.IsSome then o else findRootVar s) None
+    | While (_, loop) -> findRootVar loop
 
 [<Literal>]
 let IndentSize = 2
 
-type T = {
-    _sb: StringBuilder
-    _name: string
-    _types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>
-    _parametersCount: int
-    _body: ScopeNode
-    _declaredVariables: HashSet<string>
-    _indents: Dictionary<int, string>
-    mutable _indentLevel: int
-    mutable _indent: string
+type private T = {
+    sb: StringBuilder
+    name: string
+    types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>
+    parametersCount: int
+    body: Statement
+    declaredVariables: HashSet<string>
+    indents: Dictionary<int, string>
+    mutable indentLevel: int
+    mutable indent: string
 }
 
-let emit (name: string) (types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>) (parametersCount: int) (body: ScopeNode): string =
+let emit (name: string) (types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>) (parametersCount: int) (body: Statement): string =
     let t = {
-        _sb = new StringBuilder()
-        _name = name
-        _types = types
-        _parametersCount = parametersCount
-        _body = body
-        _declaredVariables = new HashSet<string>()
-        _indents = new Dictionary<int, string>()
-        _indentLevel = 0
-        _indent = ""
+        sb = new StringBuilder()
+        name = name
+        types = types
+        parametersCount = parametersCount
+        body = body
+        declaredVariables = new HashSet<string>()
+        indents = new Dictionary<int, string>()
+        indentLevel = 0
+        indent = ""
     }
-    t._indents.Add(0, "")
+    t.indents.Add(0, "")
     emitSourceCode t
 
-let emitSourceCode (t: T): string =
-    emitSignature t (t._body.Transform(new ReturnNodeFinder()).ret)
-    emitScope t t._body false
-    t._sb.ToString()
+let private emitSourceCode (t: T): string =
+    emitSignature t (findRootVar t.body)
+    let (Scope stmts) = t.body
+    emitScope t stmts false
+    t.sb.ToString()
 
-let emitSignature (t: T) (ret: ReturnNode): unit =
-    emitType t ret.Var
-    t._sb.Append(t._name)
+let private emitSignature (t: T) (ret: Var option): unit =
+    emitType t ret
+    t.sb.Append(t.name)
         .Append("(") |> ignore
-    for i in [0 .. t._parametersCount - 1] do
+    for i in [0 .. t.parametersCount - 1] do
         if i <> 0 then
-            t._sb.Append(", ") |> ignore
+            t.sb.Append(", ") |> ignore
         emitDeclaration t ("arg" + string(i)) // TODO: move argument names to function
-    t._sb.Append(")")
+    t.sb.Append(")")
         .Append(Environment.NewLine) |> ignore
 
-let emitType (t: T) (node: Option<VarNode>): unit =
-    let isSome, var = node.TryGet()
-    if not isSome then
-        t._sb.Append("void ") |> ignore
-    else
-        let type_ = t._types.[var.Name]
+let private emitType (t: T) (var: Var option): unit =
+    match var with
+    | None -> t.sb.Append("void ") |> ignore
+    | Some (Var name) ->
+        let type_ = t.types.[name]
         if type_.IsFunction then
             raise (new NotImplementedException())
         else
-            t._sb.Append("int ")
+            t.sb.Append("int ")
                 .Append(new System.String('*', type_.IndirectionLevel)) |> ignore
 
-let emitDeclaration (t: T) (name: string): unit =
-    let type_ = t._types.[name];
+let private emitDeclaration (t: T) (name: string): unit =
+    let type_ = t.types.[name];
     if type_.IsFunction then
-        t._sb.Append("void")
+        t.sb.Append("void")
             .Append(" ")
             .Append("(")
             .Append(new System.String('*', type_.IndirectionLevel + 1))
@@ -85,125 +86,129 @@ let emitDeclaration (t: T) (name: string): unit =
             .Append(")")
             .Append("()") |> ignore
     else
-        t._sb.Append("int ")
+        t.sb.Append("int ")
             .Append(new System.String('*', type_.IndirectionLevel))
             .Append(name) |> ignore
 
-let emitStatement (t: T) (statement: IStatementNode): unit =
+let private emitStatement (t: T) (statement: Statement): unit =
     match statement with
-    | :? AssignmentNode as assignment -> emitAssignment t assignment
-    | :? DoWhileNode as doWhile -> emitDoWhile t doWhile
-    | :? FunctionCallNode as call -> emitFunctionCall t call
-    | :? IfThenElseNode as ifThenElse -> emitIfThenElse t ifThenElse
-    | :? ReturnNode as ret -> emitReturn t ret
-    | :? ScopeNode as scope -> emitScope t scope false
-    | :? WhileNode as whileLoop -> emitWhile t whileLoop
-    | _ -> raise (new NotSupportedException())
+    | Assignment (var, expr) -> emitAssignment t var expr
+    | DoWhile (loop, cond) -> emitDoWhile t loop cond
+    | FunctionCall expr -> emitFunctionCall t expr
+    | IfThenElse (cond, trueBranch, falseBranch) -> emitIfThenElse t cond trueBranch falseBranch
+    | Return var -> emitReturn t var
+    | Scope stmts -> emitScope t stmts false
+    | While (cond, loop) -> emitWhile t cond loop
 
-let emitAssignment (t :T) (assignment: AssignmentNode): unit =
-    t._sb.Append(t._indent) |> ignore
+let private emitAssignment (t :T) (var: Var) (expr: Expression): unit =
+    let (Var name) = var
+    t.sb.Append(t.indent) |> ignore
     // TODO: reword how variables are passed and treated in each step
-    if not (assignment.Var.Name.StartsWith("arg")) && t._declaredVariables.Add(assignment.Var.Name) then
-        emitDeclaration t assignment.Var.Name
+    if not (name.StartsWith("arg")) && t.declaredVariables.Add(name) then
+        emitDeclaration t name
     else
-        t._sb.Append(assignment.Var.Name) |> ignore
-    t._sb.Append(" = ") |> ignore
-    emitExpression t assignment.Expression
-    t._sb.Append(";")
+        t.sb.Append(name) |> ignore
+    t.sb.Append(" = ") |> ignore
+    emitExpression t expr
+    t.sb.Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let emitDoWhile (t: T) (whileLoop: DoWhileNode): unit =
-    t._sb.Append(t._indent)
+let private emitDoWhile (t: T) (loop: Statement) (cond: Expression): unit =
+    t.sb.Append(t.indent)
         .Append("do")
         .Append(Environment.NewLine) |> ignore
-    emitScope t whileLoop.Body true
-    t._sb.Append(" ")
+    let (Scope stmts) = loop
+    emitScope t stmts true
+    t.sb.Append(" ")
         .Append("while")
         .Append(" ")
         .Append("(") |> ignore
-    emitExpression t whileLoop.Condition
-    t._sb.Append(")")
+    emitExpression t cond
+    t.sb.Append(")")
         .Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let emitFunctionCall (t: T) (call: FunctionCallNode): unit =
-    t._sb.Append(t._indent) |> ignore
-    emitExpression t call.Function
-    t._sb.Append("()")
+let private emitFunctionCall (t: T) (expr: Expression): unit =
+    t.sb.Append(t.indent) |> ignore
+    emitExpression t expr
+    t.sb.Append("()")
         .Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let emitIfThenElse (t: T) (ifThenElse: IfThenElseNode): unit =
-    t._sb.Append(t._indent)
+let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: Statement) (falseBranch: Statement): unit =
+    t.sb.Append(t.indent)
         .Append("if")
         .Append(" ")
         .Append("(") |> ignore
-    emitExpression t ifThenElse.Condition
-    t._sb.Append(")")
+    emitExpression t cond
+    t.sb.Append(")")
         .Append(Environment.NewLine) |> ignore
-    emitScope t ifThenElse.TrueBranch false
-    if ifThenElse.FalseBranch.ChildrenCount > 0 then
-        t._sb.Append(t._indent)
+    let (Scope stmts) = trueBranch
+    emitScope t stmts false
+    let (Scope stmts) = falseBranch
+    if stmts.Count > 0 then
+        t.sb.Append(t.indent)
             .Append("else")
             .Append(Environment.NewLine) |> ignore
-        emitScope t ifThenElse.FalseBranch false
+        emitScope t stmts false
 
-let emitReturn (t: T) (ret: ReturnNode): unit =
-    t._sb.Append(t._indent)
+let private emitReturn (t: T) (var: Var option): unit =
+    t.sb.Append(t.indent)
         .Append("return") |> ignore
-    let isSome, var = ret.Var.TryGet()
-    if isSome then
-        t._sb.Append(" ")
-            .Append(var.Name) |> ignore
-    t._sb.Append(";")
+    match var with
+    | Some (Var name) ->
+        t.sb.Append(" ")
+            .Append(name) |> ignore
+    | _ -> ()
+    t.sb.Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let emitScope (t: T) (scope: ScopeNode) (skipNewline: bool): unit =
-    t._sb.Append(t._indent)
+let private emitScope (t: T) (stmts: IReadOnlyList<Statement>) (skipNewline: bool): unit =
+    t.sb.Append(t.indent)
         .Append("{")
         .Append(Environment.NewLine) |> ignore
-    t._indentLevel <- t._indentLevel + 1
-    let hasValue, indent = t._indents.TryGetValue(t._indentLevel)
+    t.indentLevel <- t.indentLevel + 1
+    let hasValue, indent = t.indents.TryGetValue(t.indentLevel)
     if hasValue then
-        t._indent <- indent
+        t.indent <- indent
     else
-        t._indent <- new System.String(' ', t._indentLevel * IndentSize)
-        t._indents.[t._indentLevel] <- t._indent
+        t.indent <- new System.String(' ', t.indentLevel * IndentSize)
+        t.indents.[t.indentLevel] <- t.indent
 
-    for node in scope do
+    for node in stmts do
         emitStatement t node
 
-    t._indentLevel <- t._indentLevel - 1
-    t._indent <- t._indents.[t._indentLevel]
-    t._sb.Append(t._indent)
+    t.indentLevel <- t.indentLevel - 1
+    t.indent <- t.indents.[t.indentLevel]
+    t.sb.Append(t.indent)
         .Append("}") |> ignore
     if not skipNewline then
-        t._sb.Append(Environment.NewLine) |> ignore
+        t.sb.Append(Environment.NewLine) |> ignore
 
-let emitWhile (t: T) (whileLoop: WhileNode): unit =
-    t._sb.Append(t._indent)
+let private emitWhile (t: T) (cond: Expression) (loop: Statement): unit =
+    t.sb.Append(t.indent)
         .Append("while")
         .Append(" ")
         .Append("(") |> ignore
-    emitExpression t whileLoop.Condition
-    t._sb.Append(")")
+    emitExpression t cond
+    t.sb.Append(")")
         .Append(Environment.NewLine) |> ignore
-    emitScope t whileLoop.Body false
+    let (Scope stmts) = loop
+    emitScope t stmts false
 
-let emitExpression (t: T) (expression: IExpressionNode): unit =
+let private emitExpression (t: T) (expression: Expression): unit =
     match expression with
-    | :? BinaryOperatorNode as binary -> emitBinary t binary
-    | :? DereferenceNode as dereference -> emitDereference t dereference
-    | :? UnaryOperatorNode as unary -> emitUnary t unary
-    | :? ValueNode as value -> emitValue t value
-    | :? VarNode as var -> emitVar t var
-    | _ -> raise (new NotSupportedException())
+    | Binary (op, left, right) -> emitBinary t op left right
+    | Dereference expr -> emitDereference t expr
+    | Unary (op, operand) -> emitUnary t op operand
+    | Value value -> emitValue t value
+    | VarRef var -> emitVar t var
 
-let emitBinary (t: T) (binary: BinaryOperatorNode): unit =
-    emitExpression t binary.Left
-    t._sb.Append(" ") |> ignore
-    let op =
-        match binary.Operator with
+let private emitBinary (t: T) (op: Operator) (left: Expression) (right: Expression): unit =
+    emitExpression t left
+    t.sb.Append(" ") |> ignore
+    let opString =
+        match op with
         | Operator.Equal -> "=="
         | Operator.NotEqual -> "!="
         | Operator.Less -> "<"
@@ -221,27 +226,28 @@ let emitBinary (t: T) (binary: BinaryOperatorNode): unit =
         | Operator.Divide -> "/"
         | Operator.Modulo -> "%"
         | _ -> raise (new NotSupportedException())
-    t._sb.Append(op)
+    t.sb.Append(opString)
         .Append(" ") |> ignore
-    emitExpression t binary.Right
+    emitExpression t right
 
-let emitDereference (t: T) (dereference: DereferenceNode): unit =
-    t._sb.Append("*")
+let private emitDereference (t: T) (expr: Expression): unit =
+    t.sb.Append("*")
         .Append("(") |> ignore
-    emitExpression t dereference.Pointer
-    t._sb.Append(")") |> ignore
+    emitExpression t expr
+    t.sb.Append(")") |> ignore
 
-let emitUnary (t: T) (unary: UnaryOperatorNode): unit =
-    let op =
-        match unary.Operator with
+let private emitUnary (t: T) (op: Operator) (operand: Expression): unit =
+    let opString =
+        match op with
         | Operator.Negate -> "-"
         | Operator.Not -> "~"
         | _ -> raise (new NotSupportedException())
-    t._sb.Append(op) |> ignore
-    emitExpression t unary.Operand
+    t.sb.Append(opString) |> ignore
+    emitExpression t operand
 
-let emitValue (t: T) (value: ValueNode): unit =
-    t._sb.Append(value.Value) |> ignore
+let private emitValue (t: T) (value: int): unit =
+    t.sb.Append(value) |> ignore
 
-let emitVar (t: T) (var: VarNode): unit =
-    t._sb.Append(var.Name) |> ignore
+let private emitVar (t: T) (var: Var): unit =
+    let (Var name) = var
+    t.sb.Append(name) |> ignore

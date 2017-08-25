@@ -58,6 +58,11 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Generation\Ast\Ast.fs" />
+    <Compile Include="Generation\Ast\Transformer.fs" />
+    <Compile Include="Generation\Ast\Transformations\FixupPointerArithmetics.fs" />
+    <Compile Include="Generation\Ast\Transformations\FixupZeroAssignment.fs" />
+    <Compile Include="Generation\Ast\AstBuilder.fs" />
     <Compile Include="Generation\Text\CppEmitter.fs" />
     <Compile Include="Decompilation\DecompilationProject.fs" />
     <Compile Include="Decompilation\PEFile.fs" />

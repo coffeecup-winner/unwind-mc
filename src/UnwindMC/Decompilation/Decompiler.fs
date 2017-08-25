@@ -17,5 +17,5 @@ let decompile (project : DecompilationProject.T): unit =
     let func = analyzer.Functions.[0x4afa88uL]
     func.ResolveBody(analyzer.Graph)
     func.ResolveTypes()
-    func.BuildAst()
+    // func.BuildAst()
     File.WriteAllText(Path.Combine(project.rootPath, "sub_4afa88.gv"), ResultDumper.dumpILGraph func.FirstInstruction)
