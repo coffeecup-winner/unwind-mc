@@ -4,6 +4,7 @@ open System
 open System.Collections.Generic
 open System.Text
 open Ast
+open Type
 
 let private findRootVar (stmt: Statement): Var option =
     match stmt with
@@ -23,7 +24,7 @@ let IndentSize = 2
 type private T = {
     sb: StringBuilder
     name: string
-    types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>
+    types: IReadOnlyDictionary<string, DataType>
     parametersCount: int
     body: Statement
     declaredVariables: HashSet<string>
@@ -32,7 +33,7 @@ type private T = {
     mutable indent: string
 }
 
-let emit (name: string) (types: IReadOnlyDictionary<string, UnwindMC.Analysis.Data.Type>) (parametersCount: int) (body: Statement): string =
+let emit (name: string) (types: IReadOnlyDictionary<string, DataType>) (parametersCount: int) (body: Statement): string =
     let t = {
         sb = new StringBuilder()
         name = name
@@ -69,25 +70,25 @@ let private emitType (t: T) (var: Var option): unit =
     | None -> t.sb.Append("void ") |> ignore
     | Some (Var name) ->
         let type_ = t.types.[name]
-        if type_.IsFunction then
+        if type_.isFunction then
             raise (new NotImplementedException())
         else
             t.sb.Append("int ")
-                .Append(new System.String('*', type_.IndirectionLevel)) |> ignore
+                .Append(new System.String('*', type_.indirectionLevel)) |> ignore
 
 let private emitDeclaration (t: T) (name: string): unit =
-    let type_ = t.types.[name];
-    if type_.IsFunction then
+    let type_ = t.types.[name]
+    if type_.isFunction then
         t.sb.Append("void")
             .Append(" ")
             .Append("(")
-            .Append(new System.String('*', type_.IndirectionLevel + 1))
+            .Append(new System.String('*', type_.indirectionLevel + 1))
             .Append(name)
             .Append(")")
             .Append("()") |> ignore
     else
         t.sb.Append("int ")
-            .Append(new System.String('*', type_.IndirectionLevel))
+            .Append(new System.String('*', type_.indirectionLevel))
             .Append(name) |> ignore
 
 let private emitStatement (t: T) (statement: Statement): unit =

@@ -64,23 +64,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnalysisHelper.cs" />
-    <Compile Include="AstTests.cs" />
-    <Compile Include="CppEmitterTests.cs" />
-    <Compile Include="DisassemblyTests.cs" />
-    <Compile Include="FlowTests.cs" />
-    <Compile Include="Helpers\AstHelper.cs" />
-    <Compile Include="Helpers\FlowHelper.cs" />
-    <Compile Include="Helpers\ILHelper.cs" />
     <Compile Include="Helpers\MiscExtensions.cs" />
     <Compile Include="Helpers\TempDirectory.cs" />
-    <Compile Include="ILDecompilationTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SourceTests\FlowControlTests.cs" />
     <Compile Include="SourceTests\IntArithmeticTests.cs" />
     <Compile Include="SourceTests\SourceTester.cs" />
     <Compile Include="SourceTests\TODO.cs" />
     <Compile Include="SourceTests\VcTools.cs" />
-    <Compile Include="TypeResolutionTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -2,16 +2,16 @@
 
 open System
 open System.Collections.Generic
-open UnwindMC.Analysis
 open Ast
+open Type
 
-let transform (types: IReadOnlyDictionary<string, Data.Type>): Statement -> Statement =
+let transform (types: IReadOnlyDictionary<string, DataType>): Statement -> Statement =
     let fixup (op: Operator) (Var name as var) (value: int): Expression =
-        let type_ = types.[name];
-        if type_.IndirectionLevel > 0 || type_.IsFunction then
-            if value % type_.Size <> 0 then
+        let type_ = types.[name]
+        if type_.indirectionLevel > 0 || type_.isFunction then
+            if value % type_.size <> 0 then
                 raise (new InvalidOperationException("Value size must be divisible by type size"))
-            let newValue = Value (value / type_.Size)
+            let newValue = Value (value / type_.size)
             Binary (op, VarRef var, newValue);
         else
             Binary (op, VarRef var, Value value)

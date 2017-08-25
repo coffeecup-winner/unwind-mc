@@ -2,24 +2,24 @@
 
 open System
 open System.Collections.Generic
-open UnwindMC.Analysis
 open UnwindMC.Analysis.Flow
 open UnwindMC.Analysis.IL
 open Ast
+open Type
 
 type private T = {
     blocks: IReadOnlyList<IBlock>
-    parameterTypes: IReadOnlyList<Data.Type>
-    localTypes: IReadOnlyList<Data.Type>
-    variableTypes: IReadOnlyList<Data.Type>
+    parameterTypes: IReadOnlyList<DataType>
+    localTypes: IReadOnlyList<DataType>
+    variableTypes: IReadOnlyList<DataType>
     variableNames: Dictionary<int, string>
     parameterNames: Dictionary<int, string>
     localNames: Dictionary<int, string>
-    types: Dictionary<string, Data.Type>
+    types: Dictionary<string, DataType>
     mutable nextVariableNameIdx: int
 }
 
-let buildAst (blocks: IReadOnlyList<IBlock>) (parameterTypes: IReadOnlyList<Data.Type>) (localTypes: IReadOnlyList<Data.Type>) (variableTypes: IReadOnlyList<Data.Type>): Statement =
+let buildAst (blocks: IReadOnlyList<IBlock>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): Statement =
     let t = {
         blocks = blocks
         parameterTypes = parameterTypes
@@ -28,7 +28,7 @@ let buildAst (blocks: IReadOnlyList<IBlock>) (parameterTypes: IReadOnlyList<Data
         variableNames = new Dictionary<int, string>()
         parameterNames = new Dictionary<int, string>()
         localNames = new Dictionary<int, string>()
-        types = new Dictionary<string, Data.Type>()
+        types = new Dictionary<string, DataType>()
         nextVariableNameIdx = 0
     }
     let mutable offset = 0
@@ -36,10 +36,10 @@ let buildAst (blocks: IReadOnlyList<IBlock>) (parameterTypes: IReadOnlyList<Data
         let name = "arg" + string(index)
         t.parameterNames.[offset] <- name;
         t.types.[name] <- t.parameterTypes.[index]
-        offset <- offset + t.parameterTypes.[index].Size
+        offset <- offset + t.parameterTypes.[index].size
     offset <- -8; // TODO: this will not always be correct
     for index in [0 .. t.localTypes.Count - 1] do
-        offset <- offset - t.localTypes.[index].Size
+        offset <- offset - t.localTypes.[index].size
         let name = "loc" + string(index)
         t.localNames.[offset] <- name
         t.types.[name] <- t.localTypes.[index]

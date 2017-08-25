@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnwindMC.Analysis.Asm;
-using UnwindMC.Analysis.Data;
 using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 
@@ -10,9 +9,6 @@ namespace UnwindMC.Decompilation
     public class Function
     {
         private List<IBlock> _blocks;
-        private IReadOnlyList<Analysis.Data.Type> _parameterTypes;
-        private IReadOnlyList<Analysis.Data.Type> _localTypes;
-        private IReadOnlyList<Analysis.Data.Type> _variableTypes;
         private string _code;
 
         public Function(ulong address)
@@ -26,9 +22,6 @@ namespace UnwindMC.Decompilation
         public string Name { get; private set; }
         public FunctionStatus Status { get; set; }
         public IReadOnlyList<IBlock> Blocks => _blocks;
-        public IReadOnlyList<Analysis.Data.Type> ParameterTypes => _parameterTypes;
-        public IReadOnlyList<Analysis.Data.Type> LocalTypes => _localTypes;
-        public IReadOnlyList<Analysis.Data.Type> VariableTypes => _variableTypes;
         public string Code => _code;
         public ILInstruction FirstInstruction
         {
@@ -63,49 +56,49 @@ namespace UnwindMC.Decompilation
 
         public void ResolveTypes()
         {
-            if (Status != FunctionStatus.BodyResolved)
-            {
-                throw new InvalidOperationException("Cannot resolve arguments when body is not resolved");
-            }
-            var types = TypeResolver.ResolveTypes(_blocks);
-            _parameterTypes = types.ParameterTypes;
-            _localTypes = types.LocalTypes;
-            _variableTypes = types.VariableTypes;
+            //if (Status != FunctionStatus.BodyResolved)
+            //{
+            //    throw new InvalidOperationException("Cannot resolve arguments when body is not resolved");
+            //}
+            //var types = TypeResolver.ResolveTypes(_blocks);
+            //_parameterTypes = types.ParameterTypes;
+            //_localTypes = types.LocalTypes;
+            //_variableTypes = types.VariableTypes;
             Status = FunctionStatus.ArgumentsResolved;
         }
 
-        public TAst BuildAst<TAst>(Func<IReadOnlyList<IBlock>, IReadOnlyList<Analysis.Data.Type>, IReadOnlyList<Analysis.Data.Type>, IReadOnlyList<Analysis.Data.Type>, TAst> buildAst)
+        public void BuildAst()
         {
-            if (Status != FunctionStatus.ArgumentsResolved)
-            {
-                throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
-            }
-            var result = buildAst(_blocks, _parameterTypes, _localTypes, _variableTypes);
+            //if (Status != FunctionStatus.ArgumentsResolved)
+            //{
+            //    throw new InvalidOperationException("Cannot build AST when arguments are not resolved");
+            //}
+            //var result = buildAst(_blocks, _parameterTypes, _localTypes, _variableTypes);
             Status = FunctionStatus.AstBuilt;
-            return result;
+            //return result;
         }
 
-        public void EmitSourceCode<TAst>(TAst ast, Func<string, IReadOnlyDictionary<string, Analysis.Data.Type>, int, TAst, string> emit)
+        public void EmitSourceCode()
         {
             if (Status != FunctionStatus.AstBuilt)
             {
                 throw new InvalidOperationException("Cannot emit source code when AST is not built");
             }
-            // TODO: these should be returned from AST step
-            var types = new Dictionary<string, Analysis.Data.Type>();
-            for (int i = 0; i < _parameterTypes.Count; i++)
-            {
-                types.Add("arg" + i, _parameterTypes[i]);
-            }
-            for (int i = 0; i < _localTypes.Count; i++)
-            {
-                types.Add("loc" + i, _variableTypes[i]);
-            }
-            for (int i = 0; i < _variableTypes.Count; i++)
-            {
-                types.Add("var" + i, _variableTypes[i]);
-            }
-            _code = emit(Name, types, _parameterTypes.Count, ast);
+            //// TODO: these should be returned from AST step
+            //var types = new Dictionary<string, Analysis.Data.Type>();
+            //for (int i = 0; i < _parameterTypes.Count; i++)
+            //{
+            //    types.Add("arg" + i, _parameterTypes[i]);
+            //}
+            //for (int i = 0; i < _localTypes.Count; i++)
+            //{
+            //    types.Add("loc" + i, _variableTypes[i]);
+            //}
+            //for (int i = 0; i < _variableTypes.Count; i++)
+            //{
+            //    types.Add("var" + i, _variableTypes[i]);
+            //}
+            //_code = emit(Name, types, _parameterTypes.Count, ast);
             Status = FunctionStatus.SourceCodeEmitted;
         }
     }

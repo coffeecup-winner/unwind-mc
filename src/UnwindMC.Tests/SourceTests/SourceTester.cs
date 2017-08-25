@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -24,15 +25,32 @@ namespace UnwindMC.Tests.SourceTests
             var analyzer = AnalysisHelper.Analyze(asm);
             var function = analyzer.Functions[0x0];
             function.ResolveBody(analyzer.Graph);
-            function.ResolveTypes();
-            var ast = function.BuildAst(AstBuilder.buildAst);
-            function.EmitSourceCode(ast, CppEmitter.emit);
+            //function.ResolveTypes();
+            //function.BuildAst();
+            //function.EmitSourceCode();
+            var result = TypeResolver.resolveTypes(function.Blocks);
+            var ast = AstBuilder.buildAst(function.Blocks, result.parameterTypes, result.localTypes, result.variableTypes);
+            // TODO: these should be returned from AST step
+            var types = new Dictionary<string, Type.DataType>();
+            for (int i = 0; i < result.parameterTypes.Count; i++)
+            {
+                types.Add("arg" + i, result.parameterTypes[i]);
+            }
+            for (int i = 0; i < result.localTypes.Count; i++)
+            {
+                types.Add("loc" + i, result.variableTypes[i]);
+            }
+            for (int i = 0; i < result.variableTypes.Count; i++)
+            {
+                types.Add("var" + i, result.variableTypes[i]);
+            }
+            var cppCode = CppEmitter.emit(function.Name, types, result.parameterTypes.Count, ast);
 
             Console.WriteLine("==================================== RESULT ====================================");
-            Console.WriteLine(function.Code);
+            Console.WriteLine(cppCode);
             Console.WriteLine("");
 
-            Assert.That(function.Code, Is.EqualTo(Trim(expected)));
+            Assert.That(cppCode, Is.EqualTo(Trim(expected)));
         }
 
         private static string Disassemble(string test)
