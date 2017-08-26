@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnwindMC.Analysis.Asm;
-using UnwindMC.Analysis.Flow;
 using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Decompilation
 {
     public class Function
     {
-        private List<IBlock> _blocks;
         private string _code;
 
         public Function(ulong address)
@@ -21,28 +19,27 @@ namespace UnwindMC.Decompilation
         public ulong Address { get; }
         public string Name { get; private set; }
         public FunctionStatus Status { get; set; }
-        public IReadOnlyList<IBlock> Blocks => _blocks;
         public string Code => _code;
-        public ILInstruction FirstInstruction
-        {
-            get
-            {
-                if (_blocks == null || _blocks.Count == 0)
-                {
-                    return null;
-                }
-                switch (_blocks[0])
-                {
-                    case SequentialBlock seq:
-                        return seq.Instructions[0];
-                    case WhileBlock loop:
-                        return loop.Condition;
-                    case ConditionalBlock cond:
-                        return cond.Condition;
-                    default: throw new InvalidOperationException("Unknown block type");
-                }
-            }
-        }
+        //public ILInstruction FirstInstruction
+        //{
+        //    get
+        //    {
+        //        if (_blocks == null || _blocks.Count == 0)
+        //        {
+        //            return null;
+        //        }
+        //        switch (_blocks[0])
+        //        {
+        //            case SequentialBlock seq:
+        //                return seq.Instructions[0];
+        //            case WhileBlock loop:
+        //                return loop.Condition;
+        //            case ConditionalBlock cond:
+        //                return cond.Condition;
+        //            default: throw new InvalidOperationException("Unknown block type");
+        //        }
+        //    }
+        //}
 
         public void ResolveBody(InstructionGraph graph)
         {
@@ -50,7 +47,7 @@ namespace UnwindMC.Decompilation
             {
                 throw new InvalidOperationException("Cannot resolve function body when bounds are not resolved");
             }
-            _blocks = FlowAnalyzer.Analyze(ILDecompiler.Decompile(graph, Address));
+            // _blocks = FlowAnalyzer.Analyze(ILDecompiler.Decompile(graph, Address));
             Status = FunctionStatus.BodyResolved;
         }
 

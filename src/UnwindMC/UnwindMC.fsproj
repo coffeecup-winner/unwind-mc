@@ -58,6 +58,7 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Analysis\Flow\FlowAnalyzer.fs" />
     <Compile Include="Analysis\Data\Type.fs" />
     <Compile Include="Analysis\Data\TypeResolver.fs" />
     <Compile Include="Generation\Ast\Ast.fs" />

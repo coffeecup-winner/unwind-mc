@@ -2,13 +2,13 @@
 
 open System
 open System.Collections.Generic
-open UnwindMC.Analysis.Flow
 open UnwindMC.Analysis.IL
 open Ast
 open Type
+open FlowAnalyzer
 
 type private T = {
-    blocks: IReadOnlyList<IBlock>
+    blocks: IReadOnlyList<Block>
     parameterTypes: IReadOnlyList<DataType>
     localTypes: IReadOnlyList<DataType>
     variableTypes: IReadOnlyList<DataType>
@@ -19,7 +19,7 @@ type private T = {
     mutable nextVariableNameIdx: int
 }
 
-let buildAst (blocks: IReadOnlyList<IBlock>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): Statement =
+let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): Statement =
     let t = {
         blocks = blocks
         parameterTypes = parameterTypes
@@ -52,30 +52,29 @@ let private runTransformations (t: T) (ast: Statement): Statement =
         FixupZeroAssignment.transform
     ] |> Seq.fold (fun a t -> t a) ast
 
-let private buildScope (t: T) (blocks: IReadOnlyList<IBlock>): Statement =
+let private buildScope (t: T) (blocks: IReadOnlyList<Block>): Statement =
     let statements = new List<Statement>()
     for block in blocks do
         match block with
-        | :? SequentialBlock as seq ->
-            for instr in seq.Instructions do
+        | SequentialBlock { instructions = is } ->
+            for instr in is do
                 statements.Add(buildStatement t instr);
-        | :? WhileBlock as whileLoop ->
-            statements.Add(buildWhile t whileLoop);
-        | :? DoWhileBlock as doWhileLoop ->
-            statements.Add(buildDoWhile t doWhileLoop);
-        | :? ConditionalBlock as cond ->
-            statements.Add(buildIfThenElse t cond);
-        | _ -> raise (new NotSupportedException())
+        | WhileBlock { condition = c; children = cs } ->
+            statements.Add(buildWhile t c cs);
+        | DoWhileBlock { condition = c; children = cs } ->
+            statements.Add(buildDoWhile t c cs);
+        | ConditionalBlock { condition = c; trueBranch = tb; falseBranch = fb } ->
+            statements.Add(buildIfThenElse t c tb fb);
     Scope statements
 
-let private buildWhile (t: T) (loop: WhileBlock): Statement =
-    While (buildCondition t loop.Condition, buildScope t loop.Children)
+let private buildWhile (t: T) (condition: ILInstruction) (children: IReadOnlyList<Block>): Statement =
+    While (buildCondition t condition, buildScope t children)
 
-let private buildDoWhile (t: T) (doWhileLoop: DoWhileBlock): Statement =
-    DoWhile (buildScope t doWhileLoop.Children, buildCondition t doWhileLoop.Condition)
+let private buildDoWhile (t: T) (condition: ILInstruction) (children: IReadOnlyList<Block>): Statement =
+    DoWhile (buildScope t children, buildCondition t condition)
 
-let private buildIfThenElse (t: T) (cond: ConditionalBlock): Statement =
-    IfThenElse (buildCondition t cond.Condition, buildScope t cond.TrueBranch, buildScope t cond.FalseBranch)
+let private buildIfThenElse (t: T) (condition: ILInstruction) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
+    IfThenElse (buildCondition t condition, buildScope t trueBranch, buildScope t falseBranch)
 
 let private buildCondition (t: T) (instr: ILInstruction): Expression =
     match instr.Type with

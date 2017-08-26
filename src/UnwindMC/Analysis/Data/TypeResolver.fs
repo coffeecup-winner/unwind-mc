@@ -4,10 +4,10 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open UnwindMC.Analysis.Flow
 open UnwindMC.Analysis.IL
 open UnwindMC.Util
 open Type
+open FlowAnalyzer
 
 type Result = {
     parameterTypes: IReadOnlyList<DataType>
@@ -37,7 +37,7 @@ let private build (typeBuilder: TypeBuilder): DataType = {
     size = 4
 }
 
-let resolveTypes (blocks: IReadOnlyList<IBlock>): Result =
+let resolveTypes (blocks: IReadOnlyList<Block>): Result =
     let t = {
         types = new Dictionary<int, Dictionary<ILOperand, TypeBuilder>>()
         parameterTypes = new Dictionary<ILOperand, TypeBuilder>()
@@ -153,11 +153,15 @@ let resolveTypes (blocks: IReadOnlyList<IBlock>): Result =
         variableTypes = variableTypes
     }
 
-let private functionReturnsValue (blocks: IReadOnlyList<IBlock>): bool =
+let private functionReturnsValue (blocks: IReadOnlyList<Block>): bool =
     // This tests only the top-level scope, which is probably an incomplete heuristic,
     // most probably need to check all paths
-    blocks.OfType<SequentialBlock>()
-    |> Seq.collect (fun b -> b.Instructions)
+    blocks
+    |> Seq.collect (
+        function
+        | SequentialBlock { instructions = is } -> is |> Seq.toList
+        | _ -> []
+    )
     |> Seq.exists (fun i -> i.Target <> null && i.Target.IsRegister(OperandType.EAX))
 
 let private getScopeLevel (t: T) (operand: ILOperand): int =
@@ -220,7 +224,7 @@ let private getCurrentId (currentIds: IReadOnlyDictionary<ILOperand, int>) (op: 
             currentIds.[op]
         | _ -> -1
 
-let private traverseReversed (blocks: IReadOnlyList<IBlock>): IEnumerable<Either<ScopeBoundsMarker, ILInstruction>> =
+let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<ScopeBoundsMarker, ILInstruction>> =
     seq {
         let stack = new Stack<Object>() // replace with Either
         for block in blocks do
@@ -231,30 +235,32 @@ let private traverseReversed (blocks: IReadOnlyList<IBlock>): IEnumerable<Either
                 yield Either.Left<ScopeBoundsMarker, ILInstruction>(scopeBoundsMarker)
             | :? ILInstruction as instr ->
                 yield Either.Right<ScopeBoundsMarker, ILInstruction>(instr)
-            | :? SequentialBlock as seq ->
-                for i in [0 .. seq.Instructions.Count - 1] |> Seq.rev do
-                    yield Either.Right<ScopeBoundsMarker, ILInstruction>(seq.Instructions.[i])
-            | :? WhileBlock as whileLoop ->
-                stack.Push(ScopeBoundsMarker.Start)
-                stack.Push(whileLoop.Condition)
-                for child in whileLoop.Children do
-                    stack.Push(child)
-                stack.Push(ScopeBoundsMarker.End)
-            | :? DoWhileBlock as doWhileLoop ->
-                stack.Push(ScopeBoundsMarker.Start)
-                for child in doWhileLoop.Children do
-                    stack.Push(child)
-                stack.Push(doWhileLoop.Condition)
-                stack.Push(ScopeBoundsMarker.End)
-            | :? ConditionalBlock as cond ->
-                stack.Push(cond.Condition)
-                stack.Push(ScopeBoundsMarker.Start)
-                for child in cond.TrueBranch do
-                    stack.Push(child)
-                stack.Push(ScopeBoundsMarker.End)
-                stack.Push(ScopeBoundsMarker.Start)
-                for child in cond.FalseBranch do
-                    stack.Push(child)
-                stack.Push(ScopeBoundsMarker.End)
+            | :? Block as block ->
+                match block with
+                | SequentialBlock { instructions = instructions } ->
+                    for i in [0 .. instructions.Count - 1] |> Seq.rev do
+                        yield Either.Right<ScopeBoundsMarker, ILInstruction>(instructions.[i])
+                | WhileBlock { condition = condition; children = children } ->
+                    stack.Push(ScopeBoundsMarker.Start)
+                    stack.Push(condition)
+                    for child in children do
+                        stack.Push(child)
+                    stack.Push(ScopeBoundsMarker.End)
+                | DoWhileBlock { condition = condition; children = children } ->
+                    stack.Push(ScopeBoundsMarker.Start)
+                    for child in children do
+                        stack.Push(child)
+                    stack.Push(condition)
+                    stack.Push(ScopeBoundsMarker.End)
+                | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
+                    stack.Push(condition)
+                    stack.Push(ScopeBoundsMarker.Start)
+                    for child in trueBranch do
+                        stack.Push(child)
+                    stack.Push(ScopeBoundsMarker.End)
+                    stack.Push(ScopeBoundsMarker.Start)
+                    for child in falseBranch do
+                        stack.Push(child)
+                    stack.Push(ScopeBoundsMarker.End)
             | _ -> raise (new InvalidOperationException("Unknown block type"))
     }

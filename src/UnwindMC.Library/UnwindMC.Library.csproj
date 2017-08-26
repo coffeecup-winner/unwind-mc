@@ -61,12 +61,6 @@
     <Compile Include="Analysis\Asm\FlagsRegister.cs" />
     <Compile Include="Analysis\Asm\AffectedFlagsTable.cs" />
     <Compile Include="Analysis\Asm\AssignmentTracker.cs" />
-    <Compile Include="Analysis\Flow\IBlock.cs" />
-    <Compile Include="Analysis\Flow\ConditionalBlock.cs" />
-    <Compile Include="Analysis\Flow\FlowAnalyzer.cs" />
-    <Compile Include="Analysis\Flow\DoWhileBlock.cs" />
-    <Compile Include="Analysis\Flow\WhileBlock.cs" />
-    <Compile Include="Analysis\Flow\SequentialBlock.cs" />
     <Compile Include="Decompilation\Function.cs" />
     <Compile Include="Analysis\Imports\IImportResolver.cs" />
     <Compile Include="Analysis\IL\ILBranch.cs" />

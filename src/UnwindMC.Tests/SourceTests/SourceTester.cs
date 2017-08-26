@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using UnwindMC.Analysis.IL;
 
 namespace UnwindMC.Tests.SourceTests
 {
@@ -25,11 +26,12 @@ namespace UnwindMC.Tests.SourceTests
             var analyzer = AnalysisHelper.Analyze(asm);
             var function = analyzer.Functions[0x0];
             function.ResolveBody(analyzer.Graph);
+            var blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.Decompile(analyzer.Graph, function.Address));
             //function.ResolveTypes();
             //function.BuildAst();
             //function.EmitSourceCode();
-            var result = TypeResolver.resolveTypes(function.Blocks);
-            var ast = AstBuilder.buildAst(function.Blocks, result.parameterTypes, result.localTypes, result.variableTypes);
+            var result = TypeResolver.resolveTypes(blocks);
+            var ast = AstBuilder.buildAst(blocks, result.parameterTypes, result.localTypes, result.variableTypes);
             // TODO: these should be returned from AST step
             var types = new Dictionary<string, Type.DataType>();
             for (int i = 0; i < result.parameterTypes.Count; i++)
