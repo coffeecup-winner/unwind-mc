@@ -6,11 +6,30 @@ using NLog;
 using UnwindMC.Analysis.Asm;
 using UnwindMC.Analysis.Imports;
 using UnwindMC.Collections;
-using UnwindMC.Decompilation;
 using UnwindMC.Util;
 
 namespace UnwindMC.Analysis
 {
+    public class Function
+    {
+        public Function(ulong address)
+        {
+            Address = address;
+            Status = FunctionStatus.Created;
+        }
+
+        public ulong Address { get; }
+        public FunctionStatus Status { get; set; }
+    }
+
+    public enum FunctionStatus
+    {
+        Created,
+        BoundsResolved,
+        BoundsNotResolvedInvalidAddress,
+        BoundsNotResolvedIncompleteGraph,
+    }
+
     public class Analyzer
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
