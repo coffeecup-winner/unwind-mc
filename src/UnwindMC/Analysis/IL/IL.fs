@@ -34,7 +34,7 @@ type ILOperand
                     .Append(offset)
                     .Append(")") |> ignore
             | NoOperand ->
-                sb.Append("NoOperand")
+                sb.Append("NoOperand") |> ignore
             sb.ToString()
 
 let isRegister (operand: ILOperand) (reg: OperandType): bool =
