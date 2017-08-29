@@ -3,9 +3,9 @@
 open System
 open System.Collections.Generic
 open System.Linq
-open UnwindMC.Analysis.IL
 open UnwindMC.Collections
 open UnwindMC.Util
+open IL
 
 type Block =
     | ConditionalBlock of ConditionalBlock
@@ -47,32 +47,37 @@ let buildFlowGraph (il: ILInstruction): List<Block> =
 let private build (il: ILInstruction) (subGraph: ISet<ILInstruction>) (doWhileLoops: Queue<Order>) (conditionToIgnore: int): List<Block> =
     let result = new List<Block>()
     let seq = new List<ILInstruction>()
-    let graph = (new ILGraph()).GetSubgraph(subGraph)
+    let graph = (createILGraph).GetSubgraph(subGraph)
     let bfs = graph.BFS(il) |> Seq.toList
     let rec run (X : ILInstruction list): List<Block> =
         match X with
         | instr :: rest ->
-            if doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder = instr.Order then
+            if doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder = instr.order then
             // the instructions is the beginning of the do-while loop
                 let order = doWhileLoops.Dequeue().order
-                let body = graph.BFS(instr).Where(fun i -> i.Order <= order).ToList()
+                let body = graph.BFS(instr).Where(fun i -> i.order <= order).ToList()
                 let condition = body.Last()
                 body.RemoveAt(body.Count - 1)
                 result.Add(SequentialBlock { instructions = seq })
                 result.Add(DoWhileBlock { condition = condition; children = build instr (body.ToSet()) doWhileLoops order })
-                let next = condition.DefaultChild
-                if graph.Contains(next) then
-                    result.AddRange(build next (graph.BFS(next).ToSet()) doWhileLoops conditionToIgnore)
+                match condition.defaultChild with
+                | Some next ->
+                    if graph.Contains(next) then
+                        result.AddRange(build next (graph.BFS(next).ToSet()) doWhileLoops conditionToIgnore)
+                | _ -> ()
                 result
-            elif instr.ConditionalChild = null || instr.Order = conditionToIgnore then
+            elif instr.conditionalChild.IsNone || instr.order = conditionToIgnore then
                 seq.Add(instr)
                 run rest
             else
                 result.Add(SequentialBlock { instructions = seq })
 
+                let conditionalChild = instr.conditionalChild.Value
+                let defaultChild = instr.defaultChild.Value
+
                 // loop detection
-                let left = graph.BFS(instr.ConditionalChild).ToList()
-                let right = graph.BFS(instr.DefaultChild).ToList()
+                let left = graph.BFS(conditionalChild).ToList()
+                let right = graph.BFS(defaultChild).ToList()
 
                 let isConditional = left.[left.Count - 1] = right.[right.Count - 1]
                 if isConditional then
@@ -93,15 +98,15 @@ let private build (il: ILInstruction) (subGraph: ISet<ILInstruction>) (doWhileLo
                     result.AddRange(build (left.[i0]) (left.Skip(i0).ToSet()) doWhileLoops conditionToIgnore)
                     result
                 else
-                    let leftLoop = left.Any(fun i -> i.DefaultChild = instr || i.ConditionalChild = instr)
+                    let leftLoop = left.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
                     if leftLoop then
-                        result.Add(WhileBlock { condition = instr; children = build (instr.ConditionalChild) (left.ToSet()) doWhileLoops conditionToIgnore })
+                        result.Add(WhileBlock { condition = instr; children = build (conditionalChild) (left.ToSet()) doWhileLoops conditionToIgnore })
                         result.AddRange(build (right.[0]) (right.ToSet()) doWhileLoops conditionToIgnore)
                         result
                     else
-                        let rightLoop = right.Any(fun i -> i.DefaultChild = instr || i.ConditionalChild = instr)
+                        let rightLoop = right.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
                         if rightLoop then
-                            result.Add(WhileBlock { condition = instr; children = build (instr.DefaultChild) (right.ToSet()) doWhileLoops conditionToIgnore })
+                            result.Add(WhileBlock { condition = instr; children = build (defaultChild) (right.ToSet()) doWhileLoops conditionToIgnore })
                             result.AddRange(build (left.[0]) (left.ToSet()) doWhileLoops conditionToIgnore)
                             result
                         else
@@ -113,9 +118,11 @@ let private build (il: ILInstruction) (subGraph: ISet<ILInstruction>) (doWhileLo
 
 let private findDoWhileLoops (il: ILInstruction): Order[] =
     let result = new List<Order>()
-    for instr in (new ILGraph()).BFS(il) do
-        if instr.ConditionalChild <> null && instr.ConditionalChild.Order < instr.Order then
-            result.Add({ childOrder = instr.ConditionalChild.Order; order = instr.Order })
+    for instr in (createILGraph).BFS(il) do
+        match instr.conditionalChild with
+        | Some child when child.order < instr.order ->
+            result.Add({ childOrder = child.order; order = instr.order })
+        | _ -> ()
     result
     |> Seq.sortBy (fun c -> c.childOrder, c.order)
     |> Seq.toArray

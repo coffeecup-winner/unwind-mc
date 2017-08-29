@@ -2,10 +2,10 @@
 
 open System
 open System.Collections.Generic
-open UnwindMC.Analysis.IL
 open Ast
-open Type
+open IL
 open FlowAnalyzer
+open Type
 
 type private T = {
     blocks: IReadOnlyList<Block>
@@ -77,72 +77,70 @@ let private buildIfThenElse (t: T) (condition: ILInstruction) (trueBranch: IRead
     IfThenElse (buildCondition t condition, buildScope t trueBranch, buildScope t falseBranch)
 
 let private buildCondition (t: T) (instr: ILInstruction): Expression =
-    match instr.Type with
-    | ILInstructionType.Compare ->
-        buildBinaryOperator t (getBinaryOperator t instr.Condition) instr
+    match instr.type_ with
+    | Compare ->
+        buildBinaryOperator t (getBinaryOperator t instr.condition) instr
     | _ -> raise (new ArgumentException("Instruction is not a valid statement"))
 
 let private buildStatement (t: T) (instr: ILInstruction): Statement =
-    match instr.Type with
-    | ILInstructionType.Add ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Add instr)
-    | ILInstructionType.And ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.And instr)
-    | ILInstructionType.Assign ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildExpression t instr.Source instr.SourceId)
-    | ILInstructionType.Call ->
-        FunctionCall (buildExpression t instr.Target instr.TargetId)
-    | ILInstructionType.Divide ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Divide instr)
-    | ILInstructionType.Multiply ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Multiply instr)
-    | ILInstructionType.Negate ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildUnaryOperator t Operator.Negate instr)
-    | ILInstructionType.Not ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildUnaryOperator t Operator.Not instr)
-    | ILInstructionType.Or ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Or instr)
-    | ILInstructionType.Return ->
-        Return (if instr.SourceId = -1 then None else Some(buildVar t instr.Source instr.SourceId))
-    | ILInstructionType.ShiftLeft ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.ShiftLeft instr)
-    | ILInstructionType.ShiftRight ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.ShiftRight instr)
-    | ILInstructionType.Subtract ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Subtract instr)
-    | ILInstructionType.Xor ->
-        Assignment (buildVar t instr.Target instr.TargetId, buildBinaryOperator t Operator.Xor instr)
+    match instr.type_ with
+    | Add ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Add instr)
+    | And ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.And instr)
+    | Assign ->
+        Assignment (buildVar t instr.target instr.targetId, buildExpression t instr.source instr.sourceId)
+    | Call ->
+        FunctionCall (buildExpression t instr.target instr.targetId)
+    | Divide ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Divide instr)
+    | Multiply ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Multiply instr)
+    | Negate ->
+        Assignment (buildVar t instr.target instr.targetId, buildUnaryOperator t Operator.Negate instr)
+    | Not ->
+        Assignment (buildVar t instr.target instr.targetId, buildUnaryOperator t Operator.Not instr)
+    | Or ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Or instr)
+    | Return ->
+        Statement.Return (if instr.sourceId = -1 then Option.None else Some(buildVar t instr.source instr.sourceId))
+    | ShiftLeft ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.ShiftLeft instr)
+    | ShiftRight ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.ShiftRight instr)
+    | Subtract ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Subtract instr)
+    | Xor ->
+        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Xor instr)
     | _ -> raise (new ArgumentException("Instruction is not a valid statement"))
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
-    match op.Type with
-    | ILOperandType.Pointer -> Dereference (VarRef (Var (getVarName t id)))
-    | ILOperandType.Register -> VarRef (Var (getVarName t id))
-    | ILOperandType.Stack -> VarRef (Var (if op.Offset >= 0 then t.parameterNames.[op.Offset] else t.localNames.[op.Offset]))
-    | ILOperandType.Value -> Value (op.Value)
-    | _ -> raise (new InvalidOperationException())
+    match op with
+    | Pointer _ -> Dereference (VarRef (Var (getVarName t id)))
+    | Register _ -> VarRef (Var (getVarName t id))
+    | Stack offset -> VarRef (Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset]))
+    | Value value -> Expression.Value (value)
 
 let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
     match condition with
-    | ILBranchType.Equal -> Operator.Equal
-    | ILBranchType.NotEqual -> Operator.NotEqual
-    | ILBranchType.Less -> Operator.Less
-    | ILBranchType.LessOrEqual -> Operator.GreaterOrEqual
-    | ILBranchType.GreaterOrEqual -> Operator.GreaterOrEqual
-    | ILBranchType.Greater -> Operator.Greater
-    | ILBranchType.Next -> raise (new InvalidOperationException("Next is not a valid operator"))
-    | _ -> raise (new InvalidOperationException())
+    | Equal -> Operator.Equal
+    | NotEqual -> Operator.NotEqual
+    | Less -> Operator.Less
+    | LessOrEqual -> Operator.GreaterOrEqual
+    | GreaterOrEqual -> Operator.GreaterOrEqual
+    | Greater -> Operator.Greater
+    | Next -> raise (new InvalidOperationException("Next is not a valid operator"))
 
 let private buildBinaryOperator (t: T) (op: Operator) (instr: ILInstruction): Expression =
-    Binary (op, buildExpression t instr.Target instr.TargetId, buildExpression t instr.Source instr.SourceId)
+    Binary (op, buildExpression t instr.target instr.targetId, buildExpression t instr.source instr.sourceId)
 
 let private buildUnaryOperator (t: T) (op: Operator) (instr: ILInstruction): Expression =
-    Unary (op, buildExpression t instr.Target instr.TargetId)
+    Unary (op, buildExpression t instr.target instr.targetId)
 
 let private buildVar (t: T) (op: ILOperand) (id: int): Var =
-    match op.Type with
-    | ILOperandType.Register -> Var (getVarName t id)
-    | ILOperandType.Stack -> Var (if op.Offset >= 0 then t.parameterNames.[op.Offset] else t.localNames.[op.Offset])
+    match op with
+    | Register _ -> Var (getVarName t id)
+    | Stack offset -> Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset])
     | _ -> raise (new NotSupportedException())
 
 let private getVarName (t: T) (id: int): string =

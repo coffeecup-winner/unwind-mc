@@ -2,7 +2,6 @@
 
 open System.Collections.Generic
 open UnwindMC.Analysis
-open UnwindMC.Analysis.IL
 open UnwindMC.Analysis.Imports
 
 let decompile (project : DecompilationProject.T): unit =
@@ -15,7 +14,7 @@ let decompile (project : DecompilationProject.T): unit =
 
 
 let decompileFunction (analyzer: Analyzer) (address: uint64): string =
-    let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.Decompile(analyzer.Graph, address))
+    let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile analyzer.Graph address)
     let result = TypeResolver.resolveTypes(blocks)
     let ast = AstBuilder.buildAst blocks result.parameterTypes result.localTypes result.variableTypes
     // TODO: these should be returned from AST step

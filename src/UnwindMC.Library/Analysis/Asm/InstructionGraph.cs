@@ -36,6 +36,7 @@ namespace UnwindMC.Analysis.Asm
         [Flags]
         public enum LinkType
         {
+            None = 0x00,
             Next = 0x01,
             Branch = 0x02,
             Call = 0x04,

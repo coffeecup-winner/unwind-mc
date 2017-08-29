@@ -6,7 +6,7 @@ open NDis86
 open NLog
 open UnwindMC.Analysis
 open UnwindMC.Analysis.Asm
-open UnwindMC.Analysis.IL
+open IL
 
 let Logger: Logger = LogManager.GetCurrentClassLogger()
 
@@ -76,24 +76,28 @@ let dumpILGraph (il: ILInstruction): string =
     while queue.Count > 0 do
         let instr = queue.Dequeue()
         sb.AppendLine(System.String.Format("  {0} [label=\"{1}\"]", instr.GetHashCode(), instr.ToString())) |> ignore
-        if instr.DefaultChild <> null then
-            if visited.Add(instr.DefaultChild) then
-                queue.Enqueue(instr.DefaultChild)
+        match instr.defaultChild with
+        | Some child ->
+            if visited.Add(child) then
+                queue.Enqueue(child)
             sb.AppendLine(
                 System.String.Format(
                     "  {0} -> {1} [label=\"{2}\"]",
                     instr.GetHashCode(),
-                    instr.DefaultChild.GetHashCode(),
-                    if instr.ConditionalChild = null then "" else "false")) |> ignore
-        if instr.ConditionalChild <> null then
-            if visited.Add(instr.ConditionalChild) then
-                queue.Enqueue(instr.ConditionalChild)
+                    child.GetHashCode(),
+                    if instr.conditionalChild.IsNone then "" else "false")) |> ignore
+        | _ -> ()
+        match instr.conditionalChild with
+        | Some child ->
+            if visited.Add(child) then
+                queue.Enqueue(child)
             sb.AppendLine(
                 System.String.Format(
                     "  {0} -> {1} [label=\"{2}\"]",
                     instr.GetHashCode(),
-                    instr.ConditionalChild.GetHashCode(),
+                    child.GetHashCode(),
                     "true")) |> ignore
+        | _ -> ()
     sb.AppendLine("}") |> ignore
     let result = sb.ToString()
     Logger.Info("Done")

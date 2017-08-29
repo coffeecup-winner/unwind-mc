@@ -62,11 +62,6 @@
     <Compile Include="Analysis\Asm\AffectedFlagsTable.cs" />
     <Compile Include="Analysis\Asm\AssignmentTracker.cs" />
     <Compile Include="Analysis\Imports\IImportResolver.cs" />
-    <Compile Include="Analysis\IL\ILBranch.cs" />
-    <Compile Include="Analysis\IL\ILDecompiler.cs" />
-    <Compile Include="Analysis\IL\ILGraph.cs" />
-    <Compile Include="Analysis\IL\ILInstruction.cs" />
-    <Compile Include="Analysis\IL\ILOperand.cs" />
     <Compile Include="Analysis\Imports\ImportResolver.cs" />
     <Compile Include="Analysis\Asm\InstructionGraph.cs" />
     <Compile Include="Analysis\Asm\JumpTable.cs" />
