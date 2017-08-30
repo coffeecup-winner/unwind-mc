@@ -2,7 +2,7 @@
 
 namespace UnwindMC.Analysis.Asm
 {
-    static class RegisterHelper
+    public static class RegisterHelper
     {
         public static OperandType GetLowByteRegisterFromDword(OperandType register)
         {

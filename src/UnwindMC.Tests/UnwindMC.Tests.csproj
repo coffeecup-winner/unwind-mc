@@ -64,6 +64,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AnalysisHelper.cs" />
+    <Compile Include="DisassemblyTests.cs" />
     <Compile Include="Helpers\MiscExtensions.cs" />
     <Compile Include="Helpers\TempDirectory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -1,20 +1,20 @@
 ﻿module Decompiler
 
 open System.Collections.Generic
-open UnwindMC.Analysis
+open UnwindMC.Analysis.Asm
 open UnwindMC.Analysis.Imports
 
 let decompile (project : DecompilationProject.T): unit =
     let pe = PEFile.load project.exePath
     let importResolver = new ImportResolver(pe.imageBase, pe.getImportAddressTableBytes(), pe.getImportBytes())
-    let analyzer = new Analyzer(pe.getTextBytes(), pe.textSectionAddress, importResolver)
-    analyzer.AddFunction(pe.entryPointAddress)
-    analyzer.Analyze()
+    let analyzer = Analyzer.create (pe.getTextBytes()) pe.textSectionAddress importResolver
+    Analyzer.AddFunction analyzer pe.entryPointAddress
+    Analyzer.analyze analyzer
     // TODO
 
 
-let decompileFunction (analyzer: Analyzer) (address: uint64): string =
-    let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile analyzer.Graph address)
+let decompileFunction (graph: InstructionGraph) (address: uint64): string =
+    let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile graph address)
     let result = TypeResolver.resolveTypes(blocks)
     let ast = AstBuilder.buildAst blocks result.parameterTypes result.localTypes result.variableTypes
     // TODO: these should be returned from AST step

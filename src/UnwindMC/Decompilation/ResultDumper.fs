@@ -4,8 +4,8 @@ open System.Collections.Generic
 open System.Text
 open NDis86
 open NLog
-open UnwindMC.Analysis
 open UnwindMC.Analysis.Asm
+open Analyzer
 open IL
 
 let Logger: Logger = LogManager.GetCurrentClassLogger()
@@ -34,7 +34,7 @@ let dumpResults (t: T): string =
             else
                 description <- "????????"
                 unresolvedInstructions <- unresolvedInstructions + 1
-        elif t.functions.[address].Status = FunctionStatus.BoundsNotResolvedIncompleteGraph then
+        elif t.functions.[address].status = BoundsNotResolvedIncompleteGraph then
             description <- "xxxxxxxx"
             incompleteInstructions <- incompleteInstructions + 1
         else
@@ -56,7 +56,7 @@ let dumpFunctionCallGraph (t: T): string =
     let sb = new StringBuilder()
     sb.AppendLine("digraph functions {") |> ignore
     for func in t.functions.Values do
-        sb.AppendLine(System.String.Format("  sub_{0:x8}", func.Address)) |> ignore
+        sb.AppendLine(System.String.Format("  sub_{0:x8}", func.address)) |> ignore
     for instr in t.graph.Instructions do
         if instr.Code = MnemonicCode.Icall && instr.Operands.[0].Type = OperandType.ImmediateBranch then
             sb.AppendLine(System.String.Format("  sub_{0:x8} -> sub_{1:x8}", t.graph.GetExtraData(instr.Offset).FunctionAddress, instr.GetTargetAddress())) |> ignore

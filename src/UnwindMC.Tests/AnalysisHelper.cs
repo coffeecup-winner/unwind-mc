@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Moq;
 using NUnit.Framework;
-using UnwindMC.Analysis;
+using UnwindMC.Analysis.Asm;
 using UnwindMC.Analysis.Imports;
 
 namespace UnwindMC.Tests
@@ -18,7 +18,7 @@ namespace UnwindMC.Tests
         private static readonly Regex AdditionalBytesLineRegex = new Regex(
             @"^(?<bytes>[0-9A-F]{2})( (?<bytes>[0-9A-F]{2}))*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public static Analyzer Analyze(string function)
+        public static InstructionGraph Analyze(string function)
         {
             var lines = function
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
@@ -72,13 +72,14 @@ namespace UnwindMC.Tests
                 canonLines.Add($"{addressText} {hex,20}".ToLower());
             }
 
-            var analyzer = new Analyzer(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver>());
-            analyzer.AddFunction(address);
-            analyzer.Analyze();
+            var analyzer = Analyzer.create(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver>());
+            Analyzer.AddFunction(analyzer, address);
+            Analyzer.analyze(analyzer);
 
-            Assert.That(analyzer.Graph.Instructions.Select(i => $"{i.Offset:x8} {i.Hex,20}"), Is.EqualTo(canonLines));
+            var graph = Analyzer.getGraph(analyzer);
+            Assert.That(graph.Instructions.Select(i => $"{i.Offset:x8} {i.Hex,20}"), Is.EqualTo(canonLines));
 
-            return analyzer;
+            return graph;
         }
     }
 }
