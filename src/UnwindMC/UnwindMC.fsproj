@@ -58,6 +58,8 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Analysis\Imports\IImportResolver.fs" />
+    <Compile Include="Analysis\Imports\ImportResolver.fs" />
     <Compile Include="Analysis\IL\IL.fs" />
     <Compile Include="Analysis\IL\ILDecompiler.fs" />
     <Compile Include="Analysis\Flow\FlowAnalyzer.fs" />

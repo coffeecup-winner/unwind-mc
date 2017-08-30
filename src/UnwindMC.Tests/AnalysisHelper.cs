@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 using Moq;
 using NUnit.Framework;
 using UnwindMC.Analysis.Asm;
-using UnwindMC.Analysis.Imports;
 
 namespace UnwindMC.Tests
 {
@@ -72,7 +71,7 @@ namespace UnwindMC.Tests
                 canonLines.Add($"{addressText} {hex,20}".ToLower());
             }
 
-            var analyzer = Analyzer.create(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver>());
+            var analyzer = Analyzer.create(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver.IImportResolver>());
             Analyzer.AddFunction(analyzer, address);
             Analyzer.analyze(analyzer);
 

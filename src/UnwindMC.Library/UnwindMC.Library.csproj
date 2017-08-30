@@ -60,8 +60,6 @@
     <Compile Include="Analysis\Asm\FlagsRegister.cs" />
     <Compile Include="Analysis\Asm\AffectedFlagsTable.cs" />
     <Compile Include="Analysis\Asm\AssignmentTracker.cs" />
-    <Compile Include="Analysis\Imports\IImportResolver.cs" />
-    <Compile Include="Analysis\Imports\ImportResolver.cs" />
     <Compile Include="Analysis\Asm\InstructionGraph.cs" />
     <Compile Include="Analysis\Asm\JumpTable.cs" />
     <Compile Include="Analysis\Asm\RegisterHelper.cs" />

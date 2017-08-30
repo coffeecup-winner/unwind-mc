@@ -6,7 +6,6 @@ open System.Linq
 open NDis86
 open NLog
 open UnwindMC.Analysis.Asm
-open UnwindMC.Analysis.Imports
 open UnwindMC.Collections
 open UnwindMC.Util
 
@@ -25,12 +24,12 @@ let private Logger = LogManager.GetCurrentClassLogger()
 
 type T = {
     _graph: InstructionGraph
-    _importResolver: IImportResolver
+    _importResolver: IImportResolver.IImportResolver
     _functions: SortedDictionary<uint64, Function>
     _jumpTables: SortedDictionary<uint64, JumpTable>
 }
 
-let create (textBytes: ArraySegment<byte>) (pc: uint64) (importResolver: IImportResolver): T = {
+let create (textBytes: ArraySegment<byte>) (pc: uint64) (importResolver: IImportResolver.IImportResolver): T = {
     _graph = new InstructionGraph(textBytes, pc)
     _importResolver = importResolver
     _functions = new SortedDictionary<uint64, Function>()
