@@ -72,7 +72,7 @@ namespace UnwindMC.Tests
             }
 
             var analyzer = Analyzer.create(new ArraySegment<byte>(bytes.ToArray()), address, Mock.Of<IImportResolver.IImportResolver>());
-            Analyzer.AddFunction(analyzer, address);
+            Analyzer.addFunction(analyzer, address);
             Analyzer.analyze(analyzer);
 
             var graph = Analyzer.getGraph(analyzer);

@@ -4,8 +4,8 @@ open System
 open System.Collections.Generic
 open System.Linq
 open UnwindMC.Collections
-open UnwindMC.Util
 open IL
+open LinqExtensions
 
 type Block =
     | ConditionalBlock of ConditionalBlock

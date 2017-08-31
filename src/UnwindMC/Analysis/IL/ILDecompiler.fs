@@ -7,6 +7,7 @@ open NDis86
 open UnwindMC.Analysis.Asm
 open UnwindMC.Collections
 open IL
+open InstructionExtensions
 
 type private T = {
     stackObjects: Dictionary<int, obj>

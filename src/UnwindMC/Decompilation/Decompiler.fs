@@ -7,7 +7,7 @@ let decompile (project : DecompilationProject.T): unit =
     let pe = PEFile.load project.exePath
     let importResolver = new ImportResolver.ImportResolver(pe.imageBase, pe.getImportAddressTableBytes(), pe.getImportBytes())
     let analyzer = Analyzer.create (pe.getTextBytes()) pe.textSectionAddress importResolver
-    Analyzer.AddFunction analyzer pe.entryPointAddress
+    Analyzer.addFunction analyzer pe.entryPointAddress
     Analyzer.analyze analyzer
     // TODO
 

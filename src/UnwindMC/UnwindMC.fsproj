@@ -58,14 +58,18 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Util\LinqExtensions.fs" />
+    <Compile Include="Analysis\Asm\AffectedFlagsTable.fs" />
+    <Compile Include="Analysis\Asm\AssignmentTracker.fs" />
+    <Compile Include="Analysis\Asm\InstructionExtensions.fs" />
     <Compile Include="Analysis\Imports\IImportResolver.fs" />
     <Compile Include="Analysis\Imports\ImportResolver.fs" />
+    <Compile Include="Analysis\Analyzer.fs" />
     <Compile Include="Analysis\IL\IL.fs" />
     <Compile Include="Analysis\IL\ILDecompiler.fs" />
     <Compile Include="Analysis\Flow\FlowAnalyzer.fs" />
     <Compile Include="Analysis\Data\Type.fs" />
     <Compile Include="Analysis\Data\TypeResolver.fs" />
-    <Compile Include="Analysis\Analyzer.fs" />
     <Compile Include="Generation\Ast\Ast.fs" />
     <Compile Include="Generation\Ast\Transformer.fs" />
     <Compile Include="Generation\Ast\Transformations\FixupPointerArithmetics.fs" />

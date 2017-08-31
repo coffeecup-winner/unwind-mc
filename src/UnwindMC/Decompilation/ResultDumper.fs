@@ -7,6 +7,7 @@ open NLog
 open UnwindMC.Analysis.Asm
 open Analyzer
 open IL
+open InstructionExtensions
 
 let Logger: Logger = LogManager.GetCurrentClassLogger()
 
