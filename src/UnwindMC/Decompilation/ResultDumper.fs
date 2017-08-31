@@ -4,7 +4,6 @@ open System.Collections.Generic
 open System.Text
 open NDis86
 open NLog
-open UnwindMC.Analysis.Asm
 open Analyzer
 open IL
 open InstructionExtensions
@@ -12,11 +11,11 @@ open InstructionExtensions
 let Logger: Logger = LogManager.GetCurrentClassLogger()
 
 type T = {
-    graph: InstructionGraph
+    graph: InstructionGraph.T
     functions: IDictionary<uint64, Function>
 }
 
-let create (graph: InstructionGraph) (functions: IDictionary<uint64, Function>): T =
+let create (graph: InstructionGraph.T) (functions: IDictionary<uint64, Function>): T =
     { graph = graph; functions = functions }
 
 let dumpResults (t: T): string =
@@ -25,7 +24,7 @@ let dumpResults (t: T): string =
     let mutable unresolvedInstructions = 0
     let mutable incompleteInstructions = 0
     for instr in t.graph.Instructions do
-        let address = t.graph.GetExtraData(instr.Offset).FunctionAddress
+        let address = t.graph.GetExtraData(instr.Offset).functionAddress
         let mutable description: string = null
         if address = 0uL then
             if instr.Code = MnemonicCode.Inop || instr.Code = MnemonicCode.Iint3 || instr.Assembly = "mov edi, edi" || instr.Assembly = "lea ecx, [ecx]" then
@@ -41,7 +40,7 @@ let dumpResults (t: T): string =
         else
             description <- System.String.Format("{0:x8}", address)
         sb.AppendFormat("{0} {1:x8} {2,20} {3}", description, instr.Offset, instr.Hex, instr.Assembly) |> ignore
-        let importName = t.graph.GetExtraData(instr.Offset).ImportName
+        let importName = t.graph.GetExtraData(instr.Offset).importName
         if importName <> null then
             sb.Append(" ; " + importName) |> ignore
         sb.AppendLine() |> ignore
@@ -60,7 +59,7 @@ let dumpFunctionCallGraph (t: T): string =
         sb.AppendLine(System.String.Format("  sub_{0:x8}", func.address)) |> ignore
     for instr in t.graph.Instructions do
         if instr.Code = MnemonicCode.Icall && instr.Operands.[0].Type = OperandType.ImmediateBranch then
-            sb.AppendLine(System.String.Format("  sub_{0:x8} -> sub_{1:x8}", t.graph.GetExtraData(instr.Offset).FunctionAddress, instr.GetTargetAddress())) |> ignore
+            sb.AppendLine(System.String.Format("  sub_{0:x8} -> sub_{1:x8}", t.graph.GetExtraData(instr.Offset).functionAddress, instr.GetTargetAddress())) |> ignore
     sb.AppendLine("}") |> ignore
     let result = sb.ToString()
     Logger.Info("Done")

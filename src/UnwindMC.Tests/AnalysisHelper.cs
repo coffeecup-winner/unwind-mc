@@ -6,7 +6,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Moq;
 using NUnit.Framework;
-using UnwindMC.Analysis.Asm;
 
 namespace UnwindMC.Tests
 {
@@ -17,7 +16,7 @@ namespace UnwindMC.Tests
         private static readonly Regex AdditionalBytesLineRegex = new Regex(
             @"^(?<bytes>[0-9A-F]{2})( (?<bytes>[0-9A-F]{2}))*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public static InstructionGraph Analyze(string function)
+        public static InstructionGraph.T Analyze(string function)
         {
             var lines = function
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)

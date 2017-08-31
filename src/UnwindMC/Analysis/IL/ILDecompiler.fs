@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open UnwindMC.Analysis.Asm
 open UnwindMC.Collections
 open IL
 open InstructionExtensions
@@ -16,7 +15,7 @@ type private T = {
     mutable prevInstr: Instruction
 }
 
-let decompile (graph: InstructionGraph) (address: uint64): ILInstruction =
+let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
     let t = {
         stackObjects = new Dictionary<int, obj>()
         stackOffset = -4 // skip the return address on the stack
@@ -25,7 +24,8 @@ let decompile (graph: InstructionGraph) (address: uint64): ILInstruction =
     }
     t.stackObjects.Add(t.stackOffset, null)
     let instructions = new Dictionary<uint64, ILInstruction>()
-    graph.WithEdgeFilter(fun e -> (e.Type &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None).DFS(address,
+    (graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None).DFS(address,
         fun instr _ ->
             let ilInstructions = convertInstruction t instr
             if ilInstructions.Length > (int)instr.Length then

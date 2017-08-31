@@ -1,7 +1,6 @@
 ﻿module Decompiler
 
 open System.Collections.Generic
-open UnwindMC.Analysis.Asm
 
 let decompile (project : DecompilationProject.T): unit =
     let pe = PEFile.load project.exePath
@@ -12,7 +11,7 @@ let decompile (project : DecompilationProject.T): unit =
     // TODO
 
 
-let decompileFunction (graph: InstructionGraph) (address: uint64): string =
+let decompileFunction (graph: InstructionGraph.T) (address: uint64): string =
     let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile graph address)
     let result = TypeResolver.resolveTypes(blocks)
     let ast = AstBuilder.buildAst blocks result.parameterTypes result.localTypes result.variableTypes

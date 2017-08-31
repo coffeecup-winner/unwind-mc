@@ -60,6 +60,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Util\LinqExtensions.fs" />
     <Compile Include="Analysis\Asm\AffectedFlagsTable.fs" />
+    <Compile Include="Analysis\Asm\InstructionGraph.fs" />
     <Compile Include="Analysis\Asm\AssignmentTracker.fs" />
     <Compile Include="Analysis\Asm\InstructionExtensions.fs" />
     <Compile Include="Analysis\Imports\IImportResolver.fs" />

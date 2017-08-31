@@ -2,16 +2,15 @@
 
 open NDis86
 open NLog
-open UnwindMC.Analysis.Asm
 open UnwindMC.Collections
 
 let Logger = LogManager.GetCurrentClassLogger()
 
-let rec find (graph: InstructionGraph) (address: uint64) (register: OperandType) (tryMatch: Instruction -> OperandType -> bool): LValue option =
+let rec find (graph: InstructionGraph.T) (address: uint64) (register: OperandType) (tryMatch: Instruction -> OperandType -> bool): LValue option =
     let mutable result = None
     let mutable skippedInitialInstruction = false
-    graph
-        .WithEdgeFilter(fun e -> (e.Type &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+    (graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
         .ReverseEdges()
         .DFS(address, fun instr _ ->
             if not skippedInitialInstruction then

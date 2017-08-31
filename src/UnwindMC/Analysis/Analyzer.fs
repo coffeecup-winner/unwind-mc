@@ -5,7 +5,6 @@ open System.Collections.Generic
 open System.Linq
 open NDis86
 open NLog
-open UnwindMC.Analysis.Asm
 open UnwindMC.Collections
 open InstructionExtensions
 
@@ -38,14 +37,14 @@ module JumpTable =
 let private logger = LogManager.GetCurrentClassLogger()
 
 type T = {
-    graph: InstructionGraph
+    graph: InstructionGraph.T
     importResolver: IImportResolver.IImportResolver
     functions: SortedDictionary<uint64, Function>
     jumpTables: SortedDictionary<uint64, JumpTable.T>
 }
 
 let create (textBytes: ArraySegment<byte>) (pc: uint64) (importResolver: IImportResolver.IImportResolver): T = {
-    graph = new InstructionGraph(textBytes, pc)
+    graph = InstructionGraph.disassemble textBytes pc
     importResolver = importResolver
     functions = new SortedDictionary<uint64, Function>()
     jumpTables = new SortedDictionary<uint64, JumpTable.T>()
@@ -56,7 +55,7 @@ let analyze (t: T): unit =
     resolveFunctionBounds t
     resolveExternalFunctionCalls t
 
-let getGraph ({ graph = graph }): InstructionGraph = graph
+let getGraph ({ graph = graph }): InstructionGraph.T = graph
 
 let addFunction (t: T) (address: uint64): unit =
     t.functions.Add(address, { address = address; status = Created })
@@ -86,14 +85,14 @@ let private resolveFunctionBounds (t: T): unit =
                 func.status <- BoundsNotResolvedInvalidAddress
                 run rest
             else
-                if not (t.graph.Contains(func.address)) then
+                if not (t.graph.ContainsAddress(func.address)) then
                     logger.Debug("The specified address is not a valid start of instruction, re-disassembling");
                     t.graph.Redisassemble(func.address);
                 let visitedAllLinks =
-                    t.graph
-                        .WithEdgeFilter(fun e -> (e.Type &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+                    (t.graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+                        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
                         .DFS(func.address, fun instr link ->
-                            t.graph.GetExtraData(instr.Offset).FunctionAddress <- func.address
+                            t.graph.GetExtraData(instr.Offset).functionAddress <- func.address
                             if instr.Code = MnemonicCode.Iret then
                                 false
                             else
@@ -116,7 +115,7 @@ let private resolveExternalFunctionCalls (t: T): unit =
             |> Option.map (fun i -> t.importResolver.GetImportName i)
         match import with
         | Some name ->
-            t.graph.GetExtraData(instr.Offset).ImportName <- name
+            t.graph.GetExtraData(instr.Offset).importName <- name
         | None -> ()
     logger.Info("Done")
 
@@ -189,32 +188,32 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
         let mutable lowByteIdx = OperandType.None
         let mutable indirectAddress = 0uL
         let mutable casesCountOption = None
-        t.graph
-            .WithEdgeFilter(fun e -> (e.Type &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
+        (t.graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+            .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
             .ReverseEdges()
             .DFS(table.reference, fun instr link ->
-            // find out the jump index register
-            if idx = OperandType.None then
-                idx <- instr.Operands.[0].Index
-                lowByteIdx <- getLowByteRegisterFromDword idx
-                true
-            else
-                // update the main jump register if the jump is indirect
-                if indirectAddress = 0uL && instr.Code = MnemonicCode.Imov && instr.Operands.[0].Base = lowByteIdx then
-                    idx <- instr.Operands.[1].Base
-                    indirectAddress <- (uint64)instr.Operands.[1].LValue.udword
+                // find out the jump index register
+                if idx = OperandType.None then
+                    idx <- instr.Operands.[0].Index
+                    lowByteIdx <- getLowByteRegisterFromDword idx
                     true
                 else
-                    // search for the jump to the default case
-                    if not (instr.Code = MnemonicCode.Ija && instr.Operands.[0].Type = OperandType.ImmediateBranch) then
+                    // update the main jump register if the jump is indirect
+                    if indirectAddress = 0uL && instr.Code = MnemonicCode.Imov && instr.Operands.[0].Base = lowByteIdx then
+                        idx <- instr.Operands.[1].Base
+                        indirectAddress <- (uint64)instr.Operands.[1].LValue.udword
                         true
                     else
-                        // search for cases count, can find it from code like cmp ecx, 0xb
-                        // the jump register is irrelevant since it must be the closest one to ja
-                        let value = AssignmentTracker.find t.graph instr.Offset idx (fun i _ ->
-                            i.Code = MnemonicCode.Icmp && i.Operands.[0].Type = OperandType.Register)
-                        casesCountOption <- value |> Option.map (fun v -> (int)v.ubyte + 1)
-                        false
+                        // search for the jump to the default case
+                        if not (instr.Code = MnemonicCode.Ija && instr.Operands.[0].Type = OperandType.ImmediateBranch) then
+                            true
+                        else
+                            // search for cases count, can find it from code like cmp ecx, 0xb
+                            // the jump register is irrelevant since it must be the closest one to ja
+                            let value = AssignmentTracker.find t.graph instr.Offset idx (fun i _ ->
+                                i.Code = MnemonicCode.Icmp && i.Operands.[0].Type = OperandType.Register)
+                            casesCountOption <- value |> Option.map (fun v -> (int)v.ubyte + 1)
+                            false
             ) |> ignore
 
         match casesCountOption with
