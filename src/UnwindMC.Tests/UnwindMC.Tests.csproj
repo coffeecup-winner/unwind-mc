@@ -78,10 +78,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\UnwindMC.Library\UnwindMC.Library.csproj">
-      <Project>{94846242-360f-4efe-921f-8d8c06d0d1f6}</Project>
-      <Name>UnwindMC.Library</Name>
-    </ProjectReference>
     <ProjectReference Include="..\UnwindMC\UnwindMC.fsproj">
       <Project>{5bb89843-331f-4d99-a654-3512890a769d}</Project>
       <Name>UnwindMC</Name>

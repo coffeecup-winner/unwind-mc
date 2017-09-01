@@ -3,7 +3,7 @@
 open System
 open System.Collections.Generic
 open System.Linq
-open UnwindMC.Collections
+open IGraph
 open IL
 open LinqExtensions
 

@@ -5,8 +5,8 @@ open System.Collections.Generic
 open System.Text
 open NDis86
 open NLog
-open UnwindMC.Collections
-open UnwindMC.Util
+open Common
+open IGraph
 
 [<Flags>]
 type LinkType
@@ -65,18 +65,18 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         member self.Contains(address: uint64): bool =
             instructions.ContainsKey(address)
 
-        member self.GetAdjacent(vertexId: uint64): IEnumerable<Either<struct (uint64 * Link), string>> =
+        member self.GetAdjacent(vertexId: uint64): IEnumerable<Either<uint64 * Link, string>> =
             seq {
                 match (if isReversed then reverseLinks else instructionLinks).TryGetValue(vertexId) with
                 | false, _ ->
-                    yield Either.Right("DFS: Couldn't find links for " + instructions.[vertexId].ToString())
+                    yield Right("DFS: Couldn't find links for " + instructions.[vertexId].ToString())
                 | true, links ->
                     for link in (links |> Seq.where (fun l -> edgePredicate.Invoke(l))) do
                         let linkAddress = if isReversed then link.address else link.targetAddress
                         if self.InBounds(linkAddress) then
-                            yield Either.Left(struct (linkAddress, link))
+                            yield Left((linkAddress, link))
                         else
-                            yield Either.Right("DFS: Jump outside of code section")
+                            yield Right("DFS: Jump outside of code section")
             }
 
         member self.GetSubgraph(subgraph: ISet<Instruction>): IGraph<uint64, Instruction, Link> =
@@ -210,7 +210,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         !oldInstr
 
     member self.ReadUInt32(address: uint64): uint64 =
-        (uint64)(bytes.Array.ReadUInt32(self.ToByteArrayIndex(address)))
+        (uint64)(ArrayReader.readUInt32 bytes.Array (self.ToByteArrayIndex(address)))
 
     member self.Redisassemble(address: uint64): unit =
         // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code

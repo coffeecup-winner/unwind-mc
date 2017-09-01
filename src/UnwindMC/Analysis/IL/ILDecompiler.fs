@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open UnwindMC.Collections
+open IGraph
 open IL
 open InstructionExtensions
 

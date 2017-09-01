@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open UnwindMC.Util
+open Common
 open IL
 open FlowAnalyzer
 open Type
@@ -51,8 +51,9 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
     typesToRemove.Add(0, new Dictionary<ILOperand, int>())
     t.types.[t.currentLevel] <- new Dictionary<ILOperand, TypeBuilder>()
     for item in traverseReversed blocks do
-        if item.IsLeft then
-            match item.Left with
+        match item with
+        | Left marker ->
+            match marker with
             | ScopeBoundsMarker.Start ->
                 for pair in typesToRemove.[t.currentLevel] do
                     if getScopeLevel t pair.Key = t.currentLevel then
@@ -66,8 +67,7 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                 t.currentLevel <- t.currentLevel + 1
                 t.types.[t.currentLevel] <- new Dictionary<ILOperand, TypeBuilder>()
                 typesToRemove.[t.currentLevel] <- new Dictionary<ILOperand, int>()
-        else
-            let instr = item.Right
+        | Right instr ->
             match instr.type_ with
             | ILInstructionType.Negate
             | ILInstructionType.Not ->
@@ -246,14 +246,14 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
         while stack.Count > 0 do
             match stack.Pop() with
             | :? ScopeBoundsMarker as scopeBoundsMarker -> 
-                yield Either.Left<ScopeBoundsMarker, ILInstruction>(scopeBoundsMarker)
+                yield Left scopeBoundsMarker
             | :? ILInstruction as instr ->
-                yield Either.Right<ScopeBoundsMarker, ILInstruction>(instr)
+                yield Right instr
             | :? Block as block ->
                 match block with
                 | SequentialBlock { instructions = instructions } ->
                     for i in [0 .. instructions.Count - 1] |> Seq.rev do
-                        yield Either.Right<ScopeBoundsMarker, ILInstruction>(instructions.[i])
+                        yield Right(instructions.[i])
                 | WhileBlock { condition = condition; children = children } ->
                     stack.Push(ScopeBoundsMarker.Start)
                     stack.Push(condition)

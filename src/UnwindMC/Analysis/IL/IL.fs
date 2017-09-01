@@ -4,8 +4,8 @@ open System
 open System.Collections.Generic
 open System.Text
 open NDis86
-open UnwindMC.Collections
-open UnwindMC.Util
+open Common
+open IGraph
 
 type ILOperand
     = Value of int
@@ -238,13 +238,13 @@ type ILGraph (subgraph: ISet<ILInstruction>, edgePredicate: Func<obj, bool>) =
         member self.GetVertex (vertexId: ILInstruction): ILInstruction =
             vertexId
 
-        member self.GetAdjacent (vertex: ILInstruction): IEnumerable<Either<struct (ILInstruction * obj), string>> =
+        member self.GetAdjacent (vertex: ILInstruction): IEnumerable<Either<ILInstruction * obj, string>> =
             seq {
                 match vertex.conditionalChild with
-                | Some child when child.order > vertex.order && contains child -> yield Either.Left(struct (child, null))
+                | Some child when child.order > vertex.order && contains child -> yield Left (child, null)
                 | _ -> ()
                 match vertex.defaultChild with
-                | Some child when child.order > vertex.order && contains child -> yield Either.Left(struct (child, null))
+                | Some child when child.order > vertex.order && contains child -> yield Left(child, null)
                 | _ -> ()
             }
 

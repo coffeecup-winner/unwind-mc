@@ -5,7 +5,7 @@ open System.Collections.Generic
 open System.Linq
 open NDis86
 open NLog
-open UnwindMC.Collections
+open IGraph
 open InstructionExtensions
 
 type FunctionStatus

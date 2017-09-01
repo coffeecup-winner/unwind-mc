@@ -2,7 +2,6 @@
 
 open System
 open System.Collections.Generic
-open UnwindMC.Util
 open IImportResolver
 
 type ImportResolver(imageBase: uint64, importAddressTableBytes: ArraySegment<byte>, importBytes: ArraySegment<byte>) =
@@ -18,11 +17,11 @@ type ImportResolver(imageBase: uint64, importAddressTableBytes: ArraySegment<byt
                 virtualAddress <= (uint64)(_importAddressTableBytes.Offset + _importAddressTableBytes.Count - 4)
 
         member self.GetImportName(address: uint64): string =
-            let entryAddress = _importAddressTableBytes.Array.ReadUInt32((int)(address - _imageBase))
-            let hint = _importBytes.Array.ReadUInt16((int)entryAddress)
+            let entryAddress = ArrayReader.readUInt32 _importAddressTableBytes.Array ((int)(address - _imageBase))
+            let hint = ArrayReader.readUInt16 _importBytes.Array ((int)entryAddress)
             let hasValue, name = _imports.TryGetValue((int)hint)
             if hasValue then
-                let name = _importBytes.Array.ReadZString((int)entryAddress + 2)
+                let name = ArrayReader.readZString _importBytes.Array ((int)entryAddress + 2)
                 _imports.[(int)hint] <- name;
                 name
             else

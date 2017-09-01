@@ -58,7 +58,10 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Util\Common.fs" />
+    <Compile Include="Util\ArrayReader.fs" />
     <Compile Include="Util\LinqExtensions.fs" />
+    <Compile Include="Collections\IGraph.fs" />
     <Compile Include="Analysis\Asm\AffectedFlagsTable.fs" />
     <Compile Include="Analysis\Asm\InstructionGraph.fs" />
     <Compile Include="Analysis\Asm\AssignmentTracker.fs" />
@@ -110,13 +113,6 @@
     <Reference Include="YamlDotNet">
       <HintPath>..\packages\YamlDotNet.4.2.1\lib\net35\YamlDotNet.dll</HintPath>
     </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\UnwindMC.Library\UnwindMC.Library.csproj">
-      <Name>UnwindMC.Library</Name>
-      <Project>{94846242-360f-4efe-921f-8d8c06d0d1f6}</Project>
-      <Private>True</Private>
-    </ProjectReference>
   </ItemGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

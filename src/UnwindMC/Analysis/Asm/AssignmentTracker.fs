@@ -2,7 +2,7 @@
 
 open NDis86
 open NLog
-open UnwindMC.Collections
+open IGraph
 
 let Logger = LogManager.GetCurrentClassLogger()
 
