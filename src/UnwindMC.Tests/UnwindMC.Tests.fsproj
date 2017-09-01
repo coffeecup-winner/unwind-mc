@@ -9,7 +9,7 @@
     <ProjectGuid>feecf0cc-025b-4fbe-8d86-7dc856dfd4f5</ProjectGuid>
     <OutputType>Library</OutputType>
     <RootNamespace>UnwindMC.Tests2</RootNamespace>
-    <AssemblyName>UnwindMC.Tests2</AssemblyName>
+    <AssemblyName>UnwindMC.Tests</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <TargetFSharpCoreVersion>4.4.1.0</TargetFSharpCoreVersion>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -36,6 +36,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\$(Configuration)\$(AssemblyName).XML</DocumentationFile>
+    <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
@@ -56,6 +57,10 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Util\TempDirectory.fs" />
+    <Compile Include="Util\ILHelper.fs" />
+    <Compile Include="Util\FlowHelper.fs" />
+    <Compile Include="Util\AstHelper.fs" />
+    <Compile Include="Util\MiscExtensions.fs" />
     <Compile Include="AnalysisHelper.fs" />
     <Compile Include="SourceTests\VcTools.fs" />
     <Compile Include="SourceTests\SourceTester.fs" />
@@ -63,6 +68,11 @@
     <Compile Include="SourceTests\IntArithmeticTests.fs" />
     <Compile Include="SourceTests\FlowControlTests.fs" />
     <Compile Include="DisassemblyTests.fs" />
+    <Compile Include="ILDecompilationTests.fs" />
+    <Compile Include="FlowTests.fs" />
+    <Compile Include="TypeResolutionTests.fs" />
+    <Compile Include="AstTests.fs" />
+    <Compile Include="CppEmitterTests.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

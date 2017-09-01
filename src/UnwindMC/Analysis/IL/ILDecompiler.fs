@@ -80,10 +80,10 @@ let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
                     lastBranch <- Option.None
                     isEmptyThen <- false
                     run rest
-                | _ -> ()
-            current.Value.defaultChild <- Some instr
-            current <- Some instr
-            run rest
+                | _ ->
+                    current.Value.defaultChild <- Some instr
+                    current <- Some instr
+                    run rest
         | [] -> ()
     run (il |> Seq.map (fun p -> p.Value) |> Seq.toList)
     il.Values.First(fun i -> i.type_ <> Nop && i.type_ <> Virtual)

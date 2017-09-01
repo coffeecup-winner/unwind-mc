@@ -15,22 +15,22 @@ type Block =
 
 type ConditionalBlock = {
     condition: ILInstruction
-    trueBranch: List<Block>
-    falseBranch : List<Block>
+    trueBranch: IReadOnlyList<Block>
+    falseBranch : IReadOnlyList<Block>
 }
 
 type DoWhileBlock = {
     condition: ILInstruction
-    children: List<Block>
+    children: IReadOnlyList<Block>
 }
 
 type SequentialBlock = {
-    instructions: List<ILInstruction>
+    instructions: IReadOnlyList<ILInstruction>
 }
 
 type WhileBlock = {
     condition: ILInstruction
-    children: List<Block>
+    children: IReadOnlyList<Block>
 }
 
 type private Order = {
