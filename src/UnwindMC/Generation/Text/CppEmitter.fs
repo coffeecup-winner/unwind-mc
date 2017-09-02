@@ -100,7 +100,6 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
 let private emitAssignment (t :T) (var: Var) (expr: Expression): TextWorkflow.T =
     text {
         let (Var name) = var
-        yield Indent
         // TODO: rework how variables are passed and treated in each step
         if not (name.StartsWith("arg")) && t.declaredVariables.Add(name) then
             yield! emitDeclaration t name
@@ -114,7 +113,6 @@ let private emitAssignment (t :T) (var: Var) (expr: Expression): TextWorkflow.T 
 
 let private emitDoWhile (t: T) (loop: IReadOnlyList<Statement>) (cond: Expression): TextWorkflow.T =
     text {
-        yield Indent
         yield "do"
         yield NewLine
 
@@ -131,7 +129,6 @@ let private emitDoWhile (t: T) (loop: IReadOnlyList<Statement>) (cond: Expressio
 
 let private emitFunctionCall (t: T) (expr: Expression): TextWorkflow.T =
     text {
-        yield Indent
         yield! emitExpression t expr
         yield "()"
         yield ";"
@@ -140,7 +137,6 @@ let private emitFunctionCall (t: T) (expr: Expression): TextWorkflow.T =
 
 let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: IReadOnlyList<Statement>) (falseBranch: IReadOnlyList<Statement>): TextWorkflow.T =
     text {
-        yield Indent
         yield "if"
         yield " "
         yield "("
@@ -150,7 +146,6 @@ let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: IReadOnlyList<
 
         yield! emitScope t trueBranch false
         if falseBranch.Count > 0 then
-            yield Indent
             yield "else"
             yield NewLine
             yield! emitScope t falseBranch false
@@ -158,7 +153,6 @@ let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: IReadOnlyList<
 
 let private emitReturn (var: Var option): TextWorkflow.T =
     text {
-        yield Indent
         yield "return"
         match var with
         | Some (Var name) ->
@@ -171,7 +165,6 @@ let private emitReturn (var: Var option): TextWorkflow.T =
 
 let private emitScope (t: T) (stmts: IReadOnlyList<Statement>) (skipNewline: bool): TextWorkflow.T =
     text {
-        yield Indent
         yield "{"
         yield NewLine
 
@@ -180,7 +173,6 @@ let private emitScope (t: T) (stmts: IReadOnlyList<Statement>) (skipNewline: boo
             yield! emitStatement t node
         yield DecreaseIndent
 
-        yield Indent
         yield "}"
         if not skipNewline then
             yield NewLine
@@ -188,7 +180,6 @@ let private emitScope (t: T) (stmts: IReadOnlyList<Statement>) (skipNewline: boo
 
 let private emitWhile (t: T) (cond: Expression) (loop: IReadOnlyList<Statement>): TextWorkflow.T =
     text {
-        yield Indent
         yield "while"
         yield " "
         yield "("
