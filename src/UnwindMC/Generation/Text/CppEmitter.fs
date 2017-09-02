@@ -7,26 +7,19 @@ open TextWorkflow
 open Type
 
 let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
-    let tryFind (mapping: 'a -> 'b option): 'a seq -> 'b option =
-        Seq.map mapping
-        >> Seq.tryFind (fun o -> o.IsSome)
-        >> Option.flatten
     let rec findRoot =
         function
         | Assignment _ -> None
-        | DoWhile (loop, _) -> loop |> tryFind findRoot
+        | DoWhile (loop, _) -> loop |> Seq.tryPick findRoot
         | FunctionCall _ -> None
         | IfThenElse (_, trueBranch, falseBranch) ->
-            let root = trueBranch |> tryFind findRoot
-            if root.IsSome then root else falseBranch |> tryFind findRoot
+            let root = trueBranch |> Seq.tryPick findRoot
+            if root.IsSome then root else falseBranch |> Seq.tryPick findRoot
         | Return var -> var
-        | While (_, loop) -> loop |> tryFind findRoot
+        | While (_, loop) -> loop |> Seq.tryPick findRoot
     stmts
     |> Seq.rev
-    |> tryFind findRoot
-
-[<Literal>]
-let IndentSize = 2
+    |> Seq.tryPick findRoot
 
 type private T = {
     name: string
@@ -100,7 +93,7 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
             | DoWhile (loop, cond) -> emitDoWhile t loop cond
             | FunctionCall expr -> emitFunctionCall t expr
             | IfThenElse (cond, trueBranch, falseBranch) -> emitIfThenElse t cond trueBranch falseBranch
-            | Return var -> emitReturn t var
+            | Return var -> emitReturn var
             | While (cond, loop) -> emitWhile t cond loop
     }
 
@@ -163,7 +156,7 @@ let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: IReadOnlyList<
             yield! emitScope t falseBranch false
     }
 
-let private emitReturn (t: T) (var: Var option): TextWorkflow.T =
+let private emitReturn (var: Var option): TextWorkflow.T =
     text {
         yield Indent
         yield "return"
@@ -213,8 +206,8 @@ let private emitExpression (t: T) (expression: Expression): TextWorkflow.T =
             | Binary (op, left, right) -> emitBinary t op left right
             | Dereference expr -> emitDereference t expr
             | Unary (op, operand) -> emitUnary t op operand
-            | Value value -> emitValue t value
-            | VarRef var -> emitVar t var
+            | Value value -> emitValue value
+            | VarRef var -> emitVar var
     }
 
 let private emitBinary (t: T) (op: Operator) (left: Expression) (right: Expression): TextWorkflow.T =
@@ -262,12 +255,12 @@ let private emitUnary (t: T) (op: Operator) (operand: Expression): TextWorkflow.
         yield! emitExpression t operand
     }
 
-let private emitValue (t: T) (value: int): TextWorkflow.T =
+let private emitValue (value: int): TextWorkflow.T =
     text {
         yield value.ToString()
     }
 
-let private emitVar (t: T) (var: Var): TextWorkflow.T =
+let private emitVar (var: Var): TextWorkflow.T =
     text {
         let (Var name) = var
         yield name
