@@ -19,7 +19,7 @@ type private T = {
     mutable nextVariableNameIdx: int
 }
 
-let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): Statement =
+let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): IReadOnlyList<Statement> =
     let t = {
         blocks = blocks
         parameterTypes = parameterTypes
@@ -43,16 +43,16 @@ let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataT
         let name = "loc" + string(index)
         t.localNames.[offset] <- name
         t.types.[name] <- t.localTypes.[index]
-    let ast = buildScope t t.blocks
-    runTransformations t ast
+    buildScope t t.blocks
+    |> ROL.map (runTransformations t)
 
 let private runTransformations (t: T) (ast: Statement): Statement =
     [
-        FixupPointerArithmetics.transform t.types
-        FixupZeroAssignment.transform
-    ] |> Seq.fold (fun a t -> t a) ast
+        FixupPointerArithmetics.transformer t.types
+        FixupZeroAssignment.transformer
+    ] |> Seq.fold (fun a t -> Transformer.transform t a) ast
 
-let private buildScope (t: T) (blocks: IReadOnlyList<Block>): Statement =
+let private buildScope (t: T) (blocks: IReadOnlyList<Block>): IReadOnlyList<Statement> =
     let statements = new List<Statement>()
     for block in blocks do
         match block with
@@ -65,7 +65,7 @@ let private buildScope (t: T) (blocks: IReadOnlyList<Block>): Statement =
             statements.Add(buildDoWhile t c cs);
         | ConditionalBlock { condition = c; trueBranch = tb; falseBranch = fb } ->
             statements.Add(buildIfThenElse t c tb fb);
-    Scope statements
+    statements :> IReadOnlyList<Statement>
 
 let private buildWhile (t: T) (condition: ILInstruction) (children: IReadOnlyList<Block>): Statement =
     While (buildCondition t condition, buildScope t children)
@@ -120,6 +120,7 @@ let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     | Register _ -> VarRef (Var (getVarName t id))
     | Stack offset -> VarRef (Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset]))
     | Value value -> Expression.Value (value)
+    | NoOperand -> raise (new InvalidOperationException())
 
 let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
     match condition with

@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NLog
-open Common
 
 type IGraph<'vid, 'v, 'e> =
     abstract member Contains: 'vid -> bool
@@ -20,7 +19,7 @@ let Logger = LogManager.GetCurrentClassLogger()
 [<AutoOpen>]
 module GraphExtensions =
     type IGraph<'vid, 'v, 'e> with
-        member graph.DFS(start: 'vid, process: 'v -> 'e -> bool): bool =
+        member graph.DFS(start: 'vid, consume: 'v -> 'e -> bool): bool =
             let stack = new Stack<'vid * 'e>()
             let visited = new HashSet<'vid>()
             stack.Push((start, Unchecked.defaultof<'e>))
@@ -28,7 +27,7 @@ module GraphExtensions =
             let mutable visitedAllEdges = true
             while stack.Count > 0 do
                 let (vertexId, edge) = stack.Pop()
-                if process (graph.GetVertex(vertexId)) edge then
+                if consume (graph.GetVertex(vertexId)) edge then
                     for adj in graph.GetAdjacent(vertexId).Reverse() do
                         match adj with
                         | Right message ->

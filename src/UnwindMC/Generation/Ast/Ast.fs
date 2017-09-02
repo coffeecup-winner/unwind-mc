@@ -35,9 +35,8 @@ type Expression
 
 type Statement
     = Assignment of Var * Expression
-    | DoWhile of Statement * Expression
+    | DoWhile of IReadOnlyList<Statement> * Expression
     | FunctionCall of Expression
-    | IfThenElse of Expression * Statement * Statement
+    | IfThenElse of Expression * IReadOnlyList<Statement> * IReadOnlyList<Statement>
     | Return of Var option
-    | Scope of IReadOnlyList<Statement>
-    | While of Expression * Statement
+    | While of Expression * IReadOnlyList<Statement>

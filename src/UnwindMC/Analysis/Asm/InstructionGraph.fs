@@ -5,7 +5,6 @@ open System.Collections.Generic
 open System.Text
 open NDis86
 open NLog
-open Common
 open IGraph
 
 [<Flags>]

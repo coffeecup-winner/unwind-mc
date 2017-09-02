@@ -5,7 +5,7 @@ open System.Collections.Generic
 open Ast
 open Type
 
-let transform (types: IReadOnlyDictionary<string, DataType>): Statement -> Statement =
+let transformer (types: IReadOnlyDictionary<string, DataType>): Transformer.T =
     let fixup (op: Operator) (Var name as var) (value: int): Expression =
         let type_ = types.[name]
         if type_.indirectionLevel > 0 || type_.isFunction then
@@ -16,13 +16,14 @@ let transform (types: IReadOnlyDictionary<string, DataType>): Statement -> State
         else
             Binary (op, VarRef var, Value value)
 
-    Transformer.transform {
-        Transformer.def with transformBinary =
-            fun t (Binary (op, left, right) as binary) ->
-                match binary with
-                | Binary (Operator.Add, VarRef var, Value value) -> fixup op var value
-                | Binary (Operator.Add, Value value, VarRef var) -> fixup op var value
-                | Binary (Operator.Subtract, VarRef var, Value value) -> fixup op var value
-                | Binary (Operator.Subtract, Value value, VarRef var) -> fixup op var value
-                | _ -> Transformer.def.transformBinary t binary
+    {
+        Transformer.def with
+            transformExpression =
+                fun t expr ->
+                    match expr with
+                    | Binary (Operator.Add, VarRef var, Value value) -> fixup Operator.Add var value
+                    | Binary (Operator.Add, Value value, VarRef var) -> fixup Operator.Add var value
+                    | Binary (Operator.Subtract, VarRef var, Value value) -> fixup Operator.Subtract var value
+                    | Binary (Operator.Subtract, Value value, VarRef var) -> fixup Operator.Subtract var value
+                    | _ -> Transformer.def.transformExpression t expr
     }

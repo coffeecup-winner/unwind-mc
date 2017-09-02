@@ -6,17 +6,24 @@ open System.Text
 open Ast
 open Type
 
-let private findRootVar (stmt: Statement): Var option =
-    match stmt with
-    | Assignment _ -> None
-    | DoWhile (loop, _) -> findRootVar loop
-    | FunctionCall _ -> None
-    | IfThenElse (_, trueBranch, falseBranch) ->
-        let root = findRootVar trueBranch
-        if root.IsSome then root else findRootVar falseBranch
-    | Return var -> var
-    | Scope stmts -> stmts |> Seq.fold (fun o s -> if o.IsSome then o else findRootVar s) None
-    | While (_, loop) -> findRootVar loop
+let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
+    let tryFind (mapping: 'a -> 'b option): 'a seq -> 'b option =
+        Seq.map mapping
+        >> Seq.tryFind (fun o -> o.IsSome)
+        >> Option.flatten
+    let rec findRoot =
+        function
+        | Assignment _ -> None
+        | DoWhile (loop, _) -> loop |> tryFind findRoot
+        | FunctionCall _ -> None
+        | IfThenElse (_, trueBranch, falseBranch) ->
+            let root = trueBranch |> tryFind findRoot
+            if root.IsSome then root else falseBranch |> tryFind findRoot
+        | Return var -> var
+        | While (_, loop) -> loop |> tryFind findRoot
+    stmts
+    |> Seq.rev
+    |> tryFind findRoot
 
 [<Literal>]
 let IndentSize = 2
@@ -26,14 +33,14 @@ type private T = {
     name: string
     types: IReadOnlyDictionary<string, DataType>
     parametersCount: int
-    body: Statement
+    body: IReadOnlyList<Statement>
     declaredVariables: HashSet<string>
     indents: Dictionary<int, string>
     mutable indentLevel: int
     mutable indent: string
 }
 
-let emit (name: string) (types: IReadOnlyDictionary<string, DataType>) (parametersCount: int) (body: Statement): string =
+let emit (name: string) (types: IReadOnlyDictionary<string, DataType>) (parametersCount: int) (body: IReadOnlyList<Statement>): string =
     let t = {
         sb = new StringBuilder()
         name = name
@@ -50,8 +57,7 @@ let emit (name: string) (types: IReadOnlyDictionary<string, DataType>) (paramete
 
 let private emitSourceCode (t: T): string =
     emitSignature t (findRootVar t.body)
-    let (Scope stmts) = t.body
-    emitScope t stmts false
+    emitScope t t.body false
     t.sb.ToString()
 
 let private emitSignature (t: T) (ret: Var option): unit =
@@ -98,7 +104,6 @@ let private emitStatement (t: T) (statement: Statement): unit =
     | FunctionCall expr -> emitFunctionCall t expr
     | IfThenElse (cond, trueBranch, falseBranch) -> emitIfThenElse t cond trueBranch falseBranch
     | Return var -> emitReturn t var
-    | Scope stmts -> emitScope t stmts false
     | While (cond, loop) -> emitWhile t cond loop
 
 let private emitAssignment (t :T) (var: Var) (expr: Expression): unit =
@@ -114,12 +119,11 @@ let private emitAssignment (t :T) (var: Var) (expr: Expression): unit =
     t.sb.Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let private emitDoWhile (t: T) (loop: Statement) (cond: Expression): unit =
+let private emitDoWhile (t: T) (loop: IReadOnlyList<Statement>) (cond: Expression): unit =
     t.sb.Append(t.indent)
         .Append("do")
         .Append(Environment.NewLine) |> ignore
-    let (Scope stmts) = loop
-    emitScope t stmts true
+    emitScope t loop true
     t.sb.Append(" ")
         .Append("while")
         .Append(" ")
@@ -136,7 +140,7 @@ let private emitFunctionCall (t: T) (expr: Expression): unit =
         .Append(";")
         .Append(Environment.NewLine) |> ignore
 
-let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: Statement) (falseBranch: Statement): unit =
+let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: IReadOnlyList<Statement>) (falseBranch: IReadOnlyList<Statement>): unit =
     t.sb.Append(t.indent)
         .Append("if")
         .Append(" ")
@@ -144,14 +148,12 @@ let private emitIfThenElse (t: T) (cond: Expression) (trueBranch: Statement) (fa
     emitExpression t cond
     t.sb.Append(")")
         .Append(Environment.NewLine) |> ignore
-    let (Scope stmts) = trueBranch
-    emitScope t stmts false
-    let (Scope stmts) = falseBranch
-    if stmts.Count > 0 then
+    emitScope t trueBranch false
+    if falseBranch.Count > 0 then
         t.sb.Append(t.indent)
             .Append("else")
             .Append(Environment.NewLine) |> ignore
-        emitScope t stmts false
+        emitScope t falseBranch false
 
 let private emitReturn (t: T) (var: Var option): unit =
     t.sb.Append(t.indent)
@@ -186,7 +188,7 @@ let private emitScope (t: T) (stmts: IReadOnlyList<Statement>) (skipNewline: boo
     if not skipNewline then
         t.sb.Append(Environment.NewLine) |> ignore
 
-let private emitWhile (t: T) (cond: Expression) (loop: Statement): unit =
+let private emitWhile (t: T) (cond: Expression) (loop: IReadOnlyList<Statement>): unit =
     t.sb.Append(t.indent)
         .Append("while")
         .Append(" ")
@@ -194,8 +196,7 @@ let private emitWhile (t: T) (cond: Expression) (loop: Statement): unit =
     emitExpression t cond
     t.sb.Append(")")
         .Append(Environment.NewLine) |> ignore
-    let (Scope stmts) = loop
-    emitScope t stmts false
+    emitScope t loop false
 
 let private emitExpression (t: T) (expression: Expression): unit =
     match expression with

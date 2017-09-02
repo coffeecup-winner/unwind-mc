@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.Text
 open NDis86
-open Common
 open IGraph
 
 type ILOperand

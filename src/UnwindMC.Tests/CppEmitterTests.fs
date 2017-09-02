@@ -17,26 +17,24 @@ let testEmissionWithFunctionPointers (): unit =
     types.Add("var1", { isFunction = true; indirectionLevel = 0; size = 4 })
 
     let body =
-        Scope
-            [|
-                Assignment (Var "var0", VarRef (Var "arg0"))
-                While
-                    (
-                        Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
-                        Scope
-                            [|
-                                Assignment (Var "var1", Dereference (VarRef (Var "var0")))
-                                IfThenElse
-                                    (
-                                        Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
-                                        Scope [| FunctionCall (VarRef (Var "var1")) |],
-                                        Scope [||]
-                                    )
-                                Assignment (Var "var0", Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
-                            |]
-                    )
-                Statement.Return None
-            |]
+        [|
+            Assignment (Var "var0", VarRef (Var "arg0"))
+            While
+                (
+                    Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
+                    [|
+                        Assignment (Var "var1", Dereference (VarRef (Var "var0")))
+                        IfThenElse
+                            (
+                                Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
+                                [| FunctionCall (VarRef (Var "var1")) |],
+                                [||]
+                            )
+                        Assignment (Var "var0", Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
+                    |]
+                )
+            Statement.Return None
+        |]
 
     let source = CppEmitter.emit "foo" types 2 body
     let expected =
@@ -68,38 +66,35 @@ let testEmissionFindMax (): unit =
     types.Add("var3", { isFunction = false; indirectionLevel = 0; size = 4 })
 
     let body =
-        Scope
-            [|
-                Assignment (Var "var0", VarRef (Var "arg1"))
-                Assignment (Var "var1", Expression.Value Int32.MinValue)
-                IfThenElse
-                    (
-                        Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
-                        Scope
-                            [|
-                                Assignment (Var "var2", VarRef (Var "arg0"))
-                                Assignment (Var "var1", Expression.Value Int32.MinValue)
-                                DoWhile
-                                    (
-                                        Scope
-                                            [|
-                                                Assignment (Var "var3", Dereference (VarRef (Var "var2")))
-                                                IfThenElse
-                                                    (
-                                                        Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
-                                                        Scope [| Assignment (Var "var1", VarRef (Var "var3")) |],
-                                                        Scope [||]
-                                                    )
-                                                Assignment (Var "var2", Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
-                                                Assignment (Var "var0", Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
-                                            |],
-                                        Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
-                                    )
-                            |],
-                        Scope [||]
-                    )
-                Statement.Return (Some (Var "var1"))
-            |]
+        [|
+            Assignment (Var "var0", VarRef (Var "arg1"))
+            Assignment (Var "var1", Expression.Value Int32.MinValue)
+            IfThenElse
+                (
+                    Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
+                    [|
+                        Assignment (Var "var2", VarRef (Var "arg0"))
+                        Assignment (Var "var1", Expression.Value Int32.MinValue)
+                        DoWhile
+                            (
+                                [|
+                                    Assignment (Var "var3", Dereference (VarRef (Var "var2")))
+                                    IfThenElse
+                                        (
+                                            Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
+                                            [| Assignment (Var "var1", VarRef (Var "var3")) |],
+                                            [||]
+                                        )
+                                    Assignment (Var "var2", Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
+                                    Assignment (Var "var0", Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
+                                |],
+                                Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
+                            )
+                    |],
+                    [||]
+                )
+            Statement.Return (Some (Var "var1"))
+        |]
 
     let source = CppEmitter.emit "findMax" types 2 body
     let expected =

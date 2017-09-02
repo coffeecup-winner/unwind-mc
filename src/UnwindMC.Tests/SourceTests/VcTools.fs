@@ -29,18 +29,18 @@ let private ClExePath = Path.Combine(vcToolsPath, "cl.exe")
 let private DumpBinPath = Path.Combine(vcToolsPath, "dumpbin.exe")
 
 let private run (workingDirectory: string) (exePath: string) (arguments: string array): string =
-    use process = new Process()
-    process.StartInfo <- new ProcessStartInfo(exePath, System.String.Join(" ", arguments))
-    process.StartInfo.CreateNoWindow <- true
-    process.StartInfo.RedirectStandardOutput <- true
-    process.StartInfo.RedirectStandardError <- true
-    process.StartInfo.UseShellExecute <- false
-    process.StartInfo.WorkingDirectory <- workingDirectory
-    process.Start()
-    process.WaitForExit()
-    if process.ExitCode <> 0 then
-        raise (new InvalidOperationException(process.StandardError.ReadToEnd()))
-    process.StandardOutput.ReadToEnd()
+    use proc = new Process()
+    proc.StartInfo <- new ProcessStartInfo(exePath, System.String.Join(" ", arguments))
+    proc.StartInfo.CreateNoWindow <- true
+    proc.StartInfo.RedirectStandardOutput <- true
+    proc.StartInfo.RedirectStandardError <- true
+    proc.StartInfo.UseShellExecute <- false
+    proc.StartInfo.WorkingDirectory <- workingDirectory
+    proc.Start() |> ignore
+    proc.WaitForExit()
+    if proc.ExitCode <> 0 then
+        raise (new InvalidOperationException(proc.StandardError.ReadToEnd()))
+    proc.StandardOutput.ReadToEnd()
 
 let compile (filename: string): string =
     run (Path.GetDirectoryName(filename)) ClExePath [| "/nologo"; "/c"; "/Os"; filename |] |> ignore

@@ -4,7 +4,6 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open Common
 open IL
 open FlowAnalyzer
 open Type
@@ -17,8 +16,8 @@ type Result = {
 
 type private T = {
     types: Dictionary<int, Dictionary<ILOperand, TypeBuilder>>
-    parameterTypes: Dictionary<ILOperand, TypeBuilder>
-    localTypes: Dictionary<ILOperand, TypeBuilder>
+    parameterTypes: Dictionary<int, TypeBuilder>
+    localTypes: Dictionary<int, TypeBuilder>
     currentIds: Dictionary<ILOperand, int>
     mutable currentLevel: int
     mutable nextId: int
@@ -40,8 +39,8 @@ let private build (typeBuilder: TypeBuilder): DataType = {
 let resolveTypes (blocks: IReadOnlyList<Block>): Result =
     let t = {
         types = new Dictionary<int, Dictionary<ILOperand, TypeBuilder>>()
-        parameterTypes = new Dictionary<ILOperand, TypeBuilder>()
-        localTypes = new Dictionary<ILOperand, TypeBuilder>()
+        parameterTypes = new Dictionary<int, TypeBuilder>()
+        localTypes = new Dictionary<int, TypeBuilder>()
         currentIds = new Dictionary<ILOperand, int>()
         currentLevel = 0
         nextId = 0
@@ -153,10 +152,10 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                     instr.sourceId <- getCurrentId t.currentIds instr.source
             | _ -> raise (new InvalidOperationException("unknown instruction type"))
     let parameterTypes = new List<DataType>();
-    for pair in t.parameterTypes.OrderBy(fun x -> match x.Key with | Stack offset -> offset) do
+    for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
         parameterTypes.Add(pair.Value |> build)
     let localTypes = new List<DataType>()
-    for pair in t.localTypes.OrderByDescending(fun x -> match x.Key with | Stack offset -> offset) do
+    for pair in t.localTypes.OrderByDescending(fun x -> x.Key) do
         localTypes.Add(pair.Value |> build)
     {
         parameterTypes = parameterTypes
@@ -176,9 +175,9 @@ let private functionReturnsValue (blocks: IReadOnlyList<Block>): bool =
     |> Seq.exists (fun i -> i.target <> NoOperand && isRegister i.target OperandType.EAX)
 
 let private getScopeLevel (t: T) (operand: ILOperand): int =
-    if t.parameterTypes.ContainsKey(operand) || t.localTypes.ContainsKey(operand) then
-        0
-    else
+    match operand with
+    | Stack offset -> 0
+    | _ ->
         [0 .. t.currentLevel]
         |> Seq.rev
         |> Seq.find (fun i -> t.types.[i].ContainsKey(operand))
@@ -186,7 +185,7 @@ let private getScopeLevel (t: T) (operand: ILOperand): int =
 let private typeExists (t: T) (operand: ILOperand): bool =
     match operand with
     | Stack offset ->
-        if offset >= 0 then t.parameterTypes.ContainsKey(operand) else t.localTypes.ContainsKey(operand)
+        if offset >= 0 then t.parameterTypes.ContainsKey(offset) else t.localTypes.ContainsKey(offset)
     | _ ->
         [0 .. t.currentLevel]
         |> Seq.rev
@@ -195,7 +194,7 @@ let private typeExists (t: T) (operand: ILOperand): bool =
 let private getType (t: T) (operand: ILOperand): TypeBuilder =
     match operand with
     | Stack offset ->
-        if offset >= 0 then t.parameterTypes.[operand] else t.localTypes.[operand]
+        if offset >= 0 then t.parameterTypes.[offset] else t.localTypes.[offset]
     | _ ->
         [0 .. t.currentLevel]
         |> Seq.rev
@@ -215,14 +214,14 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
             { isFunction = false; indirectionLevel = 0 }
         else
             match source with
-            | Stack _ -> t.parameterTypes.[source]
+            | Stack offset -> t.parameterTypes.[offset]
             | _ -> getType t source
     match target with
     | Stack offset ->
         if offset >= 0 then
-            t.parameterTypes.[target] <- typeBuilder
+            t.parameterTypes.[offset] <- typeBuilder
         else
-            t.localTypes.[target] <- typeBuilder
+            t.localTypes.[offset] <- typeBuilder
     | _ ->
         t.types.[t.currentLevel].[target] <- typeBuilder
         t.currentIds.[target] <- t.nextId

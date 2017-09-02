@@ -81,26 +81,24 @@ let testAstWithFunctionPointers (): unit =
 
     let ast = AstBuilder.buildAst blocks parameterTypes [||] variableTypes
     let expected =
-        Scope
-            [|
-                Assignment (Var "var0", VarRef (Var "arg0"))
-                While
-                    (
-                        Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
-                        Scope
-                            [|
-                                Assignment (Var "var1", Dereference (VarRef (Var "var0")))
-                                IfThenElse
-                                    (
-                                        Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
-                                        Scope [| FunctionCall (VarRef (Var "var1")) |],
-                                        Scope [||]
-                                    )
-                                Assignment (Var "var0", Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
-                            |]
-                    )
-                Statement.Return None
-            |]
+        [|
+            Assignment (Var "var0", VarRef (Var "arg0"))
+            While
+                (
+                    Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
+                    [|
+                        Assignment (Var "var1", Dereference (VarRef (Var "var0")))
+                        IfThenElse
+                            (
+                                Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
+                                [| FunctionCall (VarRef (Var "var1")) |],
+                                [||]
+                            )
+                        Assignment (Var "var0", Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
+                    |]
+                )
+            Statement.Return None
+        |]
     AstHelper.assertAstEqual expected ast
 
 [<Test>]
@@ -206,36 +204,33 @@ let testAstFindMax (): unit =
 
     let ast = AstBuilder.buildAst blocks parameterTypes [||] variableTypes
     let expected =
-        Scope
-            [|
-                Assignment (Var "var0", VarRef (Var "arg1"))
-                Assignment (Var "var1", Expression.Value Int32.MinValue)
-                IfThenElse
-                    (
-                        Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
-                        Scope
-                            [|
-                                Assignment (Var "var2", VarRef (Var "arg0"))
-                                Assignment (Var "var1", Expression.Value Int32.MinValue)
-                                DoWhile
-                                    (
-                                        Scope
-                                            [|
-                                                Assignment (Var "var3", Dereference (VarRef (Var "var2")))
-                                                IfThenElse
-                                                    (
-                                                        Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
-                                                        Scope [| Assignment (Var "var1", VarRef (Var "var3")) |],
-                                                        Scope [||]
-                                                    )
-                                                Assignment (Var "var2", Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
-                                                Assignment (Var "var0", Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
-                                            |],
-                                        Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
-                                    )
-                            |],
-                        Scope [||]
-                    )
-                Statement.Return (Some (Var "var1"))
-            |]
+        [|
+            Assignment (Var "var0", VarRef (Var "arg1"))
+            Assignment (Var "var1", Expression.Value Int32.MinValue)
+            IfThenElse
+                (
+                    Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
+                    [|
+                        Assignment (Var "var2", VarRef (Var "arg0"))
+                        Assignment (Var "var1", Expression.Value Int32.MinValue)
+                        DoWhile
+                            (
+                                [|
+                                    Assignment (Var "var3", Dereference (VarRef (Var "var2")))
+                                    IfThenElse
+                                        (
+                                            Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
+                                            [| Assignment (Var "var1", VarRef (Var "var3")) |],
+                                            [||]
+                                        )
+                                    Assignment (Var "var2", Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
+                                    Assignment (Var "var0", Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
+                                |],
+                                Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
+                            )
+                    |],
+                    [||]
+                )
+            Statement.Return (Some (Var "var1"))
+        |]
     AstHelper.assertAstEqual expected ast

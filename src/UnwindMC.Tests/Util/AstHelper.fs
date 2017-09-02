@@ -1,6 +1,7 @@
 ﻿module AstHelper
 
 open System
+open System.Collections.Generic
 open NUnit.Framework
 open Ast
 
@@ -21,27 +22,31 @@ let rec private assertExprEqual (expected: Expression) (actual: Expression): uni
         Assert.That(act, Is.EqualTo(exp));
     | _ -> raise (new NotSupportedException())
 
-let rec assertAstEqual (expected: Statement) (actual: Statement): unit =
+let private assertCollectionEqual (assertEqual: 'a -> 'a -> unit) (expected: IReadOnlyList<'a>) (actual: IReadOnlyList<'a>): unit =
+    Assert.That(actual.Count, Is.EqualTo(expected.Count))
+    expected |> Seq.zip actual
+    |> Seq.iter (fun (exp, act) -> assertEqual exp act)
+
+let rec private assertStatementEqual (expected: Statement) (actual: Statement): unit =
     match (expected, actual) with
     | Assignment (Var expVar, expExpr), Assignment (Var actVar, actExpr) ->
         Assert.That(actVar, Is.EqualTo(expVar))
         assertExprEqual expExpr actExpr
     | DoWhile (expBody, expCond), DoWhile (actBody, actCond) ->
-        assertAstEqual expBody actBody
+        assertCollectionEqual assertStatementEqual expBody actBody
         assertExprEqual expCond actCond
     | FunctionCall exp, FunctionCall act ->
         assertExprEqual exp act
     | IfThenElse (expCond, expTrue, expFalse), IfThenElse (actCond, actTrue, actFalse) ->
         assertExprEqual expCond actCond
-        assertAstEqual expTrue actTrue
-        assertAstEqual expFalse actFalse
+        assertCollectionEqual assertStatementEqual expTrue actTrue
+        assertCollectionEqual assertStatementEqual expFalse actFalse
     | Return exp, Return act ->
         Assert.That(act, Is.EqualTo(exp))
-    | Scope exp, Scope act ->
-        Assert.That(act.Count, Is.EqualTo(exp.Count))
-        exp |> Seq.zip act
-        |> Seq.iter (fun (exp, act) -> assertAstEqual exp act)
     | While (expCond, expBody), While (actCond, actBody) ->
         assertExprEqual expCond actCond
-        assertAstEqual expBody actBody
+        assertCollectionEqual assertStatementEqual expBody actBody
     | _ -> raise (new NotSupportedException())
+
+let assertAstEqual (expected: IReadOnlyList<Statement>) (actual: IReadOnlyList<Statement>): unit =
+    assertCollectionEqual assertStatementEqual expected actual
