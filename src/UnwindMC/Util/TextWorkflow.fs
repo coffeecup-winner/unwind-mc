@@ -1,7 +1,6 @@
 ﻿module TextWorkflow
 
 open System
-open System.Collections.Generic
 open System.Text
 
 type Settings = {
@@ -16,7 +15,7 @@ type State = {
 }
 
 type T =
-    T of (StringBuilder -> State -> State)
+    private T of (StringBuilder -> State -> State)
 
 type TextControl
     = IncreaseIndent
@@ -26,21 +25,15 @@ type TextControl
 
 type TextBuilder() =
     member self.Combine(T fa, T fb): T =
-        T (fun sb state ->
-            let state = fa sb state
-            fb sb state)
+        T (fun sb -> fa sb >> fb sb)
 
     member self.Delay(f) =
         f ()
 
     member self.For(values: 'a seq, func: 'a -> T): T =
         T (fun sb state ->
-            use enumerator = values.GetEnumerator()
-            let mutable st = state
-            while enumerator.MoveNext() do
-                match func enumerator.Current with
-                | T f -> st <- f sb st
-            st)
+            values
+            |> Seq.fold (fun st x -> let (T f) = func x in f sb st) state)
 
     member self.Yield(v: string): T =
         T (fun sb state ->
@@ -89,7 +82,7 @@ type TextBuilder() =
 
 let text = new TextBuilder()
 
-let buildText (settings: Settings) (t: T): string =
+let buildText (settings: Settings) (T f): string =
     let sb = new StringBuilder()
     let st = {
         settings = settings
@@ -97,6 +90,5 @@ let buildText (settings: Settings) (t: T): string =
         indentLevel = 0
         indent = ""
     }
-    match t with
-    | T func -> func sb st |> ignore
+    f sb st |> ignore
     sb.ToString()
