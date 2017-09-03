@@ -90,7 +90,15 @@ let private resolveFunctionBounds (t: T): unit =
                     t.graph.Redisassemble(func.address);
                 let visitedAllLinks =
                     t.graph.AsGenericGraph()
-                        |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+                        |> Graph.withEdgeFilter (fun e ->
+                            match e.type_ with
+                            | InstructionGraph.LinkType.Next
+                            | InstructionGraph.LinkType.Branch
+                            | InstructionGraph.LinkType.SwitchCaseJump ->
+                                true
+                            | _ ->
+                                false
+                        )
                         |> Graph.dfsWith func.address (fun instr _ ->
                             t.graph.GetExtraData(instr.Offset).functionAddress <- func.address
                             if instr.Code = MnemonicCode.Iret then
@@ -187,7 +195,14 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
         let mutable indirectAddress = 0uL
         let casesCountOption =
             t.graph.AsGenericGraph()
-                |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
+                |> Graph.withEdgeFilter (fun e ->
+                    match e.type_ with
+                    | InstructionGraph.LinkType.Next
+                    | InstructionGraph.LinkType.Branch ->
+                        true
+                    | _ ->
+                        false
+                )
                 |> Graph.reverseEdges
                 |> Graph.dfsPick table.reference (fun instr link ->
                     // find out the jump index register

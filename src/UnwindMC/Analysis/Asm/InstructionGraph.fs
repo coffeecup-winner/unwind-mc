@@ -7,13 +7,11 @@ open NLog
 open Graphs
 open TextWorkflow
 
-[<Flags>]
 type LinkType =
-    | None = 0x00
-    | Next = 0x01
-    | Branch = 0x02
-    | Call = 0x04
-    | SwitchCaseJump = 0x08
+    | Next
+    | Branch
+    | Call
+    | SwitchCaseJump
 
 type Link = {
     address: uint64

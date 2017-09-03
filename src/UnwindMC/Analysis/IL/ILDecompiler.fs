@@ -25,7 +25,15 @@ let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
     t.stackObjects.Add(t.stackOffset, null)
     let instructions = new Dictionary<uint64, ILInstruction>()
     graph.AsGenericGraph()
-        |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+        |> Graph.withEdgeFilter (fun e ->
+            match e.type_ with
+            | InstructionGraph.LinkType.Next
+            | InstructionGraph.LinkType.Branch
+            | InstructionGraph.LinkType.SwitchCaseJump ->
+                true
+            | _ ->
+                false
+        )
         |> Graph.dfs address
         |> Seq.iter (fun instr ->
             let ilInstructions = convertInstruction t instr

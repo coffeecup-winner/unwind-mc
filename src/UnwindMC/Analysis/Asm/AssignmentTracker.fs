@@ -9,7 +9,15 @@ let logger = LogManager.GetCurrentClassLogger()
 let rec find (graph: InstructionGraph.T) (address: uint64) (register: OperandType) (tryMatch: Instruction -> OperandType -> bool): LValue option =
     let mutable skippedInitialInstruction = false
     graph.AsGenericGraph()
-        |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+        |> Graph.withEdgeFilter (fun e ->
+            match e.type_ with
+            | InstructionGraph.LinkType.Next
+            | InstructionGraph.LinkType.Branch
+            | InstructionGraph.LinkType.SwitchCaseJump ->
+                true
+            | _ ->
+                false
+        )
         |> Graph.reverseEdges
         |> Graph.dfsPick address (fun instr _ ->
             if not skippedInitialInstruction then
