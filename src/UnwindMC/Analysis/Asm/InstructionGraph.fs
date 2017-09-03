@@ -2,14 +2,14 @@
 
 open System
 open System.Collections.Generic
-open System.Text
 open NDis86
 open NLog
 open IGraph
+open TextWorkflow
 
 [<Flags>]
-type LinkType
-    = None = 0x00
+type LinkType =
+    | None = 0x00
     | Next = 0x01
     | Branch = 0x02
     | Call = 0x04
@@ -27,13 +27,13 @@ type ExtraData = {
     mutable isProtected: bool
 }
 
-let Logger = LogManager.GetCurrentClassLogger()
+let logger = LogManager.GetCurrentClassLogger()
 
 let disassemble (bytes: ArraySegment<byte>) (pc: uint64): T =
-    Logger.Info("Disassembling machine code")
+    logger.Info("Disassembling machine code")
     let disassembler = new Disassembler(DisassemblyMode.Mode32Bit, Nullable(DisassemblySyntax.Intel), pc)
     let instructions = disassembler.Disassemble(bytes.Array, bytes.Offset, bytes.Count, true, true)
-    Logger.Info("Done")
+    logger.Info("Done")
     let lastInstruction = instructions.[instructions.Count - 1]
     let instructionsDict = new SortedDictionary<uint64, Instruction>()
     for instr in instructions do
@@ -42,7 +42,6 @@ let disassemble (bytes: ArraySegment<byte>) (pc: uint64): T =
         instructionsDict, new Dictionary<uint64, ExtraData>(), new Dictionary<uint64, List<Link>>(),
         new Dictionary<uint64, List<Link>>(), false, Func<Link, bool>(fun _ -> true))
 
-// IGraph<uint64, Instruction, InstructionGraph.Link>
 type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uint64, firstAddressAfterCode: uint64,
         instructions: SortedDictionary<uint64, Instruction>, extraData: Dictionary<uint64, ExtraData>, instructionLinks: Dictionary<uint64, List<Link>>,
         reverseLinks: Dictionary<uint64, List<Link>>, isReversed: bool, edgePredicate: Func<Link, bool>) =
@@ -79,7 +78,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
             }
 
         member self.GetSubgraph(subgraph: ISet<Instruction>): IGraph<uint64, Instruction, Link> =
-            raise (new NotSupportedException())
+            notSupported
 
         member self.WithEdgeFilter(predicate: Func<Link, bool>): IGraph<uint64, Instruction, Link> =
             new T(disassembler, bytes, firstAddress, firstAddressAfterCode, instructions,
@@ -90,6 +89,9 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
             new T(disassembler, bytes, firstAddress, firstAddressAfterCode, instructions,
                 extraData, instructionLinks, reverseLinks, not isReversed, edgePredicate)
                 :> IGraph<uint64, Instruction, Link>
+
+    member self.AsGenericGraph(): IGraph<uint64, Instruction, Link> =
+        self :> IGraph<uint64, Instruction, Link>
 
     member self.Instructions: ICollection<Instruction> = instructions.Values :> ICollection<Instruction>
     member self.FirstAddressAfterCode: uint64 = firstAddressAfterCode
@@ -104,10 +106,8 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         address >= firstAddress && address < firstAddressAfterCode
 
     member self.GetNext(address: uint64): uint64 =
-        let mutable address = address + (uint64)1
-        while not (instructions.ContainsKey(address)) && address < firstAddressAfterCode do
-            address <- address + (uint64)1
-        address
+        [address + (uint64)1 .. firstAddressAfterCode - (uint64)1]
+        |> Seq.find (fun a -> instructions.ContainsKey(a))
 
     member self.GetInValue(address: uint64): int =
         reverseLinks.[address].Count
@@ -147,10 +147,6 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                 links
         reverseLinks.Add(link)
 
-    member self.ClearLinks(): unit =
-        instructionLinks.Clear()
-        reverseLinks.Clear()
-
     member self.AddJumpTableEntry(address: uint64): bool =
         let data = self.ReadUInt32(address)
         if not (self.InBounds(data)) then
@@ -160,12 +156,14 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
             true
 
     member self.AddJumpTableIndirectEntries(address: uint64, count: int): unit =
-        let sb = new StringBuilder()
-        sb.Append("db") |> ignore
-        let start = self.ToByteArrayIndex(address)
-        for i in [0 .. count - 1] do
-            sb.AppendFormat(" {0:x2}", bytes.Array.[start + i]) |> ignore
-        self.MarkDataBytes(address, count, sb.ToString())
+        let displayText =
+            text {
+                yield "db"
+                let start = self.ToByteArrayIndex(address)
+                for i in [0 .. count - 1] do
+                    yield " %0x" %% bytes.Array.[start + i]
+            } |> buildText plain
+        self.MarkDataBytes(address, count, displayText)
 
     member self.MarkDataBytes(address: uint64, length: int, dataDisplayText: string): unit =
         // check if there is an instruction at address, otherwise split an existing one
@@ -177,10 +175,12 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                 let instr = self.SplitInstructionAt(address)
                 (int)instr.Length - (int)(address - instr.Offset)
         // write a pseudo instruction
-        let sb = new StringBuilder()
-        for i in [0 .. length - 1] do
-            sb.AppendFormat("{0:x2}", bytes.Array.[self.ToByteArrayIndex(address + (uint64)i)]) |> ignore
-        instructions.[address] <- new Instruction(address, MnemonicCode.Inone, (byte)length, sb.ToString(), dataDisplayText,
+        let instrText =
+            text {
+                for i in [0 .. length - 1] do
+                    yield "%02x" %% bytes.Array.[self.ToByteArrayIndex(address + (uint64)i)]
+            } |> buildText plain
+        instructions.[address] <- new Instruction(address, MnemonicCode.Inone, (byte)length, instrText, dataDisplayText,
             Array.empty, 0uy, OperandType.None, false, false, 0uy, 0uy, 0uy, 0uy, 0uy)
         self.GetExtraData(address).isProtected <- true
         // remove old instructions
@@ -225,7 +225,6 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
             | _ -> ()
         let newInstructions = disassembler.Disassemble(bytes.Array, self.ToByteArrayIndex(address), disassembleLength, true, true)
         let mutable fixedInstructions = false
-        // Take 1 instruction less since it can be incorrectly disassembled (partial data)
         let rec run (list: Instruction list): unit =
             match list with
             | newInstr :: rest ->
@@ -240,9 +239,11 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                             instructions.Remove(newInstr.Offset + (uint64)j) |> ignore
                     fixedInstructions <- true
                     if rest.IsEmpty then
-                        raise (new Exception("FIXME: extra disassemble size was too small"))
+                        FIXME "extra disassemble size was too small"
+                    run rest
             | [] -> ()
-        run ([0 .. newInstructions.Count - 1] |> List.map (fun i -> newInstructions.[i]))
+        // Take 1 instruction less since it can be incorrectly disassembled (partial data)
+        run (newInstructions |> Seq.take (newInstructions.Count - 1) |> Seq.toList)
 
     member private self.ToByteArrayIndex(address: uint64): int =
         bytes.Offset + (int)(address - firstAddress)

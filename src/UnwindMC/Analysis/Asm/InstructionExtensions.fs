@@ -1,6 +1,5 @@
 ﻿module InstructionExtensions
 
-open System
 open NDis86
 
 type Operand with
@@ -10,7 +9,7 @@ type Operand with
         | 16 -> (int64)self.LValue.sword
         | 32 -> (int64)self.LValue.sdword
         | 64 -> self.LValue.sqword
-        | _ -> raise (new InvalidOperationException())
+        | _ -> impossible
 
     member self.GetMemoryOffset (): int64 =
         match (int)self.Offset with
@@ -19,7 +18,7 @@ type Operand with
         | 16 -> (int64)self.LValue.sword
         | 32 -> (int64)self.LValue.sdword
         | 64 -> self.LValue.sqword
-        | _ -> raise (new InvalidOperationException())
+        | _ -> impossible
 
 type Instruction with
     member self.GetTargetAddress (): uint64 =

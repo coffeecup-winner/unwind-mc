@@ -91,20 +91,20 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                 | _ ->
                     if typeExists t instr.source && typeExists t instr.target then
                         if getType t instr.source <> getType t instr.target then
-                            raise (new InvalidOperationException("Type mismatch"))
+                            failwith "Type mismatch"
                     elif typeExists t instr.source then
                         assignTypeBuilder t instr.target instr.source
                     elif typeExists t instr.target then
                         assignTypeBuilder t instr.source instr.target
                     else
-                        raise (new NotImplementedException())
+                        notSupported
                 instr.targetId <- getCurrentId t.currentIds instr.target
                 instr.sourceId <- getCurrentId t.currentIds instr.source
             | ILInstructionType.Assign ->
                 if not (typeExists t instr.target) then
                     match instr.target with
                     | Stack _ -> ()
-                    | _ -> raise (new InvalidOperationException("Assignment appears to not be used in the execution path"))
+                    | _ -> failwith "Assignment appears to not be used in the execution path"
                 let operand =
                     match instr.source with
                     | Pointer (reg, _) -> Register reg
@@ -150,7 +150,7 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                     assignTypeBuilder t instr.source NoOperand
                     instr.targetId <- getCurrentId t.currentIds instr.target
                     instr.sourceId <- getCurrentId t.currentIds instr.source
-            | _ -> raise (new InvalidOperationException("unknown instruction type"))
+            | _ -> failwith "Unknown instruction type"
     let parameterTypes = new List<DataType>();
     for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
         parameterTypes.Add(pair.Value |> build)
@@ -176,10 +176,9 @@ let private functionReturnsValue (blocks: IReadOnlyList<Block>): bool =
 
 let private getScopeLevel (t: T) (operand: ILOperand): int =
     match operand with
-    | Stack offset -> 0
+    | Stack _ -> 0
     | _ ->
-        [0 .. t.currentLevel]
-        |> Seq.rev
+        [t.currentLevel .. -1 .. 0]
         |> Seq.find (fun i -> t.types.[i].ContainsKey(operand))
 
 let private typeExists (t: T) (operand: ILOperand): bool =
@@ -187,8 +186,7 @@ let private typeExists (t: T) (operand: ILOperand): bool =
     | Stack offset ->
         if offset >= 0 then t.parameterTypes.ContainsKey(offset) else t.localTypes.ContainsKey(offset)
     | _ ->
-        [0 .. t.currentLevel]
-        |> Seq.rev
+        [t.currentLevel .. -1 .. 0]
         |> Seq.exists (fun i -> t.types.[i].ContainsKey(operand))
 
 let private getType (t: T) (operand: ILOperand): TypeBuilder =
@@ -196,8 +194,7 @@ let private getType (t: T) (operand: ILOperand): TypeBuilder =
     | Stack offset ->
         if offset >= 0 then t.parameterTypes.[offset] else t.localTypes.[offset]
     | _ ->
-        [0 .. t.currentLevel]
-        |> Seq.rev
+        [t.currentLevel .. -1 .. 0]
         |> Seq.find (fun i -> t.types.[i].ContainsKey(operand))
         |> fun i -> t.types.[i].[operand]
 
@@ -237,43 +234,45 @@ let private getCurrentId (currentIds: IReadOnlyDictionary<ILOperand, int>) (op: 
             currentIds.[op]
         | _ -> -1
 
+type private Traversal =
+    | Marker of ScopeBoundsMarker
+    | Instruction of ILInstruction
+    | Block of Block
+
 let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<ScopeBoundsMarker, ILInstruction>> =
     seq {
-        let stack = new Stack<Object>() // replace with Either
-        for block in blocks do
-            stack.Push(block)
+        let stack = new Stack<Traversal>(blocks |> Seq.map Block)
         while stack.Count > 0 do
             match stack.Pop() with
-            | :? ScopeBoundsMarker as scopeBoundsMarker -> 
+            | Marker scopeBoundsMarker ->
                 yield Left scopeBoundsMarker
-            | :? ILInstruction as instr ->
+            | Instruction instr ->
                 yield Right instr
-            | :? Block as block ->
+            | Block block ->
                 match block with
                 | SequentialBlock { instructions = instructions } ->
                     for i in [0 .. instructions.Count - 1] |> Seq.rev do
                         yield Right(instructions.[i])
                 | WhileBlock { condition = condition; children = children } ->
-                    stack.Push(ScopeBoundsMarker.Start)
-                    stack.Push(condition)
+                    stack.Push(Marker Start)
+                    stack.Push(Instruction condition)
                     for child in children do
-                        stack.Push(child)
-                    stack.Push(ScopeBoundsMarker.End)
+                        stack.Push(Block child)
+                    stack.Push(Marker End)
                 | DoWhileBlock { condition = condition; children = children } ->
-                    stack.Push(ScopeBoundsMarker.Start)
+                    stack.Push(Marker Start)
                     for child in children do
-                        stack.Push(child)
-                    stack.Push(condition)
-                    stack.Push(ScopeBoundsMarker.End)
+                        stack.Push(Block child)
+                    stack.Push(Instruction condition)
+                    stack.Push(Marker End)
                 | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
-                    stack.Push(condition)
-                    stack.Push(ScopeBoundsMarker.Start)
+                    stack.Push(Instruction condition)
+                    stack.Push(Marker Start)
                     for child in trueBranch do
-                        stack.Push(child)
-                    stack.Push(ScopeBoundsMarker.End)
-                    stack.Push(ScopeBoundsMarker.Start)
+                        stack.Push(Block child)
+                    stack.Push(Marker End)
+                    stack.Push(Marker Start)
                     for child in falseBranch do
-                        stack.Push(child)
-                    stack.Push(ScopeBoundsMarker.End)
-            | _ -> raise (new InvalidOperationException("Unknown block type"))
+                        stack.Push(Block child)
+                    stack.Push(Marker End)
     }

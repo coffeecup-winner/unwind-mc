@@ -1,6 +1,5 @@
 ﻿module rec AstBuilder
 
-open System
 open System.Collections.Generic
 open Ast
 open IL
@@ -80,7 +79,7 @@ let private buildCondition (t: T) (instr: ILInstruction): Expression =
     match instr.type_ with
     | Compare ->
         buildBinaryOperator t (getBinaryOperator t instr.condition) instr
-    | _ -> raise (new ArgumentException("Instruction is not a valid statement"))
+    | _ -> failwith "Instruction is not a valid statement"
 
 let private buildStatement (t: T) (instr: ILInstruction): Statement =
     match instr.type_ with
@@ -112,7 +111,7 @@ let private buildStatement (t: T) (instr: ILInstruction): Statement =
         Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Subtract instr)
     | Xor ->
         Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Xor instr)
-    | _ -> raise (new ArgumentException("Instruction is not a valid statement"))
+    | _ -> failwith "Instruction is not a valid statement"
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     match op with
@@ -120,7 +119,7 @@ let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     | Register _ -> VarRef (Var (getVarName t id))
     | Stack offset -> VarRef (Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset]))
     | Value value -> Expression.Value (value)
-    | NoOperand -> raise (new InvalidOperationException())
+    | NoOperand -> impossible
 
 let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
     match condition with
@@ -130,7 +129,7 @@ let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
     | LessOrEqual -> Operator.GreaterOrEqual
     | GreaterOrEqual -> Operator.GreaterOrEqual
     | Greater -> Operator.Greater
-    | Next -> raise (new InvalidOperationException("Next is not a valid operator"))
+    | Next -> failwith "Next is not a valid operator"
 
 let private buildBinaryOperator (t: T) (op: Operator) (instr: ILInstruction): Expression =
     Binary (op, buildExpression t instr.target instr.targetId, buildExpression t instr.source instr.sourceId)
@@ -142,11 +141,11 @@ let private buildVar (t: T) (op: ILOperand) (id: int): Var =
     match op with
     | Register _ -> Var (getVarName t id)
     | Stack offset -> Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset])
-    | _ -> raise (new NotSupportedException())
+    | _ -> notSupported
 
 let private getVarName (t: T) (id: int): string =
     if id = -1 then
-        raise (new InvalidOperationException("Invalid id"))
+        failwith "Invalid id"
     else
         let hasValue, name = t.variableNames.TryGetValue(id)
         if hasValue then

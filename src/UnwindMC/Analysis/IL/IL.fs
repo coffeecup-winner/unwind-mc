@@ -2,47 +2,24 @@
 
 open System
 open System.Collections.Generic
-open System.Text
 open NDis86
 open IGraph
+open TextWorkflow
 
-type ILOperand
-    = Value of int
+type ILOperand =
+    | Value of int
     | Register of OperandType
     | Stack of int
     | Pointer of OperandType * int
     | NoOperand // TODO: replace by option on ILOperand
-    with
-        override self.ToString(): string =
-            let sb = new StringBuilder()
-            match self with
-            | Value value ->
-                sb.Append("Value: ")
-                    .Append(value) |> ignore
-            | Register reg ->
-                sb.Append("Register: ")
-                    .Append(Register) |> ignore
-            | Stack offset ->
-                sb.Append("Stack: ")
-                    .Append(offset) |> ignore
-            | Pointer (reg, offset) ->
-                sb.Append("Pointer: ")
-                    .Append("*(")
-                    .Append(reg)
-                    .Append(" + ")
-                    .Append(offset)
-                    .Append(")") |> ignore
-            | NoOperand ->
-                sb.Append("NoOperand") |> ignore
-            sb.ToString()
 
 let isRegister (operand: ILOperand) (reg: OperandType): bool =
     match operand with
     | Register r -> r = reg
     | _ -> false
 
-type ILBranchType
-    = Equal
+type ILBranchType =
+    | Equal
     | NotEqual
     | Less
     | LessOrEqual
@@ -55,8 +32,8 @@ type ILBranch = {
     address: uint64
 }
 
-type ILInstructionType
-    = Nop
+type ILInstructionType =
+    | Nop
     | Virtual
 
     | Add
@@ -100,76 +77,77 @@ type ILInstruction = {
             hash
 
         override self.ToString(): string =
-            let sb = new StringBuilder()
-            let instr = self
-            match instr.type_ with
-            | Nop ->
-                sb.Append("<nop>") |> ignore
-            | Virtual ->
-                sb.Append(instr.branch) |> ignore
-            | And ->
-                sb.Append(instr.target)
-                    .Append(" & ")
-                    .Append(instr.source) |> ignore
-            | Add ->
-                sb.Append(instr.target)
-                    .Append(" += ")
-                    .Append(instr.source) |> ignore
-            | Assign ->
-                sb.Append(instr.target)
-                    .Append(" = ")
-                    .Append(instr.source) |> ignore
-            | Call ->
-                sb.Append("Call ")
-                    .Append(instr.target) |> ignore
-            | Compare ->
-                sb.Append(instr.target) |> ignore
-                match instr.condition with
-                | Equal -> sb.Append(" == ") |> ignore
-                | NotEqual -> sb.Append(" != ") |> ignore
-                | Less -> sb.Append(" < ") |> ignore
-                | LessOrEqual -> sb.Append(" <= ") |> ignore
-                | GreaterOrEqual -> sb.Append(" >= ") |> ignore
-                | Greater -> sb.Append(" > ") |> ignore
-                | _ -> raise (new InvalidOperationException("Invalid condition type"))
-                sb.Append(instr.source) |> ignore
-            | Divide ->
-                sb.Append(instr.target)
-                    .Append(" / ")
-                    .Append(instr.source) |> ignore
-            | Multiply ->
-                sb.Append(instr.target)
-                    .Append(" * ")
-                    .Append(instr.source) |> ignore
-            | Negate ->
-                sb.Append("-")
-                    .Append(instr.target) |> ignore
-            | Not ->
-                sb.Append("~")
-                    .Append(instr.target) |> ignore
-            | Or ->
-                sb.Append(instr.target)
-                    .Append(" | ")
-                    .Append(instr.source) |> ignore
-            | Return ->
-                sb.Append("return") |> ignore
-            | ShiftLeft ->
-                sb.Append(instr.target)
-                    .Append(" << ")
-                    .Append(instr.source) |> ignore
-            | ShiftRight ->
-                sb.Append(instr.target)
-                    .Append(" >> ")
-                    .Append(instr.source) |> ignore
-            | Subtract ->
-                sb.Append(instr.target)
-                    .Append(" -= ")
-                    .Append(instr.source) |> ignore
-            | Xor ->
-                sb.Append(instr.target)
-                    .Append(" ^ ")
-                    .Append(instr.source) |> ignore
-            sb.ToString()
+            text {
+                let instr = self
+                match instr.type_ with
+                | Nop ->
+                    yield "<nop>"
+                | Virtual ->
+                    yield "%A" %% instr.branch
+                | And ->
+                    yield "%A" %% instr.target
+                    yield " & "
+                    yield "%A" %% instr.source
+                | Add ->
+                    yield "%A" %% instr.target
+                    yield " += "
+                    yield "%A" %% instr.source
+                | Assign ->
+                    yield "%A" %% instr.target
+                    yield " = "
+                    yield "%A" %% instr.source
+                | Call ->
+                    yield "Call "
+                    yield "%A" %% instr.target
+                | Compare ->
+                    yield "%A" %% instr.target
+                    yield
+                        match instr.condition with
+                        | Equal -> " == "
+                        | NotEqual -> " != "
+                        | Less -> " < "
+                        | LessOrEqual -> " <= "
+                        | GreaterOrEqual -> " >= "
+                        | Greater -> " > "
+                        | _ -> failwith "Invalid condition type"
+                    yield "%A" %% instr.source
+                | Divide ->
+                    yield "%A" %% instr.target
+                    yield " / "
+                    yield "%A" %% instr.source
+                | Multiply ->
+                    yield "%A" %% instr.target
+                    yield " * "
+                    yield "%A" %% instr.source
+                | Negate ->
+                    yield "-"
+                    yield "%A" %% instr.target
+                | Not ->
+                    yield "~"
+                    yield "%A" %% instr.target
+                | Or ->
+                    yield "%A" %% instr.target
+                    yield " | "
+                    yield "%A" %% instr.source
+                | Return ->
+                    yield "return"
+                | ShiftLeft ->
+                    yield "%A" %% instr.target
+                    yield " << "
+                    yield "%A" %% instr.source
+                | ShiftRight ->
+                    yield "%A" %% instr.target
+                    yield " >> "
+                    yield "%A" %% instr.source
+                | Subtract ->
+                    yield "%A" %% instr.target
+                    yield " -= "
+                    yield "%A" %% instr.source
+                | Xor ->
+                    yield "%A" %% instr.target
+                    yield " ^ "
+                    yield "%A" %% instr.source
+            } |> buildText plain
 
 let createNullaryInstruction (type_: ILInstructionType): ILInstruction = {
     type_ = type_
@@ -254,7 +232,7 @@ type ILGraph (subgraph: ISet<ILInstruction>, edgePredicate: Func<obj, bool>) =
             new ILGraph(_subgraph, predicate) :> IGraph<ILInstruction, ILInstruction, obj>
 
         member self.ReverseEdges(): IGraph<ILInstruction, ILInstruction, obj> =
-            raise (new NotSupportedException())
+            notSupported
 
 let createILGraph: IGraph<ILInstruction, ILInstruction, obj> =
     new ILGraph(null, null) :> IGraph<ILInstruction, ILInstruction, obj>

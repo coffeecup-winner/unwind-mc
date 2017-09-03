@@ -2,8 +2,8 @@
 
 open System.Collections.Generic
 
-type Operator
-    = Equal
+type Operator =
+    | Equal
     | NotEqual
     | Less
     | LessOrEqual
@@ -26,15 +26,15 @@ type Operator
 
 type Var = Var of string
 
-type Expression
-    = Binary of Operator * Expression * Expression
+type Expression =
+    | Binary of Operator * Expression * Expression
     | Dereference of Expression
     | Unary of Operator * Expression
     | Value of int
     | VarRef of Var
 
-type Statement
-    = Assignment of Var * Expression
+type Statement =
+    | Assignment of Var * Expression
     | DoWhile of IReadOnlyList<Statement> * Expression
     | FunctionCall of Expression
     | IfThenElse of Expression * IReadOnlyList<Statement> * IReadOnlyList<Statement>

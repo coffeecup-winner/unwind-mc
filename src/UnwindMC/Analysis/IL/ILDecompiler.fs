@@ -24,12 +24,13 @@ let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
     }
     t.stackObjects.Add(t.stackOffset, null)
     let instructions = new Dictionary<uint64, ILInstruction>()
-    (graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
-        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None).DFS(address,
-        fun instr _ ->
+    graph
+        .AsGenericGraph()
+        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+        .DFS(address, fun instr _ ->
             let ilInstructions = convertInstruction t instr
             if ilInstructions.Length > (int)instr.Length then
-                raise (new NotSupportedException("TODO: not enough virtual addresses"))
+                FIXME "not enough virtual addresses"
             for i in [0 .. ilInstructions.Length - 1] do
                 instructions.Add(instr.Offset + (uint64)i, ilInstructions.[i])
             true
@@ -140,12 +141,12 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
             let operands = convertOperands t instr.Operands
             if isRegister operands.[0] OperandType.EBP then
                 if not (isRegister operands.[1] OperandType.ESP) then
-                    raise (new NotSupportedException())
+                    notSupported
                 t.framePointerOffset <- t.stackOffset
                 [||]
             elif isRegister operands.[0] OperandType.ESP then
                 if not (isRegister operands.[1] OperandType.EBP) then
-                    raise (new NotSupportedException())
+                    notSupported
                 t.stackOffset <- t.framePointerOffset
                 [||]
             else
@@ -169,7 +170,7 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
         | MnemonicCode.Iret ->
             t.stackOffset <- t.stackOffset + 4
             if t.stackOffset <> 0 then
-                raise (new InvalidOperationException("Stack imbalance"))
+                failwith "Stack imbalance"
             [| createBinaryInstruction Return NoOperand (Register OperandType.EAX) |]
         | MnemonicCode.Ishl ->
             let operands = convertOperands t instr.Operands
@@ -186,11 +187,11 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
             | Register reg when isRegister operands.[1] reg ->
                 [| createBinaryInstruction Compare operands.[0] (Value 0) |]
             | _ ->
-                raise (new NotSupportedException(sprintf "Instruction `%s` is not supported yet" (instr.ToString())))
+                notSupportedWith <| sprintf "Instruction `%O` is not supported yet" instr
         | MnemonicCode.Ixor ->
             let operands = convertOperands t instr.Operands
             [| createBinaryInstruction Xor operands.[0] operands.[1] |]
-        | _ -> raise (new NotSupportedException(sprintf "Instruction `%s` is not supported yet" (instr.ToString())))
+        | _ -> notSupportedWith <| sprintf "Instruction `%O` is not supported yet" instr
     t.prevInstr <- instr
     result
 
@@ -203,7 +204,7 @@ let private tryGetVirtualConditionInstruction (t: T): ILInstruction option =
         | MnemonicCode.Imov -> // TODO: this line is a heuristic and might be wrong in some cases
             let operands = convertOperands t t.prevInstr.Operands
             Some <| createBinaryInstruction Compare operands.[0] (Value 0)
-        | _ -> raise (new NotSupportedException())
+        | _ -> notSupported
 
 let private convertOperands (t: T) (operands: IReadOnlyList<Operand>): ILOperand[] =
     let result: ILOperand[] = Array.zeroCreate operands.Count
@@ -232,11 +233,11 @@ let private convertOperand (t: T) (operand: Operand): ILOperand =
         elif operand.Index = OperandType.None then
             Pointer (operand.Base, (int)(operand.GetMemoryOffset()))
         else
-            raise (new NotSupportedException())
+            notSupported
     | OperandType.Constant
     | OperandType.Immediate ->
         Value ((int)(operand.GetValue()))
-    | _ -> raise (new NotSupportedException())
+    | _ -> notSupported
 
 let private complement (type_: ILBranchType): ILBranchType =
     match type_ with
@@ -246,4 +247,4 @@ let private complement (type_: ILBranchType): ILBranchType =
     | ILBranchType.LessOrEqual -> ILBranchType.Greater
     | ILBranchType.GreaterOrEqual -> ILBranchType.Less
     | ILBranchType.Greater -> ILBranchType.LessOrEqual
-    | _ -> raise (new ArgumentException("Cannot find branch type complement"))
+    | _ -> failwith "Cannot find branch type complement"

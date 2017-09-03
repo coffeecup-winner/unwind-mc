@@ -14,7 +14,7 @@ type IGraph<'vid, 'v, 'e> =
     abstract member WithEdgeFilter: Func<'e, bool> -> IGraph<'vid, 'v, 'e>
     abstract member ReverseEdges: unit -> IGraph<'vid, 'v, 'e>
 
-let Logger = LogManager.GetCurrentClassLogger()
+let logger = LogManager.GetCurrentClassLogger()
 
 [<AutoOpen>]
 module GraphExtensions =
@@ -31,7 +31,7 @@ module GraphExtensions =
                     for adj in graph.GetAdjacent(vertexId).Reverse() do
                         match adj with
                         | Right message ->
-                            Logger.Warn(message)
+                            logger.Warn(message)
                             visitedAllEdges <- false
                         | Left (vertex, edge) ->
                             if not (visited.Contains(vertex)) then
@@ -52,7 +52,7 @@ module GraphExtensions =
                         for adj in graph.GetAdjacent(vertexId) do
                             match adj with
                             | Right message ->
-                                Logger.Warn(message)
+                                logger.Warn(message)
                             | Left (vertex, _) ->
                                 if visited.Add(vertex) then
                                     queue.Enqueue(vertex)

@@ -65,9 +65,8 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Util\Common.fs" />
-    <Compile Include="Util\ArrayReader.fs" />
-    <Compile Include="Util\LinqExtensions.fs" />
     <Compile Include="Util\TextWorkflow.fs" />
+    <Compile Include="Util\ArrayReader.fs" />
     <Compile Include="Collections\IGraph.fs" />
     <Compile Include="Analysis\Asm\AffectedFlagsTable.fs" />
     <Compile Include="Analysis\Asm\InstructionGraph.fs" />

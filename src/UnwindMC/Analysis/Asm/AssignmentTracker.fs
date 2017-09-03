@@ -4,12 +4,13 @@ open NDis86
 open NLog
 open IGraph
 
-let Logger = LogManager.GetCurrentClassLogger()
+let logger = LogManager.GetCurrentClassLogger()
 
 let rec find (graph: InstructionGraph.T) (address: uint64) (register: OperandType) (tryMatch: Instruction -> OperandType -> bool): LValue option =
     let mutable result = None
     let mutable skippedInitialInstruction = false
-    (graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+    graph
+        .AsGenericGraph()
         .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
         .ReverseEdges()
         .DFS(address, fun instr _ ->
@@ -24,11 +25,11 @@ let rec find (graph: InstructionGraph.T) (address: uint64) (register: OperandTyp
                     elif instr.Operands.[1].Type = OperandType.Immediate then
                         result <- Some instr.Operands.[1].LValue
                     else
-                        Logger.Warn("Cannot track assignments from 0x{0:x8} operand type {1}", instr.Offset, instr.Operands.[1].Type)
+                        logger.Warn("Cannot track assignments from 0x{0:x8} operand type {1}", instr.Offset, instr.Operands.[1].Type)
                     false
                 else
                     if graph.GetInValue(instr.Offset) > 1 then
-                        Logger.Warn("Cannot track assignments from 0x{0:x8}, the number of incoming links > 1", instr.Offset)
+                        logger.Warn("Cannot track assignments from 0x{0:x8}, the number of incoming links > 1", instr.Offset)
                         false
                     else
                         match instr.Code with

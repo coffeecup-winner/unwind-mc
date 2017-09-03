@@ -8,8 +8,7 @@ let decompile (project : DecompilationProject.T): unit =
     let analyzer = Analyzer.create (pe.getTextBytes()) pe.textSectionAddress importResolver
     Analyzer.addFunction analyzer pe.entryPointAddress
     Analyzer.analyze analyzer
-    // TODO
-
+    FIXME "implement the rest of the project decompilation"
 
 let decompileFunction (graph: InstructionGraph.T) (address: uint64): string =
     let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile graph address)
@@ -23,4 +22,4 @@ let decompileFunction (graph: InstructionGraph.T) (address: uint64): string =
         types.Add("loc" + string(i), result.variableTypes.[i])
     for i in [0 .. result.variableTypes.Count - 1] do
         types.Add("var" + string(i), result.variableTypes.[i])
-    CppEmitter.emit (System.String.Format("sub_{0:x6}", address)) types result.parameterTypes.Count ast
+    CppEmitter.emit (sprintf "sub_%06x" address) types result.parameterTypes.Count ast

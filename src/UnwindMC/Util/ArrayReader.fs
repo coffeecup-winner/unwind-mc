@@ -1,6 +1,6 @@
 ﻿module ArrayReader
 
-open System.Text
+open TextWorkflow
 
 let readUInt16 (bytes: byte[]) (index: int): uint16 =
     let mutable result = 0us
@@ -21,11 +21,11 @@ let readUInt32 (self: byte[]) (index: int): uint32 =
     result
 
 let readZString (self: byte[]) (index: int): string =
-    let sb = new StringBuilder()
-    let mutable b = self.[index]
-    let mutable index = index + 1
-    while b <> 0uy do
-        sb.Append((char)b) |> ignore
-        b <- self.[index]
-        index <- index + 1
-    sb.ToString()
+    text {
+        let mutable b = self.[index]
+        let mutable index = index + 1
+        while b <> 0uy do
+            yield (char)b
+            b <- self.[index]
+            index <- index + 1
+    } |> buildText plain

@@ -2,6 +2,7 @@
 
 open System
 open System.Text
+open FSharp.Core.Printf
 
 type Settings = {
     indentSize: int
@@ -17,12 +18,15 @@ type State = {
 type T =
     private T of (Settings * StringBuilder -> State -> State)
 
-type TextControl
-    = IncreaseIndent
+type TextControl =
+    | IncreaseIndent
     | DecreaseIndent
     | NewLine
 
 type TextBuilder() =
+    member self.Bind(T f, func): T =
+        func f
+
     member self.Combine(T fa, T fb): T =
         T (fun sb -> fa sb >> fb sb)
 
@@ -33,6 +37,25 @@ type TextBuilder() =
         T (fun sb state ->
             values
             |> Seq.fold (fun st x -> let (T f) = func x in f sb st) state)
+
+    member self.While(guard: unit -> bool, body: T): T =
+        T (fun sb state ->
+            let mutable st = state
+            while guard () do
+                let (T f) = body
+                st <- f sb st
+            state)
+
+    member self.Yield(c: char): T =
+        T (fun (_, sb) state ->
+            let state =
+                if state.indentPending then
+                    sb.Append(state.indent) |> ignore
+                    { state with indentPending = false }
+                else
+                    state
+            sb.Append(c) |> ignore
+            state)
 
     member self.Yield(v: string): T =
         T (fun (_, sb) state ->
@@ -82,6 +105,9 @@ type TextBuilder() =
         T (fun _ state -> state)
 
 let text = new TextBuilder()
+
+let (%%): StringFormat<'a> -> 'a = sprintf
+let plain = { indentSize = 0 }
 
 let buildText (settings: Settings) (T f): string =
     let sb = new StringBuilder()

@@ -23,4 +23,4 @@ let rec assertFlowEqual (expected: IReadOnlyList<Block>) (blocks: IReadOnlyList<
             ILHelper.assertILEqual exp.condition act.condition
             assertFlowEqual exp.trueBranch act.trueBranch
             assertFlowEqual exp.falseBranch act.falseBranch
-        | _ -> raise (new NotSupportedException())
+        | _ -> notSupported

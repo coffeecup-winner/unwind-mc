@@ -39,7 +39,7 @@ let private run (workingDirectory: string) (exePath: string) (arguments: string 
     proc.Start() |> ignore
     proc.WaitForExit()
     if proc.ExitCode <> 0 then
-        raise (new InvalidOperationException(proc.StandardError.ReadToEnd()))
+        failwith (proc.StandardError.ReadToEnd())
     proc.StandardOutput.ReadToEnd()
 
 let compile (filename: string): string =

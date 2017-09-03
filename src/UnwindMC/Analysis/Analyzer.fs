@@ -8,8 +8,8 @@ open NLog
 open IGraph
 open InstructionExtensions
 
-type FunctionStatus
-    = Created
+type FunctionStatus =
+    | Created
     | BoundsResolved
     | BoundsNotResolvedInvalidAddress
     | BoundsNotResolvedIncompleteGraph
@@ -89,9 +89,10 @@ let private resolveFunctionBounds (t: T): unit =
                     logger.Debug("The specified address is not a valid start of instruction, re-disassembling");
                     t.graph.Redisassemble(func.address);
                 let visitedAllLinks =
-                    (t.graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+                    t.graph
+                        .AsGenericGraph()
                         .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
-                        .DFS(func.address, fun instr link ->
+                        .DFS(func.address, fun instr _ ->
                             t.graph.GetExtraData(instr.Offset).functionAddress <- func.address
                             if instr.Code = MnemonicCode.Iret then
                                 false
@@ -164,9 +165,7 @@ let private addExplicitBranches (t: T) (instr: Instruction): unit =
         | _ -> ()
 
 let private addSwitchCases (t: T) (instr: Instruction): unit =
-    if instr.Code <> MnemonicCode.Ijmp || instr.Operands.[0].Type <> OperandType.Memory then
-        ()
-    else
+    if instr.Code = MnemonicCode.Ijmp && instr.Operands.[0].Type = OperandType.Memory then
         let address = (uint64)instr.Operands.[0].LValue.udword
         let table =
             match t.jumpTables.TryGetValue(address) with
@@ -188,7 +187,8 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
         let mutable lowByteIdx = OperandType.None
         let mutable indirectAddress = 0uL
         let mutable casesCountOption = None
-        (t.graph :> IGraph<uint64, Instruction, InstructionGraph.Link>)
+        t.graph
+            .AsGenericGraph()
             .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
             .ReverseEdges()
             .DFS(table.reference, fun instr link ->

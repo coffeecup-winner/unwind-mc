@@ -39,7 +39,7 @@ let analyze (func: string): InstructionGraph.T =
             if not nextMatch.Success then
                 nextMatch <- AdditionalBytesLineRegex.Match(line)
                 if not nextMatch.Success then
-                    raise (new InvalidOperationException("Line in incorrect format: " + line))
+                    failwithf "Line in incorrect format: %s" line
                 for capture in nextMatch.Groups.["bytes"].Captures do
                     let b = Byte.Parse(capture.ToString(), NumberStyles.HexNumber)
                     bytes.Add(b) |> ignore
@@ -49,7 +49,7 @@ let analyze (func: string): InstructionGraph.T =
                     nextMatch <- NormalLineRegex.Match(next)
                     nextLines <- rest
                     if not nextMatch.Success then
-                        raise (new InvalidOperationException("Line in incorrect format: " + next))
+                        failwithf "Line in incorrect format: %s" next
                 | [] ->
                     nextLines <- []
             canonLines.Add((sprintf "%s %20s" addressText (hex.ToString())).ToLower());

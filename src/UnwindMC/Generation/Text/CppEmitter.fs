@@ -63,7 +63,7 @@ let private emitType (t: T) (var: Var option): TextWorkflow.T =
         | Some (Var name) ->
             let type_ = t.types.[name]
             if type_.isFunction then
-                raise (new NotImplementedException())
+                FIXME "emitting functions not supported yet"
             yield "int "
             yield new System.String('*', type_.indirectionLevel)
     }
@@ -223,7 +223,7 @@ let private emitBinary (t: T) (op: Operator) (left: Expression) (right: Expressi
             | Operator.Multiply -> "*"
             | Operator.Divide -> "/"
             | Operator.Modulo -> "%"
-            | _ -> raise (new NotSupportedException())
+            | _ -> notSupported
         yield " "
         yield! emitExpression t right
     }
@@ -242,7 +242,7 @@ let private emitUnary (t: T) (op: Operator) (operand: Expression): TextWorkflow.
             match op with
             | Operator.Negate -> "-"
             | Operator.Not -> "~"
-            | _ -> raise (new NotSupportedException())
+            | _ -> notSupported
         yield! emitExpression t operand
     }
 

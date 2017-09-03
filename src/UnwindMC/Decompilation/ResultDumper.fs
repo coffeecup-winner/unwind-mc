@@ -8,7 +8,7 @@ open Analyzer
 open IL
 open InstructionExtensions
 
-let Logger: Logger = LogManager.GetCurrentClassLogger()
+let logger = LogManager.GetCurrentClassLogger()
 
 type T = {
     graph: InstructionGraph.T
@@ -19,26 +19,26 @@ let create (graph: InstructionGraph.T) (functions: IDictionary<uint64, Function>
     { graph = graph; functions = functions }
 
 let dumpResults (t: T): string =
-    Logger.Info("Dumping results")
+    logger.Info("Dumping results")
     let sb = new StringBuilder()
     let mutable unresolvedInstructions = 0
     let mutable incompleteInstructions = 0
     for instr in t.graph.Instructions do
         let address = t.graph.GetExtraData(instr.Offset).functionAddress
-        let mutable description: string = null
-        if address = 0uL then
-            if instr.Code = MnemonicCode.Inop || instr.Code = MnemonicCode.Iint3 || instr.Assembly = "mov edi, edi" || instr.Assembly = "lea ecx, [ecx]" then
-                description <- "--------"
-            elif instr.Code = MnemonicCode.Inone then
-                description <- "jmptable"
+        let description =
+            if address = 0uL then
+                if instr.Code = MnemonicCode.Inop || instr.Code = MnemonicCode.Iint3 || instr.Assembly = "mov edi, edi" || instr.Assembly = "lea ecx, [ecx]" then
+                    "--------"
+                elif instr.Code = MnemonicCode.Inone then
+                    "jmptable"
+                else
+                    unresolvedInstructions <- unresolvedInstructions + 1
+                    "????????"
+            elif t.functions.[address].status = BoundsNotResolvedIncompleteGraph then
+                incompleteInstructions <- incompleteInstructions + 1
+                "xxxxxxxx"
             else
-                description <- "????????"
-                unresolvedInstructions <- unresolvedInstructions + 1
-        elif t.functions.[address].status = BoundsNotResolvedIncompleteGraph then
-            description <- "xxxxxxxx"
-            incompleteInstructions <- incompleteInstructions + 1
-        else
-            description <- System.String.Format("{0:x8}", address)
+                sprintf "%08x" address
         sb.AppendFormat("{0} {1:x8} {2,20} {3}", description, instr.Offset, instr.Hex, instr.Assembly) |> ignore
         let importName = t.graph.GetExtraData(instr.Offset).importName
         if importName <> null then
@@ -46,13 +46,13 @@ let dumpResults (t: T): string =
         sb.AppendLine() |> ignore
 
     let result = sb.ToString()
-    Logger.Info("Done: {0} ({1:0%}) unresolved, {2} ({3:0%}) incomplete",
+    logger.Info("Done: {0} ({1:0%}) unresolved, {2} ({3:0%}) incomplete",
         unresolvedInstructions, (double)unresolvedInstructions / (double)t.graph.Instructions.Count,
         incompleteInstructions, (double)incompleteInstructions / (double)t.graph.Instructions.Count)
     result
 
 let dumpFunctionCallGraph (t: T): string =
-    Logger.Info("Dumping function call graph")
+    logger.Info("Dumping function call graph")
     let sb = new StringBuilder()
     sb.AppendLine("digraph functions {") |> ignore
     for func in t.functions.Values do
@@ -62,11 +62,11 @@ let dumpFunctionCallGraph (t: T): string =
             sb.AppendLine(System.String.Format("  sub_{0:x8} -> sub_{1:x8}", t.graph.GetExtraData(instr.Offset).functionAddress, instr.GetTargetAddress())) |> ignore
     sb.AppendLine("}") |> ignore
     let result = sb.ToString()
-    Logger.Info("Done")
+    logger.Info("Done")
     result
 
 let dumpILGraph (il: ILInstruction): string =
-    Logger.Info("Dumping IL graph")
+    logger.Info("Dumping IL graph")
     let sb = new StringBuilder()
     sb.AppendLine("digraph il {") |> ignore
     let visited = new HashSet<ILInstruction>()
@@ -100,5 +100,5 @@ let dumpILGraph (il: ILInstruction): string =
         | _ -> ()
     sb.AppendLine("}") |> ignore
     let result = sb.ToString()
-    Logger.Info("Done")
+    logger.Info("Done")
     result

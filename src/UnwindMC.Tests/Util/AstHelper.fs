@@ -20,7 +20,7 @@ let rec private assertExprEqual (expected: Expression) (actual: Expression): uni
         Assert.That(act, Is.EqualTo(exp))
     | VarRef (Var exp), VarRef (Var act) ->
         Assert.That(act, Is.EqualTo(exp));
-    | _ -> raise (new NotSupportedException())
+    | _ -> notSupported
 
 let private assertCollectionEqual (assertEqual: 'a -> 'a -> unit) (expected: IReadOnlyList<'a>) (actual: IReadOnlyList<'a>): unit =
     Assert.That(actual.Count, Is.EqualTo(expected.Count))
@@ -46,7 +46,7 @@ let rec private assertStatementEqual (expected: Statement) (actual: Statement): 
     | While (expCond, expBody), While (actCond, actBody) ->
         assertExprEqual expCond actCond
         assertCollectionEqual assertStatementEqual expBody actBody
-    | _ -> raise (new NotSupportedException())
+    | _ -> notSupported
 
 let assertAstEqual (expected: IReadOnlyList<Statement>) (actual: IReadOnlyList<Statement>): unit =
     assertCollectionEqual assertStatementEqual expected actual

@@ -1,11 +1,9 @@
 ﻿module rec FlowAnalyzer
 
-open System
 open System.Collections.Generic
 open System.Linq
 open IGraph
 open IL
-open LinqExtensions
 
 type Block =
     | ConditionalBlock of ConditionalBlock
@@ -59,11 +57,11 @@ let private build (il: ILInstruction) (subGraph: ISet<ILInstruction>) (doWhileLo
                 let condition = body.Last()
                 body.RemoveAt(body.Count - 1)
                 result.Add(SequentialBlock { instructions = seq })
-                result.Add(DoWhileBlock { condition = condition; children = build instr (body.ToSet()) doWhileLoops order })
+                result.Add(DoWhileBlock { condition = condition; children = build instr (body |> Seq.toSet) doWhileLoops order })
                 match condition.defaultChild with
                 | Some next ->
                     if graph.Contains(next) then
-                        result.AddRange(build next (graph.BFS(next).ToSet()) doWhileLoops conditionToIgnore)
+                        result.AddRange(build next (graph.BFS(next) |> Seq.toSet) doWhileLoops conditionToIgnore)
                 | _ -> ()
                 result
             elif instr.conditionalChild.IsNone || instr.order = conditionToIgnore then
@@ -92,25 +90,25 @@ let private build (il: ILInstruction) (subGraph: ISet<ILInstruction>) (doWhileLo
                         ConditionalBlock
                             {
                                 condition = instr
-                                trueBranch = build (left.[0]) (left.Take(i0).ToSet()) doWhileLoops conditionToIgnore
-                                falseBranch = build (right.[0]) (right.Take(i1).ToSet()) doWhileLoops conditionToIgnore
+                                trueBranch = build (left.[0]) (left |> Seq.take i0 |> Seq.toSet) doWhileLoops conditionToIgnore
+                                falseBranch = build (right.[0]) (right |> Seq.take i1 |> Seq.toSet) doWhileLoops conditionToIgnore
                             })
-                    result.AddRange(build (left.[i0]) (left.Skip(i0).ToSet()) doWhileLoops conditionToIgnore)
+                    result.AddRange(build (left.[i0]) (left |> Seq.skip i0 |> Seq.toSet) doWhileLoops conditionToIgnore)
                     result
                 else
                     let leftLoop = left.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
                     if leftLoop then
-                        result.Add(WhileBlock { condition = instr; children = build (conditionalChild) (left.ToSet()) doWhileLoops conditionToIgnore })
-                        result.AddRange(build (right.[0]) (right.ToSet()) doWhileLoops conditionToIgnore)
+                        result.Add(WhileBlock { condition = instr; children = build (conditionalChild) (left |> Seq.toSet) doWhileLoops conditionToIgnore })
+                        result.AddRange(build (right.[0]) (right |> Seq.toSet) doWhileLoops conditionToIgnore)
                         result
                     else
                         let rightLoop = right.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
                         if rightLoop then
-                            result.Add(WhileBlock { condition = instr; children = build (defaultChild) (right.ToSet()) doWhileLoops conditionToIgnore })
-                            result.AddRange(build (left.[0]) (left.ToSet()) doWhileLoops conditionToIgnore)
+                            result.Add(WhileBlock { condition = instr; children = build (defaultChild) (right |> Seq.toSet) doWhileLoops conditionToIgnore })
+                            result.AddRange(build (left.[0]) (left |> Seq.toSet) doWhileLoops conditionToIgnore)
                             result
                         else
-                            raise (new InvalidOperationException())
+                            failwith "Invalid control flow structure"
         | [] ->
             result.Add(SequentialBlock { instructions = seq })
             result
