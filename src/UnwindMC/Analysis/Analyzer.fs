@@ -5,7 +5,7 @@ open System.Collections.Generic
 open System.Linq
 open NDis86
 open NLog
-open IGraph
+open Graphs
 open InstructionExtensions
 
 type FunctionStatus =
@@ -89,10 +89,9 @@ let private resolveFunctionBounds (t: T): unit =
                     logger.Debug("The specified address is not a valid start of instruction, re-disassembling");
                     t.graph.Redisassemble(func.address);
                 let visitedAllLinks =
-                    t.graph
-                        .AsGenericGraph()
-                        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
-                        .DFS(func.address, fun instr _ ->
+                    t.graph.AsGenericGraph()
+                        |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+                        |> Graph.dfsWith func.address (fun instr _ ->
                             t.graph.GetExtraData(instr.Offset).functionAddress <- func.address
                             if instr.Code = MnemonicCode.Iret then
                                 false
@@ -186,35 +185,33 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
         let mutable idx = OperandType.None
         let mutable lowByteIdx = OperandType.None
         let mutable indirectAddress = 0uL
-        let mutable casesCountOption = None
-        t.graph
-            .AsGenericGraph()
-            .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
-            .ReverseEdges()
-            .DFS(table.reference, fun instr link ->
-                // find out the jump index register
-                if idx = OperandType.None then
-                    idx <- instr.Operands.[0].Index
-                    lowByteIdx <- getLowByteRegisterFromDword idx
-                    true
-                else
-                    // update the main jump register if the jump is indirect
-                    if indirectAddress = 0uL && instr.Code = MnemonicCode.Imov && instr.Operands.[0].Base = lowByteIdx then
-                        idx <- instr.Operands.[1].Base
-                        indirectAddress <- (uint64)instr.Operands.[1].LValue.udword
-                        true
+        let casesCountOption =
+            t.graph.AsGenericGraph()
+                |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch) <> InstructionGraph.LinkType.None)
+                |> Graph.reverseEdges
+                |> Graph.dfsPick table.reference (fun instr link ->
+                    // find out the jump index register
+                    if idx = OperandType.None then
+                        idx <- instr.Operands.[0].Index
+                        lowByteIdx <- getLowByteRegisterFromDword idx
+                        Continue
                     else
-                        // search for the jump to the default case
-                        if not (instr.Code = MnemonicCode.Ija && instr.Operands.[0].Type = OperandType.ImmediateBranch) then
-                            true
+                        // update the main jump register if the jump is indirect
+                        if indirectAddress = 0uL && instr.Code = MnemonicCode.Imov && instr.Operands.[0].Base = lowByteIdx then
+                            idx <- instr.Operands.[1].Base
+                            indirectAddress <- (uint64)instr.Operands.[1].LValue.udword
+                            Continue
                         else
-                            // search for cases count, can find it from code like cmp ecx, 0xb
-                            // the jump register is irrelevant since it must be the closest one to ja
-                            let value = AssignmentTracker.find t.graph instr.Offset idx (fun i _ ->
-                                i.Code = MnemonicCode.Icmp && i.Operands.[0].Type = OperandType.Register)
-                            casesCountOption <- value |> Option.map (fun v -> (int)v.ubyte + 1)
-                            false
-            ) |> ignore
+                            // search for the jump to the default case
+                            if not (instr.Code = MnemonicCode.Ija && instr.Operands.[0].Type = OperandType.ImmediateBranch) then
+                                Continue
+                            else
+                                // search for cases count, can find it from code like cmp ecx, 0xb
+                                // the jump register is irrelevant since it must be the closest one to ja
+                                let value = AssignmentTracker.find t.graph instr.Offset idx (fun i _ ->
+                                    i.Code = MnemonicCode.Icmp && i.Operands.[0].Type = OperandType.Register)
+                                Return (value |> Option.map (fun v -> (int)v.ubyte + 1))
+                )
 
         match casesCountOption with
         | Some casesCount ->

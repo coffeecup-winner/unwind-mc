@@ -3,7 +3,7 @@
 open System
 open System.Collections.Generic
 open NDis86
-open IGraph
+open Graphs
 open TextWorkflow
 
 type ILOperand =
@@ -201,12 +201,14 @@ let createBranchInstruction (branchType: ILBranchType) (address: uint64): ILInst
     order = 0
 }
 
-type ILGraph (subgraph: ISet<ILInstruction>, edgePredicate: Func<obj, bool>) =
-    let _subgraph: ISet<ILInstruction> = subgraph
-    let _edgePredicate: Func<obj, bool> = edgePredicate
+type ILGraph (subgraph: ISet<ILInstruction> option, edgePredicate: obj -> bool) =
+    let subgraph: ISet<ILInstruction> option = subgraph
+    let edgePredicate: obj -> bool = edgePredicate
 
     let contains (vertex: ILInstruction): bool =
-        _subgraph = null || _subgraph.Contains(vertex)
+        match subgraph with
+        | Some vertices -> vertices.Contains(vertex)
+        | None -> true
 
     interface IGraph<ILInstruction, ILInstruction, obj> with
         member self.Contains (vertex: ILInstruction): bool =
@@ -225,14 +227,14 @@ type ILGraph (subgraph: ISet<ILInstruction>, edgePredicate: Func<obj, bool>) =
                 | _ -> ()
             }
 
-        member self.GetSubgraph (subgraph: ISet<ILInstruction>): IGraph<ILInstruction, ILInstruction, obj> =
-            new ILGraph(subgraph, _edgePredicate) :> IGraph<ILInstruction, ILInstruction, obj>
+        member self.GetSubgraph (subgraph: ISet<ILInstruction> option): IGraph<ILInstruction, ILInstruction, obj> =
+            new ILGraph(subgraph, edgePredicate) :> IGraph<ILInstruction, ILInstruction, obj>
 
-        member self.WithEdgeFilter (predicate: Func<obj, bool>): IGraph<ILInstruction, ILInstruction, obj> =
-            new ILGraph(_subgraph, predicate) :> IGraph<ILInstruction, ILInstruction, obj>
+        member self.WithEdgeFilter (predicate: obj -> bool): IGraph<ILInstruction, ILInstruction, obj> =
+            new ILGraph(subgraph, predicate) :> IGraph<ILInstruction, ILInstruction, obj>
 
         member self.ReverseEdges(): IGraph<ILInstruction, ILInstruction, obj> =
             notSupported
 
 let createILGraph: IGraph<ILInstruction, ILInstruction, obj> =
-    new ILGraph(null, null) :> IGraph<ILInstruction, ILInstruction, obj>
+    new ILGraph(None, fun _ -> true) :> IGraph<ILInstruction, ILInstruction, obj>

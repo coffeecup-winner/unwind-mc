@@ -3,7 +3,6 @@ module Common
 
 open System
 open System.Collections.Generic
-open Microsoft.FSharp.Core.Printf
 
 type Either<'a, 'b> =
     | Left of 'a
@@ -19,6 +18,9 @@ module ROL =
 module Seq =
     let toSet (collection: 'a seq): ISet<'a> =
         new HashSet<'a>(collection) :> ISet<'a>
+
+    let toMutableList (collection: 'a seq): List<'a> =
+        new List<'a>(collection)
 
 let impossible<'a> : 'a =
     failwith "Should not ever happen"

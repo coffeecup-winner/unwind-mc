@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open NDis86
 open NLog
-open IGraph
+open Graphs
 open TextWorkflow
 
 [<Flags>]
@@ -40,11 +40,11 @@ let disassemble (bytes: ArraySegment<byte>) (pc: uint64): T =
         instructionsDict.Add(instr.Offset, instr)
     new T(disassembler, bytes, pc, lastInstruction.Offset + (uint64)lastInstruction.Length,
         instructionsDict, new Dictionary<uint64, ExtraData>(), new Dictionary<uint64, List<Link>>(),
-        new Dictionary<uint64, List<Link>>(), false, Func<Link, bool>(fun _ -> true))
+        new Dictionary<uint64, List<Link>>(), false, fun _ -> true)
 
 type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uint64, firstAddressAfterCode: uint64,
         instructions: SortedDictionary<uint64, Instruction>, extraData: Dictionary<uint64, ExtraData>, instructionLinks: Dictionary<uint64, List<Link>>,
-        reverseLinks: Dictionary<uint64, List<Link>>, isReversed: bool, edgePredicate: Func<Link, bool>) =
+        reverseLinks: Dictionary<uint64, List<Link>>, isReversed: bool, edgePredicate: Link -> bool) =
     let disassembler: Disassembler = disassembler
     let bytes: ArraySegment<byte> = bytes
     let firstAddress: uint64 = firstAddress
@@ -54,7 +54,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
     let instructionLinks: Dictionary<uint64, List<Link>> = instructionLinks
     let reverseLinks: Dictionary<uint64, List<Link>> = reverseLinks
     let isReversed: bool = isReversed
-    let edgePredicate: Func<Link, bool> = edgePredicate
+    let edgePredicate: Link -> bool = edgePredicate
 
     interface IGraph<uint64, Instruction, Link> with
         member self.GetVertex(vertexId: uint64): Instruction =
@@ -69,7 +69,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                 | false, _ ->
                     yield Right("DFS: Couldn't find links for " + instructions.[vertexId].ToString())
                 | true, links ->
-                    for link in (links |> Seq.where (fun l -> edgePredicate.Invoke(l))) do
+                    for link in (links |> Seq.where edgePredicate) do
                         let linkAddress = if isReversed then link.address else link.targetAddress
                         if self.InBounds(linkAddress) then
                             yield Left((linkAddress, link))
@@ -77,10 +77,10 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                             yield Right("DFS: Jump outside of code section")
             }
 
-        member self.GetSubgraph(subgraph: ISet<Instruction>): IGraph<uint64, Instruction, Link> =
+        member self.GetSubgraph(subgraph: ISet<Instruction> option): IGraph<uint64, Instruction, Link> =
             notSupported
 
-        member self.WithEdgeFilter(predicate: Func<Link, bool>): IGraph<uint64, Instruction, Link> =
+        member self.WithEdgeFilter(predicate: Link -> bool): IGraph<uint64, Instruction, Link> =
             new T(disassembler, bytes, firstAddress, firstAddressAfterCode, instructions,
                 extraData, instructionLinks, reverseLinks, isReversed, predicate)
                 :> IGraph<uint64, Instruction, Link>

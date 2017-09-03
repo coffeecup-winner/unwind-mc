@@ -4,7 +4,7 @@ open System
 open System.Collections.Generic
 open System.Linq
 open NDis86
-open IGraph
+open Graphs
 open IL
 open InstructionExtensions
 
@@ -24,17 +24,16 @@ let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
     }
     t.stackObjects.Add(t.stackOffset, null)
     let instructions = new Dictionary<uint64, ILInstruction>()
-    graph
-        .AsGenericGraph()
-        .WithEdgeFilter(fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
-        .DFS(address, fun instr _ ->
+    graph.AsGenericGraph()
+        |> Graph.withEdgeFilter (fun e -> (e.type_ &&& InstructionGraph.LinkType.Next ||| InstructionGraph.LinkType.Branch ||| InstructionGraph.LinkType.SwitchCaseJump) <> InstructionGraph.LinkType.None)
+        |> Graph.dfs address
+        |> Seq.iter (fun instr ->
             let ilInstructions = convertInstruction t instr
             if ilInstructions.Length > (int)instr.Length then
                 FIXME "not enough virtual addresses"
             for i in [0 .. ilInstructions.Length - 1] do
                 instructions.Add(instr.Offset + (uint64)i, ilInstructions.[i])
-            true
-        ) |> ignore
+        )
     let il = new SortedList<uint64, ILInstruction>(instructions)
     let addresses = new Dictionary<ILInstruction, uint64>(instructions.Count)
     let mutable order = 0
