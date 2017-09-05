@@ -183,7 +183,7 @@ let private addSwitchCases (t: T) (instr: Instruction): unit =
                 t.jumpTables.Add(address, table)
                 table
         for i in [table.firstIndex .. table.count - 1] do
-            t.graph.AddLink(table.reference, t.graph.ReadUInt32(table.address + (uint64)(i * 4)), InstructionGraph.LinkType.SwitchCaseJump)
+            t.graph.AddLink(table.reference, t.graph.ReadUInt32(table.address + (uint64)(i * Constants.RegisterSize)), InstructionGraph.LinkType.SwitchCaseJump)
 
 let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
     if table.address >= t.graph.FirstAddressAfterCode then
@@ -241,12 +241,12 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
                 if not (t.graph.AddJumpTableEntry(table.address + offset)) then
                     table.firstIndex <- table.firstIndex + 1
                 t.graph.AddJumpTableEntry(table.address + offset) |> ignore
-                offset <- offset + 4uL
+                offset <- offset + (uint64)Constants.RegisterSize
             table.count <- jumpsCount
             while casesCount >= 4 do
                 t.graph.AddJumpTableIndirectEntries(table.address + offset, 4)
                 casesCount <- casesCount - 4
-                offset <- offset + 4uL
+                offset <- offset + (uint64)Constants.RegisterSize
             if casesCount > 0 then
                 t.graph.AddJumpTableIndirectEntries(table.address + offset, casesCount)
                 offset <- offset + (uint64)casesCount

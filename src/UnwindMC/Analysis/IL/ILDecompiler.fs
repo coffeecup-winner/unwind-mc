@@ -18,7 +18,7 @@ type private T = {
 let decompile (graph: InstructionGraph.T) (address: uint64): ILInstruction =
     let t = {
         stackObjects = new Dictionary<int, obj>()
-        stackOffset = -4 // skip the return address on the stack
+        stackOffset = -Constants.RegisterSize // skip the return address on the stack
         framePointerOffset = 0
         prevInstr = null
     }
@@ -168,14 +168,14 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
             let operands = convertOperands t instr.Operands
             [| createBinaryInstruction Or operands.[0] operands.[1] |]
         | MnemonicCode.Ipush ->
-            t.stackOffset <- t.stackOffset - 4
+            t.stackOffset <- t.stackOffset - Constants.RegisterSize
             addOrUpdateStackValue t t.stackOffset
             [| createNullaryInstruction Nop |]
         | MnemonicCode.Ipop ->
-            t.stackOffset <- t.stackOffset + 4
+            t.stackOffset <- t.stackOffset + Constants.RegisterSize
             [| createNullaryInstruction Nop |]
         | MnemonicCode.Iret ->
-            t.stackOffset <- t.stackOffset + 4
+            t.stackOffset <- t.stackOffset + Constants.RegisterSize
             if t.stackOffset <> 0 then
                 failwith "Stack imbalance"
             [| createBinaryInstruction Return NoOperand (Register OperandType.EAX) |]

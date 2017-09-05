@@ -33,7 +33,7 @@ type private TypeBuilder = {
 let private build (typeBuilder: TypeBuilder): DataType = {
     isFunction = typeBuilder.isFunction
     indirectionLevel = typeBuilder.indirectionLevel
-    size = 4
+    size = Constants.RegisterSize
 }
 
 let resolveTypes (blocks: IReadOnlyList<Block>): Result =

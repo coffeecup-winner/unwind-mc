@@ -46,7 +46,7 @@ let buildAst (name: string) (blocks: IReadOnlyList<Block>) (parameterTypes: IRea
         t.parameterNames.[offset] <- name
         t.types.[name] <- parameterTypes.[index]
         offset <- offset + parameterTypes.[index].size
-    offset <- -8 // TODO: this will not always be correct
+    offset <- -Constants.RegisterSize * 2 // TODO: this will not always be correct
     for index in [0 .. localTypes.Count - 1] do
         offset <- offset - localTypes.[index].size
         let name = "loc" + string(index)
