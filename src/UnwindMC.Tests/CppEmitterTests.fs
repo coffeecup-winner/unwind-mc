@@ -10,12 +10,6 @@ open MiscExtensions
 
 [<Test>]
 let testEmissionWithFunctionPointers (): unit =
-    let types = new Dictionary<string, DataType>()
-    types.Add("arg0", { isFunction = true; indirectionLevel = 1; size = 4 })
-    types.Add("arg1", { isFunction = true; indirectionLevel = 1; size = 4 })
-    types.Add("var0", { isFunction = true; indirectionLevel = 1; size = 4 })
-    types.Add("var1", { isFunction = true; indirectionLevel = 0; size = 4 })
-
     let body =
         [|
             Assignment (Var "var0", VarRef (Var "arg0"))
@@ -36,7 +30,22 @@ let testEmissionWithFunctionPointers (): unit =
             Statement.Return None
         |]
 
-    let source = CppEmitter.emit "foo" types 2 body
+    let source =
+        CppEmitter.emit {
+            name = "foo"
+            parameters =
+                [|
+                    { name = "arg0"; type_ = { isFunction = true; indirectionLevel = 1; size = 4 } }
+                    { name = "arg1"; type_ = { isFunction = true; indirectionLevel = 1; size = 4 } }
+                |]
+            locals = [||]
+            variables =
+                [|
+                    { name = "var0"; type_ = { isFunction = true; indirectionLevel = 1; size = 4 } }
+                    { name = "var1"; type_ = { isFunction = true; indirectionLevel = 0; size = 4 } }
+                |]
+            body = body
+        }
     let expected =
         """void foo(void (**arg0)(), void (**arg1)())
         {
@@ -57,14 +66,6 @@ let testEmissionWithFunctionPointers (): unit =
 
 [<Test>]
 let testEmissionFindMax (): unit =
-    let types = new Dictionary<string, DataType>()
-    types.Add("arg0", { isFunction = false; indirectionLevel = 1; size = 4 })
-    types.Add("arg1", { isFunction = false; indirectionLevel = 0; size = 4 })
-    types.Add("var0", { isFunction = false; indirectionLevel = 0; size = 4 })
-    types.Add("var1", { isFunction = false; indirectionLevel = 0; size = 4 })
-    types.Add("var2", { isFunction = false; indirectionLevel = 1; size = 4 })
-    types.Add("var3", { isFunction = false; indirectionLevel = 0; size = 4 })
-
     let body =
         [|
             Assignment (Var "var0", VarRef (Var "arg1"))
@@ -96,7 +97,24 @@ let testEmissionFindMax (): unit =
             Statement.Return (Some (Var "var1"))
         |]
 
-    let source = CppEmitter.emit "findMax" types 2 body
+    let source =
+        CppEmitter.emit {
+            name = "findMax"
+            parameters =
+                [|
+                    { name = "arg0"; type_ = { isFunction = false; indirectionLevel = 1; size = 4 } }
+                    { name = "arg1"; type_ = { isFunction = false; indirectionLevel = 0; size = 4 } }
+                |]
+            locals = [||]
+            variables =
+                [|
+                    { name = "var0"; type_ =  { isFunction = false; indirectionLevel = 0; size = 4 } }
+                    { name = "var1"; type_ =  { isFunction = false; indirectionLevel = 0; size = 4 } }
+                    { name = "var2"; type_ =  { isFunction = false; indirectionLevel = 1; size = 4 } }
+                    { name = "var3"; type_ =  { isFunction = false; indirectionLevel = 0; size = 4 } }
+                |]
+            body = body
+        }
     let expected =
         """int findMax(int *arg0, int arg1)
         {

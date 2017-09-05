@@ -79,7 +79,7 @@ let testAstWithFunctionPointers (): unit =
             { isFunction = true; indirectionLevel = 0; size = 4 }
         |]
 
-    let ast = AstBuilder.buildAst blocks parameterTypes [||] variableTypes
+    let func = AstBuilder.buildAst "" blocks parameterTypes [||] variableTypes
     let expected =
         [|
             Assignment (Var "var0", VarRef (Var "arg0"))
@@ -99,7 +99,7 @@ let testAstWithFunctionPointers (): unit =
                 )
             Statement.Return None
         |]
-    AstHelper.assertAstEqual expected ast
+    AstHelper.assertAstEqual expected func.body
 
 [<Test>]
 let testAstFindMax (): unit =
@@ -202,7 +202,7 @@ let testAstFindMax (): unit =
             { isFunction = false; indirectionLevel = 0; size = 4 }
         |]
 
-    let ast = AstBuilder.buildAst blocks parameterTypes [||] variableTypes
+    let func = AstBuilder.buildAst "" blocks parameterTypes [||] variableTypes
     let expected =
         [|
             Assignment (Var "var0", VarRef (Var "arg1"))
@@ -233,4 +233,4 @@ let testAstFindMax (): unit =
                 )
             Statement.Return (Some (Var "var1"))
         |]
-    AstHelper.assertAstEqual expected ast
+    AstHelper.assertAstEqual expected func.body

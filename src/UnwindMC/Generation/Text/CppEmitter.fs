@@ -5,6 +5,7 @@ open System.Collections.Generic
 open Ast
 open TextWorkflow
 open Type
+open AstBuilder
 
 let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
     let rec findRoot =
@@ -22,35 +23,38 @@ let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
     |> Seq.tryPick findRoot
 
 type private T = {
-    name: string
-    types: IReadOnlyDictionary<string, DataType>
-    parametersCount: int
-    body: IReadOnlyList<Statement>
+    func: Function
+    parameterNames: HashSet<string>
+    types: Dictionary<string, DataType>
     declaredVariables: HashSet<string>
 }
 
-let emit (name: string) (types: IReadOnlyDictionary<string, DataType>) (parametersCount: int) (body: IReadOnlyList<Statement>): string =
+let emit (func: Function): string =
     let t = {
-        name = name
-        types = types
-        parametersCount = parametersCount
-        body = body
+        func = func
+        parameterNames = new HashSet<string>()
+        types = new Dictionary<string, DataType>()
         declaredVariables = new HashSet<string>()
     }
+    for param in func.parameters do
+        t.parameterNames.Add(param.name) |> ignore
+        t.types.Add(param.name, param.type_)
+    for var in func.locals |> Seq.append func.variables do
+        t.types.Add(var.name, var.type_)
     text {
-        yield! emitSignature t (findRootVar t.body)
-        yield! emitScope t t.body false
+        yield! emitSignature t (findRootVar t.func.body)
+        yield! emitScope t t.func.body false
     } |> buildText { indentSize = 2 }
 
 let private emitSignature (t: T) (ret: Var option): TextWorkflow.T =
     text {
         yield! emitType t ret
-        yield t.name
+        yield t.func.name
         yield "("
-        for i in [0 .. t.parametersCount - 1] do
+        for i in [0 .. t.func.parameters.Count - 1] do
             if i <> 0 then
                 yield ", "
-            yield! emitDeclaration t ("arg" + string(i)) // TODO: move argument names to function
+            yield! emitDeclaration t.func.parameters.[i].name t.func.parameters.[i].type_
         yield ")"
         yield NewLine
     }
@@ -68,9 +72,8 @@ let private emitType (t: T) (var: Var option): TextWorkflow.T =
             yield new System.String('*', type_.indirectionLevel)
     }
 
-let private emitDeclaration (t: T) (name: string): TextWorkflow.T =
+let private emitDeclaration (name: string) (type_: DataType): TextWorkflow.T =
     text {
-        let type_ = t.types.[name]
         if type_.isFunction then
             yield "void"
             yield " "
@@ -100,9 +103,8 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
 let private emitAssignment (t :T) (var: Var) (expr: Expression): TextWorkflow.T =
     text {
         let (Var name) = var
-        // TODO: rework how variables are passed and treated in each step
-        if not (name.StartsWith("arg")) && t.declaredVariables.Add(name) then
-            yield! emitDeclaration t name
+        if not (t.parameterNames.Contains(name)) && t.declaredVariables.Add(name) then
+            yield! emitDeclaration name t.types.[name]
         else
             yield name
         yield " = "

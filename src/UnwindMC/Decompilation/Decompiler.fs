@@ -13,13 +13,5 @@ let decompile (project : DecompilationProject.T): unit =
 let decompileFunction (graph: InstructionGraph.T) (address: uint64): string =
     let blocks = FlowAnalyzer.buildFlowGraph(ILDecompiler.decompile graph address)
     let result = TypeResolver.resolveTypes(blocks)
-    let ast = AstBuilder.buildAst blocks result.parameterTypes result.localTypes result.variableTypes
-    // TODO: these should be returned from AST step
-    let types = new Dictionary<string, Type.DataType>()
-    for i in [0 .. result.parameterTypes.Count - 1] do
-        types.Add("arg" + string(i), result.parameterTypes.[i])
-    for i in [0 .. result.localTypes.Count - 1] do
-        types.Add("loc" + string(i), result.variableTypes.[i])
-    for i in [0 .. result.variableTypes.Count - 1] do
-        types.Add("var" + string(i), result.variableTypes.[i])
-    CppEmitter.emit (sprintf "sub_%06x" address) types result.parameterTypes.Count ast
+    let func = AstBuilder.buildAst (sprintf "sub_%06x" address) blocks result.parameterTypes result.localTypes result.variableTypes
+    CppEmitter.emit func

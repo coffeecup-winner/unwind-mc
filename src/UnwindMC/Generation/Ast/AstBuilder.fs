@@ -8,8 +8,6 @@ open Type
 
 type private T = {
     blocks: IReadOnlyList<Block>
-    parameterTypes: IReadOnlyList<DataType>
-    localTypes: IReadOnlyList<DataType>
     variableTypes: IReadOnlyList<DataType>
     variableNames: Dictionary<int, string>
     parameterNames: Dictionary<int, string>
@@ -18,11 +16,23 @@ type private T = {
     mutable nextVariableNameIdx: int
 }
 
-let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataType>) (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): IReadOnlyList<Statement> =
+type Variable = {
+    name: string
+    type_: DataType
+}
+
+type Function = {
+    name: string
+    parameters: IReadOnlyList<Variable>
+    locals: IReadOnlyList<Variable>
+    variables: IReadOnlyList<Variable>
+    body: IReadOnlyList<Statement>
+}
+
+let buildAst (name: string) (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataType>)
+    (localTypes: IReadOnlyList<DataType>) (variableTypes: IReadOnlyList<DataType>): Function =
     let t = {
         blocks = blocks
-        parameterTypes = parameterTypes
-        localTypes = localTypes
         variableTypes = variableTypes
         variableNames = new Dictionary<int, string>()
         parameterNames = new Dictionary<int, string>()
@@ -31,19 +41,27 @@ let buildAst (blocks: IReadOnlyList<Block>) (parameterTypes: IReadOnlyList<DataT
         nextVariableNameIdx = 0
     }
     let mutable offset = 0
-    for index in [0 .. t.parameterTypes.Count - 1] do
+    for index in [0 .. parameterTypes.Count - 1] do
         let name = "arg" + string(index)
-        t.parameterNames.[offset] <- name;
-        t.types.[name] <- t.parameterTypes.[index]
-        offset <- offset + t.parameterTypes.[index].size
-    offset <- -8; // TODO: this will not always be correct
-    for index in [0 .. t.localTypes.Count - 1] do
-        offset <- offset - t.localTypes.[index].size
+        t.parameterNames.[offset] <- name
+        t.types.[name] <- parameterTypes.[index]
+        offset <- offset + parameterTypes.[index].size
+    offset <- -8 // TODO: this will not always be correct
+    for index in [0 .. localTypes.Count - 1] do
+        offset <- offset - localTypes.[index].size
         let name = "loc" + string(index)
         t.localNames.[offset] <- name
-        t.types.[name] <- t.localTypes.[index]
-    buildScope t t.blocks
-    |> ROL.map (runTransformations t)
+        t.types.[name] <- localTypes.[index]
+    let body =
+        buildScope t t.blocks
+        |> ROL.map (runTransformations t)
+    {
+        name = name
+        parameters = t.parameterNames |> Seq.map (fun p -> { name = p.Value; type_ = t.types.[p.Value] }) |> Seq.toArray
+        locals = t.localNames |> Seq.map (fun p -> { name = p.Value; type_ = t.types.[p.Value] }) |> Seq.toArray
+        variables = t.variableNames |> Seq.map (fun p -> { name = p.Value; type_ = t.variableTypes.[p.Key] }) |> Seq.toArray
+        body = body
+    }
 
 let private runTransformations (t: T) (ast: Statement): Statement =
     [
