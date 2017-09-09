@@ -72,7 +72,10 @@ let ifElse(): unit =
         int sub_000000(int arg0)
         {
           int loc0 = 0;
-          if (arg0 == 0)
+          if (arg0 != 0)
+          {
+          }
+          else
           {
             loc0 = 2;
           }

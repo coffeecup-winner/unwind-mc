@@ -65,39 +65,32 @@ let dumpFunctionCallGraph (t: T): string =
     logger.Info("Done")
     result
 
-let dumpILGraph (il: ILInstruction): string =
+let dumpILGraph (il: IReadOnlyList<ILInstruction>): string =
     logger.Info("Dumping IL graph")
     let sb = new StringBuilder()
     sb.AppendLine("digraph il {") |> ignore
-    let visited = new HashSet<ILInstruction>()
-    let queue = new Queue<ILInstruction>()
-    queue.Enqueue(il)
-    visited.Add(il) |> ignore
-    while queue.Count > 0 do
-        let instr = queue.Dequeue()
+    for pair in il |> Seq.indexed do
+        let (index, instr) = pair
         sb.AppendLine(System.String.Format("  {0} [label=\"{1}\"]", instr.GetHashCode(), instr.ToString())) |> ignore
-        match instr.defaultChild with
-        | Some child ->
-            if visited.Add(child) then
-                queue.Enqueue(child)
+        match instr with
+        | Branch { target = target } ->
             sb.AppendLine(
                 System.String.Format(
                     "  {0} -> {1} [label=\"{2}\"]",
                     instr.GetHashCode(),
-                    child.GetHashCode(),
-                    if instr.conditionalChild.IsNone then "" else "false")) |> ignore
-        | _ -> ()
-        match instr.conditionalChild with
-        | Some child ->
-            if visited.Add(child) then
-                queue.Enqueue(child)
-            sb.AppendLine(
-                System.String.Format(
-                    "  {0} -> {1} [label=\"{2}\"]",
-                    instr.GetHashCode(),
-                    child.GetHashCode(),
+                    il.[(int)target].GetHashCode(),
                     "true")) |> ignore
         | _ -> ()
+    for pair in il |> Seq.windowed 2 do
+        match pair with
+        | [| (Branch { type_ = Unconditional }); _ |] -> ()
+        | [| first; second |] ->
+            sb.AppendLine(
+                System.String.Format(
+                    "  {0} -> {1} [label=\"\"]",
+                    first.GetHashCode(),
+                    second.GetHashCode())) |> ignore
+        | _ -> impossible
     sb.AppendLine("}") |> ignore
     let result = sb.ToString()
     logger.Info("Done")

@@ -65,7 +65,6 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Util\TempDirectory.fs" />
-    <Compile Include="Util\ILHelper.fs" />
     <Compile Include="Util\FlowHelper.fs" />
     <Compile Include="Util\AstHelper.fs" />
     <Compile Include="Util\MiscExtensions.fs" />

@@ -7,64 +7,40 @@ open NUnit.Framework
 open Ast
 open FlowAnalyzer
 open IL
-open ILHelper
 open Type
 
 [<Test>]
 let testAstWithFunctionPointers (): unit =
-    let asn0 = Assign (Register OperandType.ESI) (Stack 0)
-    let cmp0 = Compare (Register OperandType.ESI) (Stack 4)
-    let asn1 = Assign (Register OperandType.EAX) (Pointer (OperandType.ESI, 0))
-    let cmp1 = Compare (Register OperandType.EAX) (Value 0)
-    let call = Call (Register OperandType.EAX)
-    let add = Add (Register OperandType.ESI) (Value 4)
-    let ret = Return ()
-
-    SetOrder [| asn0; cmp0; asn1; cmp1; call; add; ret |]
-
-    asn0.targetId <- 0
-    asn0.sourceId <- -1
-    cmp0.targetId <- 0
-    cmp0.sourceId <- -1
-    asn1.targetId <- 1
-    asn1.sourceId <- 0
-    cmp1.targetId <- 1
-    cmp1.sourceId <- -1
-    call.targetId <- 1
-    call.sourceId <- -1
-    add.targetId <- 0
-    add.sourceId <- -1
-    ret.targetId <- -1
-    ret.sourceId <- -1
-
-    asn0.defaultChild <- Some cmp0
-    cmp0.defaultChild <- Some ret
-    cmp0.condition <- ILBranchType.Less
-    cmp0.conditionalChild <- Some asn1
-    asn1.defaultChild <- Some cmp1
-    cmp1.defaultChild <- Some add
-    cmp1.condition <- ILBranchType.NotEqual
-    cmp1.conditionalChild <- Some call
-    call.defaultChild <- Some add
-    add.defaultChild <- Some cmp0
+    let nop0 = Nop
+    let asn0 = Assign { left = Register OperandType.ESI; right = Stack 0; leftId = 0; rightId = -1 }
+    let cmp0 = Compare { left = Register OperandType.ESI; right = Stack 4; leftId = 0; rightId = -1 }
+    let br0 = Branch <| branch GreaterOrEqual 10uL
+    let asn1 = Assign { left = Register OperandType.EAX; right = Pointer (OperandType.ESI, 0); leftId = 1; rightId = 0 }
+    let cmp1 = Compare { left = Register OperandType.EAX; right = Value 0; leftId = 1; rightId = -1 }
+    let br1 = Branch <| branch Equal 8uL
+    let call = Call { operand = Register OperandType.EAX; operandId = 1 }
+    let add = Add { left = Register OperandType.ESI; right = Value 4; leftId = 0; rightId = -1 }
+    let br3 = Branch <| branch Unconditional 2uL
+    let nop1 = Nop
+    let ret = Return { operand = Register OperandType.EAX; operandId = -1 }
 
     let blocks =
         [|
-            SequentialBlock { instructions = [| asn0 |] }
+            SequentialBlock { instructions = [| nop0; asn0 |] }
             WhileBlock {
-                condition = cmp0
+                condition = invertCondition [| cmp0; br0 |]
                 children =
                     [|
                         SequentialBlock { instructions = [| asn1 |] }
                         ConditionalBlock {
-                            condition = cmp1
+                            condition = invertCondition [| cmp1; br1 |]
                             trueBranch = [| SequentialBlock { instructions = [| call |] } |]
-                            falseBranch = [| SequentialBlock { instructions = [||] } |]
+                            falseBranch = [||]
                         }
                         SequentialBlock { instructions = [| add |] }
                     |]
             }
-            SequentialBlock { instructions = [| ret |] }
+            SequentialBlock { instructions = [| nop1; ret |] }
         |]
 
     let parameterTypes =
@@ -103,89 +79,49 @@ let testAstWithFunctionPointers (): unit =
 
 [<Test>]
 let testAstFindMax (): unit =
-    let asn0 = Assign (Register OperandType.ECX) (Stack 4)
-    let asn1 = Assign (Register OperandType.EAX) (Value Int32.MinValue)
-    let cmp0 = Compare (Register OperandType.ECX) (Value 0)
-    let asn2 = Assign (Register OperandType.EDX) (Stack 0)
-    let asn3 = Assign (Register OperandType.EAX) (Value Int32.MinValue)
-    let asn4 = Assign (Register OperandType.ESI) (Pointer (OperandType.EDX, 0))
-    let cmp1 = Compare (Register OperandType.EAX) (Register OperandType.ESI)
-    let asn5 = Assign (Register OperandType.EAX) (Register OperandType.ESI)
-    let add0 = Add (Register OperandType.EDX) (Value 4)
-    let sub0 = Subtract (Register OperandType.ECX) (Value 1)
-    let cmp2 = Compare (Register OperandType.ECX) (Value 0)
-    let ret = Return ()
-
-    asn0.targetId <- 1
-    asn0.sourceId <- -1
-    asn1.targetId <- 0
-    asn1.sourceId <- -1
-    cmp0.targetId <- 1
-    cmp0.sourceId <- -1
-    asn2.targetId <- 2
-    asn2.sourceId <- -1
-    asn3.targetId <- 0
-    asn3.sourceId <- -1
-    asn4.targetId <- 3
-    asn4.sourceId <- 2
-    cmp1.targetId <- 0
-    cmp1.sourceId <- 3
-    asn5.targetId <- 0
-    asn5.sourceId <- 3
-    add0.targetId <- 2
-    add0.sourceId <- -1
-    sub0.targetId <- 1
-    sub0.sourceId <- -1
-    cmp2.targetId <- 1
-    cmp2.sourceId <- -1
-    ret.targetId <- -1
-    ret.sourceId <- 0
-
-    SetOrder [| asn0; asn1; cmp0; asn2; asn3; asn4; cmp1; asn5; add0; sub0; cmp2; ret |]
-
-    asn0.defaultChild <- Some asn1
-    asn1.defaultChild <- Some cmp0
-    cmp0.defaultChild <- Some ret
-    cmp0.condition <- ILBranchType.NotEqual
-    cmp0.conditionalChild <- Some asn2
-    asn2.defaultChild <- Some asn3
-    asn3.defaultChild <- Some asn4
-    asn4.defaultChild <- Some cmp1
-    cmp1.defaultChild <- Some add0
-    cmp1.condition <- ILBranchType.Less
-    cmp1.conditionalChild <- Some asn5
-    asn5.defaultChild <- Some add0
-    add0.defaultChild <- Some sub0
-    sub0.defaultChild <- Some cmp2
-    cmp2.defaultChild <- Some ret
-    cmp2.condition <- ILBranchType.NotEqual
-    cmp2.conditionalChild <- Some asn4
+    let nop0 = Nop
+    let asn0 = Assign { left = Register OperandType.ECX; right = Stack 4; leftId = 1; rightId = -1 }
+    let asn1 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 0; rightId = -1 }
+    let cmp0 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 1; rightId = -1 }
+    let br0 = Branch <| branch Equal 15uL
+    let asn2 = Assign { left = Register OperandType.EDX; right = Stack 0; leftId = 2; rightId = -1 }
+    let asn3 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 0; rightId = -1 }
+    let asn4 = Assign { left = Register OperandType.ESI; right = Pointer (OperandType.EDX, 0); leftId = 3; rightId = 2 }
+    let cmp1 = Compare { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 0; rightId = 3 }
+    let br1 = Branch <| branch GreaterOrEqual 11uL
+    let asn5 = Assign { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 0; rightId = 3 }
+    let add0 = Add { left = Register OperandType.EDX; right = Value 4; leftId = 2; rightId = -1 }
+    let sub0 = Subtract { left = Register OperandType.ECX; right = Value 1; leftId = 1; rightId = -1 }
+    let cmp2 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 1; rightId = -1 }
+    let br2 = Branch <| branch NotEqual 7uL
+    let nop1 = Nop
+    let ret = Return { operand = Register OperandType.EAX; operandId = 0 }
 
     let blocks =
         [|
-            SequentialBlock { instructions = [| asn0; asn1 |] }
+            SequentialBlock { instructions = [| nop0; asn0; asn1 |] }
             ConditionalBlock {
-                condition = cmp0
+                condition = invertCondition [| cmp0; br0 |]
                 trueBranch =
                     [|
                         SequentialBlock { instructions = [| asn2; asn3 |] }
                         DoWhileBlock {
-                            condition = cmp2
+                            condition = [| cmp2; br2 |]
                             children =
                                 [|
                                     SequentialBlock { instructions = [| asn4 |] }
                                     ConditionalBlock {
-                                        condition = cmp1
+                                        condition = invertCondition [| cmp1; br1 |]
                                         trueBranch = [| SequentialBlock { instructions = [| asn5 |] } |]
-                                        falseBranch = [| SequentialBlock { instructions = [||] } |]
+                                        falseBranch = [||]
                                     }
                                     SequentialBlock { instructions = [| add0; sub0 |] }
                                 |]
                         }
                     |]
-                falseBranch = [| SequentialBlock { instructions = [||] } |]
+                falseBranch = [||]
             }
-            SequentialBlock { instructions = [| ret |] }
+            SequentialBlock { instructions = [| nop1; ret |] }
         |]
 
     let parameterTypes =

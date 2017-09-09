@@ -1,24 +1,16 @@
 ﻿module rec FlowAnalyzer
 
 open System.Collections.Generic
-open System.Linq
-open Graphs
 open IL
 
-type Block =
-    | ConditionalBlock of ConditionalBlock
-    | DoWhileBlock of DoWhileBlock
-    | SequentialBlock of SequentialBlock
-    | WhileBlock of WhileBlock
-
 type ConditionalBlock = {
-    condition: ILInstruction
+    condition: IReadOnlyList<ILInstruction>
     trueBranch: IReadOnlyList<Block>
     falseBranch : IReadOnlyList<Block>
 }
 
 type DoWhileBlock = {
-    condition: ILInstruction
+    condition: IReadOnlyList<ILInstruction>
     children: IReadOnlyList<Block>
 }
 
@@ -27,103 +19,157 @@ type SequentialBlock = {
 }
 
 type WhileBlock = {
-    condition: ILInstruction
+    condition: IReadOnlyList<ILInstruction>
     children: IReadOnlyList<Block>
 }
 
-type private Order = {
-    childOrder: int
-    order: int
-}
+type Block =
+    | ConditionalBlock of ConditionalBlock
+    | DoWhileBlock of DoWhileBlock
+    | SequentialBlock of SequentialBlock
+    | WhileBlock of WhileBlock
 
-let buildFlowGraph (il: ILInstruction): List<Block> =
-    let doWhileLoops = new Queue<Order>()
-    for loop in findDoWhileLoops il do
-        doWhileLoops.Enqueue(loop)
-    build il None doWhileLoops -1
-
-let private build (il: ILInstruction) (subGraph: ISet<ILInstruction> option) (doWhileLoops: Queue<Order>) (conditionToIgnore: int): List<Block> =
-    let result = new List<Block>()
-    let seq = new List<ILInstruction>()
-    let graph = createILGraph |> Graph.subgraph subGraph
-    let rec run (X : ILInstruction list): List<Block> =
-        match X with
-        | instr :: rest ->
-            if doWhileLoops.Count > 0 && doWhileLoops.Peek().childOrder = instr.order then
-            // the instructions is the beginning of the do-while loop
-                let order = doWhileLoops.Dequeue().order
-                let body =
-                    graph
-                    |> Graph.bfs instr
-                    |> Seq.where(fun i -> i.order <= order)
-                    |> Seq.toMutableList
-                let condition = body.Last()
-                body.RemoveAt(body.Count - 1)
-                result.Add(SequentialBlock { instructions = seq })
-                result.Add(DoWhileBlock { condition = condition; children = build instr (Some (body |> Seq.toSet)) doWhileLoops order })
-                match condition.defaultChild with
-                | Some next ->
-                    if graph.Contains(next) then
-                        result.AddRange(build next (Some (graph |> Graph.bfs next |> Seq.toSet)) doWhileLoops conditionToIgnore)
-                | _ -> ()
-                result
-            elif instr.conditionalChild.IsNone || instr.order = conditionToIgnore then
-                seq.Add(instr)
-                run rest
-            else
-                result.Add(SequentialBlock { instructions = seq })
-
-                let conditionalChild = instr.conditionalChild.Value
-                let defaultChild = instr.defaultChild.Value
-
-                // loop detection
-                let left = graph |> Graph.bfs conditionalChild |> Seq.toArray
-                let right = graph |> Graph.bfs defaultChild |> Seq.toArray
-
-                let isConditional = left.[left.Length - 1] = right.[right.Length - 1]
-                if isConditional then
-                    let mutable i0 = left.Length - 2
-                    let mutable i1 = right.Length - 2
-                    while i0 >= 0 && i1 >= 0 && left.[i0] = right.[i1] do
-                        i0 <- i0 - 1
-                        i1 <- i1 - 1
-                    i0 <- i0 + 1
-                    i1 <- i1 + 1
-                    result.Add(
-                        ConditionalBlock
-                            {
-                                condition = instr
-                                trueBranch = build left.[0] (Some (left |> Seq.take i0 |> Seq.toSet)) doWhileLoops conditionToIgnore
-                                falseBranch = build right.[0] (Some (right |> Seq.take i1 |> Seq.toSet)) doWhileLoops conditionToIgnore
-                            })
-                    result.AddRange(build left.[i0] (Some (left |> Seq.skip i0 |> Seq.toSet)) doWhileLoops conditionToIgnore)
-                    result
-                else
-                    let leftLoop = left.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
-                    if leftLoop then
-                        result.Add(WhileBlock { condition = instr; children = build conditionalChild (Some (left |> Seq.toSet)) doWhileLoops conditionToIgnore })
-                        result.AddRange(build right.[0] (Some (right |> Seq.toSet)) doWhileLoops conditionToIgnore)
-                        result
-                    else
-                        let rightLoop = right.Any(fun i -> (i.defaultChild.IsSome && i.defaultChild.Value = instr) || (i.conditionalChild.IsSome && i.conditionalChild.Value = instr))
-                        if rightLoop then
-                            result.Add(WhileBlock { condition = instr; children = build defaultChild (Some (right |> Seq.toSet)) doWhileLoops conditionToIgnore })
-                            result.AddRange(build left.[0] (Some (left |> Seq.toSet)) doWhileLoops conditionToIgnore)
-                            result
-                        else
-                            failwith "Invalid control flow structure"
-        | [] ->
-            result.Add(SequentialBlock { instructions = seq })
-            result
-    run (graph |> Graph.bfs il |> Seq.toList)
-
-let private findDoWhileLoops (il: ILInstruction): Order[] =
-    let result = new List<Order>()
-    for instr in createILGraph |> Graph.bfs il do
-        match instr.conditionalChild with
-        | Some child when child.order < instr.order ->
-            result.Add({ childOrder = child.order; order = instr.order })
+let buildFlowGraph (il: IReadOnlyList<ILInstruction>): List<Block> =
+    let branchTargets = Array.create il.Count None
+    for instr in il |> Seq.indexed do
+        match instr with
+        | address, Branch { target = target } ->
+            branchTargets.[(int)target] <- Some address
         | _ -> ()
+    Seq.zip il branchTargets
+    |> Seq.indexed
+    |> Seq.map (fun (a, (b, c)) -> (a, b, c))
+    |> Seq.toList
+    |> scope
+
+let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
+    let result = new List<Block>()
+    let sequence = new List<ILInstruction>()
+    let rec run: (int * ILInstruction * int option) list -> unit =
+        function
+        (** while loop **
+            ...
+            START:
+            <neg-cond>
+            br END
+            <body>
+            jmp START
+            END:
+            ...
+        *)
+        | ((start, Compare _, Some end_) :: (_, Branch { target = afterLoop }, _) :: _) as all ->
+            assert (end_ + 1 = (int)afterLoop)
+            assert (all |> List.skip (end_ - start) |> List.head |> function (_, Branch { type_ = Unconditional }, _) -> true | _ -> false)
+            if (sequence.Count > 0) then
+                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
+                sequence.Clear()
+            result.Add(whileLoop (all |> List.take (end_ - start)))
+            run (all |> List.skip (end_ - start + 1))
+        (** do while loop **
+            ...
+            START:
+            <body>
+            <condition>
+            br START
+            ...
+        *)
+        | ((start, _, Some end_) :: _) as all when end_ > start ->
+            if (sequence.Count > 0) then
+                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
+                sequence.Clear()
+            result.Add(doWhileLoop (end_ - start - 1) (all |> List.take (end_ - start + 1)))
+            run (all |> List.skip (end_ - start + 1))
+            ()
+        (** conditional **
+          * if-then-else *  |  * if then *   | * if else *
+            ...             |    ...         |   ...
+            <neg-cond>      |    <neg-cond>  |   <neg-cond>
+            br FALSE        |    br END      |   br FALSE
+            <true>          |    <true>      |   jmp END
+            jmp END         |    END:        |   FALSE:
+            FALSE:          |    ...         |   <false>
+            <false>                          |   END:
+            END:                             |   ...
+            ...
+        *)
+        | ((start, _, _) :: (_, Branch { target = falseBranch }, _) :: _) as all ->
+            if (sequence.Count > 0) then
+                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
+                sequence.Clear()
+            let end_ =
+                match all |> List.skip ((int)falseBranch - start - 1) with
+                | (_, Branch { type_ = Unconditional; target = end_ }, _) :: _ -> (int)end_
+                | _ -> (int)falseBranch // no else case
+            let (ifThenElse, rest) = all |> List.splitAt (end_ - start)
+            result.Add(conditional ((int)falseBranch - start) ifThenElse)
+            run rest
+        (** sequential flow **
+            ...
+        *)
+        | (_, instr, _) :: rest ->
+            sequence.Add(instr)
+            run rest
+        (** end of scope **
+        *)
+        | [] ->
+            if (sequence.Count > 0) then
+                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
+                sequence.Clear()
+    run instructions
     result
-    |> Seq.sortBy (fun c -> c.childOrder, c.order)
-    |> Seq.toArray
+
+let conditional (falseBranch: int) (instructions: (int * ILInstruction * int option) list): Block =
+    if falseBranch = (instructions |> List.length) then
+        // no else case
+        let (condition, trueBranch) = instructions |> List.splitAt 2
+        ConditionalBlock {
+            condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
+            trueBranch = scope trueBranch
+            falseBranch = [||]
+        }
+    else
+        let (condition, instructions) = instructions |> List.splitAt 2
+        let (trueBranch, instructions) = instructions |> List.splitAt (falseBranch - 3)
+        let (_branch, falseBranch) = instructions |> List.splitAt 1
+        ConditionalBlock {
+            condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
+            trueBranch = scope trueBranch
+            falseBranch = scope falseBranch
+        }
+
+let doWhileLoop (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
+    let (instructions, conditionInstructions) = instructions |> List.splitAt condition
+    let body =
+        match instructions with
+        | (start, instr, _) :: rest -> (start, instr, None) :: rest
+        | _ -> impossible
+    DoWhileBlock {
+        condition = conditionInstructions |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray
+        children = scope body
+    }
+
+let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
+    let (condition, instructions) = instructions |> List.splitAt 2
+    let body =
+        match instructions with
+        | (start, instr, _) :: rest -> (start, instr, None) :: rest
+        | _ -> impossible
+    WhileBlock {
+        condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
+        children = scope body
+    }
+
+let invertCondition (condition: ILInstruction[]): ILInstruction[] =
+    match condition with
+    | [| compare; Branch branch |] -> [| compare; Branch { branch with type_ = invert branch.type_ } |]
+    | _ -> notSupported
+
+let invert (type_: BranchType): BranchType =
+    match type_ with
+    | Equal -> NotEqual
+    | NotEqual -> Equal
+    | Less -> GreaterOrEqual
+    | LessOrEqual -> Greater
+    | GreaterOrEqual -> Less
+    | Greater -> LessOrEqual
+    | Unconditional -> impossible

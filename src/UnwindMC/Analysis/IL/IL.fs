@@ -1,10 +1,6 @@
-﻿module rec IL
+﻿module IL
 
-open System
-open System.Collections.Generic
 open NDis86
-open Graphs
-open TextWorkflow
 
 type ILOperand =
     | Value of int
@@ -13,228 +9,66 @@ type ILOperand =
     | Pointer of OperandType * int
     | NoOperand // TODO: replace by option on ILOperand
 
-let isRegister (operand: ILOperand) (reg: OperandType): bool =
-    match operand with
-    | Register r -> r = reg
-    | _ -> false
+type BinaryInstruction = {
+    left: ILOperand
+    right: ILOperand
+    // TODO: remove this
+    mutable leftId: int
+    mutable rightId: int
+}
 
-type ILBranchType =
+type UnaryInstruction = {
+    operand: ILOperand
+    // TODO: remove this
+    mutable operandId: int
+}
+
+type BranchType =
     | Equal
     | NotEqual
     | Less
     | LessOrEqual
     | GreaterOrEqual
     | Greater
-    | Next
+    | Unconditional
 
-type ILBranch = {
-    type_: ILBranchType
-    address: uint64
+type BranchInstruction = {
+    type_: BranchType
+    target: uint64
 }
 
-type ILInstructionType =
-    | Nop
-    | Virtual
+type ILInstruction =
+    | Add of BinaryInstruction
+    | And of BinaryInstruction
+    | Assign of BinaryInstruction
+    | Branch of BranchInstruction
+    | Call of UnaryInstruction
+    | Compare of BinaryInstruction
+    | Divide of BinaryInstruction
+    | Multiply of BinaryInstruction
+    | Negate of UnaryInstruction
+    | Not of UnaryInstruction
+    | Or of BinaryInstruction
+    | Return of UnaryInstruction // TODO: remove data
+    | ShiftLeft of BinaryInstruction
+    | ShiftRight of BinaryInstruction
+    | Subtract of BinaryInstruction
+    | Xor of BinaryInstruction
+    | Nop // TODO: remove this
 
-    | Add
-    | And
-    | Assign
-    | Call
-    | Compare
-    | Divide
-    | Multiply
-    | Negate
-    | Not
-    | Or
-    | Return
-    | ShiftLeft
-    | ShiftRight
-    | Subtract
-    | Xor
-
-[<CustomEquality; NoComparison>]
-type ILInstruction = {
-    type_: ILInstructionType
-    target: ILOperand
-    mutable targetId: int
-    source: ILOperand
-    mutable sourceId: int
-    branch: ILBranch
-    mutable defaultChild: ILInstruction option
-    mutable condition: ILBranchType
-    mutable conditionalChild: ILInstruction option
-    mutable order: int
-}   with
-        // TODO: stop using this type as hash key and remove Equals/GetHashCode overrides
-        override self.Equals(other: obj): bool =
-            match other with
-            | :? ILInstruction as instr -> self.order = instr.order
-            | _ -> false
-
-        override self.GetHashCode(): int =
-            let mutable hash = 17
-            hash <- 37 * self.order
-            hash
-
-        override self.ToString(): string =
-            text {
-                let instr = self
-                match instr.type_ with
-                | Nop ->
-                    yield "<nop>"
-                | Virtual ->
-                    yield "%A" %% instr.branch
-                | And ->
-                    yield "%A" %% instr.target
-                    yield " & "
-                    yield "%A" %% instr.source
-                | Add ->
-                    yield "%A" %% instr.target
-                    yield " += "
-                    yield "%A" %% instr.source
-                | Assign ->
-                    yield "%A" %% instr.target
-                    yield " = "
-                    yield "%A" %% instr.source
-                | Call ->
-                    yield "Call "
-                    yield "%A" %% instr.target
-                | Compare ->
-                    yield "%A" %% instr.target
-                    yield
-                        match instr.condition with
-                        | Equal -> " == "
-                        | NotEqual -> " != "
-                        | Less -> " < "
-                        | LessOrEqual -> " <= "
-                        | GreaterOrEqual -> " >= "
-                        | Greater -> " > "
-                        | _ -> failwith "Invalid condition type"
-                    yield "%A" %% instr.source
-                | Divide ->
-                    yield "%A" %% instr.target
-                    yield " / "
-                    yield "%A" %% instr.source
-                | Multiply ->
-                    yield "%A" %% instr.target
-                    yield " * "
-                    yield "%A" %% instr.source
-                | Negate ->
-                    yield "-"
-                    yield "%A" %% instr.target
-                | Not ->
-                    yield "~"
-                    yield "%A" %% instr.target
-                | Or ->
-                    yield "%A" %% instr.target
-                    yield " | "
-                    yield "%A" %% instr.source
-                | Return ->
-                    yield "return"
-                | ShiftLeft ->
-                    yield "%A" %% instr.target
-                    yield " << "
-                    yield "%A" %% instr.source
-                | ShiftRight ->
-                    yield "%A" %% instr.target
-                    yield " >> "
-                    yield "%A" %% instr.source
-                | Subtract ->
-                    yield "%A" %% instr.target
-                    yield " -= "
-                    yield "%A" %% instr.source
-                | Xor ->
-                    yield "%A" %% instr.target
-                    yield " ^ "
-                    yield "%A" %% instr.source
-            } |> buildText plain
-
-let createNullaryInstruction (type_: ILInstructionType): ILInstruction = {
-    type_ = type_
-    target = NoOperand
-    targetId = -1
-    source = NoOperand
-    sourceId = -1
-    branch = { type_ = ILBranchType.Equal; address = 0uL } // ???
-    defaultChild = None
-    condition = ILBranchType.Equal // ???
-    conditionalChild = None
-    order = 0
+let unary (operand: ILOperand): UnaryInstruction = {
+    operand = operand
+    operandId = -1
 }
 
-let createUnaryInstruction (type_: ILInstructionType) (target: ILOperand): ILInstruction = {
+let binary (left: ILOperand) (right: ILOperand): BinaryInstruction = {
+    left = left
+    leftId = -1
+    right = right
+    rightId = -1
+}
+
+let branch (type_: BranchType) (target: uint64): BranchInstruction = {
     type_ = type_
     target = target
-    targetId = -1
-    source = NoOperand
-    sourceId = -1
-    branch = { type_ = ILBranchType.Equal; address = 0uL } // ???
-    defaultChild = FSharp.Core.Option.None
-    condition = ILBranchType.Equal // ???
-    conditionalChild = FSharp.Core.Option.None
-    order = 0
 }
-
-let createBinaryInstruction (type_: ILInstructionType) (target: ILOperand) (source: ILOperand): ILInstruction = {
-    type_ = type_
-    target = target
-    targetId = -1
-    source = source
-    sourceId = -1
-    branch = { type_ = ILBranchType.Equal; address = 0uL } // ???
-    defaultChild = None
-    condition = ILBranchType.Equal // ???
-    conditionalChild = None
-    order = 0
-}
-
-let createBranchInstruction (branchType: ILBranchType) (address: uint64): ILInstruction = {
-    type_ = Virtual
-    target = NoOperand
-    targetId = -1
-    source = NoOperand
-    sourceId = -1
-    branch = { type_ = branchType; address = address }
-    defaultChild = None
-    condition = ILBranchType.Equal // ???
-    conditionalChild = None
-    order = 0
-}
-
-type ILGraph (subgraph: ISet<ILInstruction> option, edgePredicate: obj -> bool) =
-    let subgraph: ISet<ILInstruction> option = subgraph
-    let edgePredicate: obj -> bool = edgePredicate
-
-    let contains (vertex: ILInstruction): bool =
-        match subgraph with
-        | Some vertices -> vertices.Contains(vertex)
-        | None -> true
-
-    interface IGraph<ILInstruction, ILInstruction, obj> with
-        member self.Contains (vertex: ILInstruction): bool =
-            contains vertex
-
-        member self.GetVertex (vertexId: ILInstruction): ILInstruction =
-            vertexId
-
-        member self.GetAdjacent (vertex: ILInstruction): IEnumerable<Either<ILInstruction * obj, string>> =
-            seq {
-                match vertex.conditionalChild with
-                | Some child when child.order > vertex.order && contains child -> yield Left (child, null)
-                | _ -> ()
-                match vertex.defaultChild with
-                | Some child when child.order > vertex.order && contains child -> yield Left(child, null)
-                | _ -> ()
-            }
-
-        member self.GetSubgraph (subgraph: ISet<ILInstruction> option): IGraph<ILInstruction, ILInstruction, obj> =
-            new ILGraph(subgraph, edgePredicate) :> IGraph<ILInstruction, ILInstruction, obj>
-
-        member self.WithEdgeFilter (predicate: obj -> bool): IGraph<ILInstruction, ILInstruction, obj> =
-            new ILGraph(subgraph, predicate) :> IGraph<ILInstruction, ILInstruction, obj>
-
-        member self.ReverseEdges(): IGraph<ILInstruction, ILInstruction, obj> =
-            notSupported
-
-let createILGraph: IGraph<ILInstruction, ILInstruction, obj> =
-    new ILGraph(None, fun _ -> true) :> IGraph<ILInstruction, ILInstruction, obj>

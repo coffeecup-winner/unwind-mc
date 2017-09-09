@@ -74,61 +74,61 @@ let private buildScope (t: T) (blocks: IReadOnlyList<Block>): IReadOnlyList<Stat
     for block in blocks do
         match block with
         | SequentialBlock { instructions = is } ->
-            for instr in is do
+            for instr in is |> Seq.filter (function Nop -> false | _ -> true) do
                 statements.Add(buildStatement t instr);
         | WhileBlock { condition = c; children = cs } ->
-            statements.Add(buildWhile t c cs);
+            statements.Add(buildWhile t c cs)
         | DoWhileBlock { condition = c; children = cs } ->
-            statements.Add(buildDoWhile t c cs);
+            statements.Add(buildDoWhile t c cs)
         | ConditionalBlock { condition = c; trueBranch = tb; falseBranch = fb } ->
-            statements.Add(buildIfThenElse t c tb fb);
+            statements.Add(buildIfThenElse t c tb fb)
     statements :> IReadOnlyList<Statement>
 
-let private buildWhile (t: T) (condition: ILInstruction) (children: IReadOnlyList<Block>): Statement =
+let private buildWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (children: IReadOnlyList<Block>): Statement =
     While (buildCondition t condition, buildScope t children)
 
-let private buildDoWhile (t: T) (condition: ILInstruction) (children: IReadOnlyList<Block>): Statement =
+let private buildDoWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (children: IReadOnlyList<Block>): Statement =
     DoWhile (buildScope t children, buildCondition t condition)
 
-let private buildIfThenElse (t: T) (condition: ILInstruction) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
+let private buildIfThenElse (t: T) (condition: IReadOnlyList<ILInstruction>) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
     IfThenElse (buildCondition t condition, buildScope t trueBranch, buildScope t falseBranch)
 
-let private buildCondition (t: T) (instr: ILInstruction): Expression =
-    match instr.type_ with
-    | Compare ->
-        buildBinaryOperator t (getBinaryOperator t instr.condition) instr
+let private buildCondition (t: T) (condition: IReadOnlyList<ILInstruction>): Expression =
+    match (condition |> Seq.toList) with
+    | (Compare compare) :: (Branch branch) :: [] ->
+        buildBinaryOperator t (getBinaryOperator t branch.type_) compare
     | _ -> failwith "Instruction is not a valid statement"
 
 let private buildStatement (t: T) (instr: ILInstruction): Statement =
-    match instr.type_ with
-    | Add ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Add instr)
-    | And ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.And instr)
-    | Assign ->
-        Assignment (buildVar t instr.target instr.targetId, buildExpression t instr.source instr.sourceId)
-    | Call ->
-        FunctionCall (buildExpression t instr.target instr.targetId)
-    | Divide ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Divide instr)
-    | Multiply ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Multiply instr)
-    | Negate ->
-        Assignment (buildVar t instr.target instr.targetId, buildUnaryOperator t Operator.Negate instr)
-    | Not ->
-        Assignment (buildVar t instr.target instr.targetId, buildUnaryOperator t Operator.Not instr)
-    | Or ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Or instr)
-    | Return ->
-        Statement.Return (if instr.sourceId = -1 then Option.None else Some(buildVar t instr.source instr.sourceId))
-    | ShiftLeft ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.ShiftLeft instr)
-    | ShiftRight ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.ShiftRight instr)
-    | Subtract ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Subtract instr)
-    | Xor ->
-        Assignment (buildVar t instr.target instr.targetId, buildBinaryOperator t Operator.Xor instr)
+    match instr with
+    | Add binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Add binary)
+    | And binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.And binary)
+    | Assign binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildExpression t binary.right binary.rightId)
+    | Call unary ->
+        FunctionCall (buildExpression t unary.operand unary.operandId)
+    | Divide binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Divide binary)
+    | Multiply binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Multiply binary)
+    | Negate unary ->
+        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t Operator.Negate unary)
+    | Not unary ->
+        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t Operator.Not unary)
+    | Or binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Or binary)
+    | Return unary ->
+        Statement.Return (if unary.operandId = -1 then Option.None else Some(buildVar t unary.operand unary.operandId))
+    | ShiftLeft binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.ShiftLeft binary)
+    | ShiftRight binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.ShiftRight binary)
+    | Subtract binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Subtract binary)
+    | Xor binary ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Xor binary)
     | _ -> failwith "Instruction is not a valid statement"
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
@@ -139,7 +139,7 @@ let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     | Value value -> Expression.Value (value)
     | NoOperand -> impossible
 
-let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
+let private getBinaryOperator (t: T) (condition: BranchType): Operator =
     match condition with
     | Equal -> Operator.Equal
     | NotEqual -> Operator.NotEqual
@@ -147,13 +147,13 @@ let private getBinaryOperator (t: T) (condition: ILBranchType): Operator =
     | LessOrEqual -> Operator.GreaterOrEqual
     | GreaterOrEqual -> Operator.GreaterOrEqual
     | Greater -> Operator.Greater
-    | Next -> failwith "Next is not a valid operator"
+    | Unconditional -> impossible
 
-let private buildBinaryOperator (t: T) (op: Operator) (instr: ILInstruction): Expression =
-    Binary (op, buildExpression t instr.target instr.targetId, buildExpression t instr.source instr.sourceId)
+let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction): Expression =
+    Binary (op, buildExpression t instr.left instr.leftId, buildExpression t instr.right instr.rightId)
 
-let private buildUnaryOperator (t: T) (op: Operator) (instr: ILInstruction): Expression =
-    Unary (op, buildExpression t instr.target instr.targetId)
+let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction): Expression =
+    Unary (op, buildExpression t instr.operand instr.operandId)
 
 let private buildVar (t: T) (op: ILOperand) (id: int): Var =
     match op with

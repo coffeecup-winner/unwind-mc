@@ -67,90 +67,89 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                 t.types.[t.currentLevel] <- new Dictionary<ILOperand, TypeBuilder>()
                 typesToRemove.[t.currentLevel] <- new Dictionary<ILOperand, int>()
         | Right instr ->
-            match instr.type_ with
-            | ILInstructionType.Negate
-            | ILInstructionType.Not ->
-                    instr.targetId <- getCurrentId t.currentIds instr.target
-                    instr.sourceId <- getCurrentId t.currentIds instr.source
-            | ILInstructionType.Add
-            | ILInstructionType.And
-            | ILInstructionType.Compare
-            | ILInstructionType.Divide
-            | ILInstructionType.Multiply
-            | ILInstructionType.Or
-            | ILInstructionType.ShiftLeft
-            | ILInstructionType.ShiftRight
-            | ILInstructionType.Subtract
-            | ILInstructionType.Xor ->
-                if typesToRemove.[t.currentLevel].ContainsKey(instr.target) then
-                    typesToRemove.[t.currentLevel].Remove(instr.target) |> ignore
-                match instr.source with
+            match instr with
+            | Negate unary
+            | Not unary ->
+                unary.operandId <- getCurrentId t.currentIds unary.operand
+            | Add binary
+            | And binary
+            | Compare binary
+            | Divide binary
+            | Multiply binary
+            | Or binary
+            | ShiftLeft binary
+            | ShiftRight binary
+            | Subtract binary
+            | Xor binary ->
+                if typesToRemove.[t.currentLevel].ContainsKey(binary.left) then
+                    typesToRemove.[t.currentLevel].Remove(binary.left) |> ignore
+                match binary.right with
                 | Value _ ->
-                    if not (typeExists t instr.target) then
-                        assignTypeBuilder t instr.target NoOperand
+                    if not (typeExists t binary.left) then
+                        assignTypeBuilder t binary.left NoOperand
                 | _ ->
-                    if typeExists t instr.source && typeExists t instr.target then
-                        if getType t instr.source <> getType t instr.target then
+                    if typeExists t binary.right && typeExists t binary.left then
+                        if getType t binary.right <> getType t binary.left then
                             failwith "Type mismatch"
-                    elif typeExists t instr.source then
-                        assignTypeBuilder t instr.target instr.source
-                    elif typeExists t instr.target then
-                        assignTypeBuilder t instr.source instr.target
+                    elif typeExists t binary.right then
+                        assignTypeBuilder t binary.left binary.right
+                    elif typeExists t binary.left then
+                        assignTypeBuilder t binary.right binary.left
                     else
                         notSupported
-                instr.targetId <- getCurrentId t.currentIds instr.target
-                instr.sourceId <- getCurrentId t.currentIds instr.source
-            | ILInstructionType.Assign ->
-                if not (typeExists t instr.target) then
-                    match instr.target with
+                binary.leftId <- getCurrentId t.currentIds binary.left
+                binary.rightId <- getCurrentId t.currentIds binary.right
+            | Assign binary ->
+                if not (typeExists t binary.left) then
+                    match binary.left with
                     | Stack _ -> ()
                     | _ -> failwith "Assignment appears to not be used in the execution path"
                 let operand =
-                    match instr.source with
+                    match binary.right with
                     | Pointer (reg, _) -> Register reg
-                    | _ -> instr.source
-                match instr.source with
+                    | _ -> binary.right
+                match binary.right with
                 | Value _ ->
-                    if not (typeExists t instr.target) then
-                        assignTypeBuilder t instr.target NoOperand
+                    if not (typeExists t binary.left) then
+                        assignTypeBuilder t binary.left NoOperand
                 | _ ->
                     if typeExists t operand then
-                        let type_ = getType t instr.target |> build
+                        let type_ = getType t binary.left |> build
                         let operandType = getType t operand
                         if type_.isFunction then
                             operandType.isFunction <- true
                         operandType.indirectionLevel <- type_.indirectionLevel
                     else
-                        if not (typeExists t instr.target) then
-                            assignTypeBuilder t instr.target NoOperand
-                        assignTypeBuilder t operand instr.target
-                match instr.source with
+                        if not (typeExists t binary.left) then
+                            assignTypeBuilder t binary.left NoOperand
+                        assignTypeBuilder t operand binary.left
+                match binary.right with
                 | Pointer _ ->
                     (getType t operand).indirectionLevel <- (getType t operand).indirectionLevel + 1
                 | _ -> ()
-                instr.targetId <- getCurrentId t.currentIds instr.target
-                instr.sourceId <- getCurrentId t.currentIds operand
-                match instr.target with
+                binary.leftId <- getCurrentId t.currentIds binary.left
+                binary.rightId <- getCurrentId t.currentIds operand
+                match binary.left with
                 | Stack _ -> ()
                 | _ ->
                     if (t.currentLevel = 0) then
-                        finalizeType t variableTypes instr.targetId instr.target
+                        finalizeType t variableTypes binary.leftId binary.left
                     else
-                        typesToRemove.[t.currentLevel].Add(instr.target, instr.targetId)
-            | ILInstructionType.Call ->
-                if typesToRemove.[t.currentLevel].ContainsKey(instr.target) then
-                    typesToRemove.[t.currentLevel].Remove(instr.target) |> ignore
-                if not (typeExists t instr.target) then
-                    assignTypeBuilder t instr.target NoOperand
-                (getType t instr.target).isFunction <- true
-                instr.targetId <- getCurrentId t.currentIds instr.target
-                instr.sourceId <- getCurrentId t.currentIds instr.source
-            | ILInstructionType.Return ->
+                        typesToRemove.[t.currentLevel].Add(binary.left, binary.leftId)
+            | Call unary ->
+                if typesToRemove.[t.currentLevel].ContainsKey(unary.operand) then
+                    typesToRemove.[t.currentLevel].Remove(unary.operand) |> ignore
+                if not (typeExists t unary.operand) then
+                    assignTypeBuilder t unary.operand NoOperand
+                (getType t unary.operand).isFunction <- true
+                unary.operandId <- getCurrentId t.currentIds unary.operand
+            | Return unary ->
                 if functionReturnsValue blocks then
-                    assignTypeBuilder t instr.source NoOperand
-                    instr.targetId <- getCurrentId t.currentIds instr.target
-                    instr.sourceId <- getCurrentId t.currentIds instr.source
-            | _ -> failwith "Unknown instruction type"
+                    assignTypeBuilder t unary.operand NoOperand
+                    unary.operandId <- getCurrentId t.currentIds unary.operand
+            | Branch _
+            | Nop ->
+                ()
     let parameterTypes = new List<DataType>();
     for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
         parameterTypes.Add(pair.Value |> build)
@@ -172,7 +171,7 @@ let private functionReturnsValue (blocks: IReadOnlyList<Block>): bool =
         | SequentialBlock { instructions = is } -> is |> Seq.toList
         | _ -> []
     )
-    |> Seq.exists (fun i -> i.target <> NoOperand && isRegister i.target OperandType.EAX)
+    |> Seq.exists (function Assign { left = Register OperandType.EAX } -> true | _ -> false)
 
 let private getScopeLevel (t: T) (operand: ILOperand): int =
     match operand with
@@ -236,7 +235,7 @@ let private getCurrentId (currentIds: IReadOnlyDictionary<ILOperand, int>) (op: 
 
 type private Traversal =
     | Marker of ScopeBoundsMarker
-    | Instruction of ILInstruction
+    | Instructions of IReadOnlyList<ILInstruction>
     | Block of Block
 
 let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<ScopeBoundsMarker, ILInstruction>> =
@@ -246,8 +245,9 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
             match stack.Pop() with
             | Marker scopeBoundsMarker ->
                 yield Left scopeBoundsMarker
-            | Instruction instr ->
-                yield Right instr
+            | Instructions instructions ->
+                for i in [0 .. instructions.Count - 1] |> Seq.rev do
+                    yield Right(instructions.[i])
             | Block block ->
                 match block with
                 | SequentialBlock { instructions = instructions } ->
@@ -255,7 +255,7 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
                         yield Right(instructions.[i])
                 | WhileBlock { condition = condition; children = children } ->
                     stack.Push(Marker Start)
-                    stack.Push(Instruction condition)
+                    stack.Push(Instructions condition)
                     for child in children do
                         stack.Push(Block child)
                     stack.Push(Marker End)
@@ -263,10 +263,10 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
                     stack.Push(Marker Start)
                     for child in children do
                         stack.Push(Block child)
-                    stack.Push(Instruction condition)
+                    stack.Push(Instructions condition)
                     stack.Push(Marker End)
                 | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
-                    stack.Push(Instruction condition)
+                    stack.Push(Instructions condition)
                     stack.Push(Marker Start)
                     for child in trueBranch do
                         stack.Push(Block child)
