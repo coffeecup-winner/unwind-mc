@@ -27,7 +27,6 @@ type private T = {
     func: Function
     parameterNames: HashSet<string>
     types: Dictionary<string, DataType>
-    declaredVariables: HashSet<string>
 }
 
 let emit (func: Function): string =
@@ -35,7 +34,6 @@ let emit (func: Function): string =
         func = func
         parameterNames = new HashSet<string>()
         types = new Dictionary<string, DataType>()
-        declaredVariables = new HashSet<string>()
     }
     for param in func.parameters do
         t.parameterNames.Add(param.name) |> ignore
@@ -44,12 +42,12 @@ let emit (func: Function): string =
         t.types.Add(var.name, var.type_)
     text {
         yield! emitSignature t (findRootVar t.func.body)
-        yield! emitScope t t.func.body false
+        yield! emitBody t
     } |> buildText { indentSize = 2 }
 
 let private emitSignature (t: T) (ret: Var option): TextWorkflow.T =
     text {
-        yield! emitType t ret
+        yield! emitReturnType t ret
         yield t.func.name
         yield "("
         for i in [0 .. t.func.parameters.Count - 1] do
@@ -60,7 +58,7 @@ let private emitSignature (t: T) (ret: Var option): TextWorkflow.T =
         yield NewLine
     }
 
-let private emitType (t: T) (var: Var option): TextWorkflow.T =
+let private emitReturnType (t: T) (var: Var option): TextWorkflow.T =
     text {
         match var with
         | None ->
@@ -71,6 +69,30 @@ let private emitType (t: T) (var: Var option): TextWorkflow.T =
                 FIXME "emitting functions not supported yet"
             yield "int "
             yield new System.String('*', type_.indirectionLevel)
+    }
+
+let private emitBody (t: T): TextWorkflow.T =
+    text {
+        yield "{"
+        yield NewLine
+        yield IncreaseIndent
+
+        yield! emitDeclarations t.func.locals t.func.variables
+        for node in t.func.body do
+            yield! emitStatement t node
+
+        yield DecreaseIndent
+        yield "}"
+        yield NewLine
+    }
+
+let private emitDeclarations (locals: IReadOnlyList<Variable>) (variables: IReadOnlyList<Variable>): TextWorkflow.T =
+    text {
+        for var in Seq.append locals variables do
+            yield! emitDeclaration var.name var.type_
+            yield ";"
+            yield NewLine
+        yield NewLine
     }
 
 let private emitDeclaration (name: string) (type_: DataType): TextWorkflow.T =
@@ -105,10 +127,7 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
 let private emitAssignment (t :T) (var: Var) (expr: Expression) (emitSeparator: bool): TextWorkflow.T =
     text {
         let (Var name) = var
-        if not (t.parameterNames.Contains(name)) && t.declaredVariables.Add(name) then
-            yield! emitDeclaration name t.types.[name]
-        else
-            yield name
+        yield name
         yield " = "
         yield! emitExpression t expr
         if emitSeparator then

@@ -49,10 +49,13 @@ let testEmissionWithFunctionPointers (): unit =
     let expected =
         """void foo(void (**arg0)(), void (**arg1)())
         {
-          void (**var0)() = arg0;
+          void (**var0)();
+          void (*var1)();
+        
+          var0 = arg0;
           while (var0 < arg1)
           {
-            void (*var1)() = *(var0);
+            var1 = *(var0);
             if (var1 != 0)
             {
               var1();
@@ -118,15 +121,20 @@ let testEmissionFindMax (): unit =
     let expected =
         """int findMax(int *arg0, int arg1)
         {
-          int var0 = arg1;
-          int var1 = -2147483648;
+          int var0;
+          int var1;
+          int *var2;
+          int var3;
+        
+          var0 = arg1;
+          var1 = -2147483648;
           if (var0 != 0)
           {
-            int *var2 = arg0;
+            var2 = arg0;
             var1 = -2147483648;
             do
             {
-              int var3 = *(var2);
+              var3 = *(var2);
               if (var1 < var3)
               {
                 var1 = var3;

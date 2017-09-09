@@ -12,7 +12,9 @@ let add (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 + arg1;
           return var0;
         }
@@ -28,7 +30,9 @@ let subtract (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 - arg1;
           return var0;
         }
@@ -44,7 +48,9 @@ let negate (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = -var0;
           return var0;
         }
@@ -60,7 +66,9 @@ let multiply (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 * arg1;
           return var0;
         }
@@ -76,7 +84,9 @@ let divide (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 / arg1;
           return var0;
         }
@@ -92,7 +102,9 @@ let modulo (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 % arg1;
           return var0;
         }
@@ -108,7 +120,9 @@ let not (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = ~var0;
           return var0;
         }
@@ -124,7 +138,9 @@ let ``and`` (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 & arg1;
           return var0;
         }
@@ -140,7 +156,9 @@ let ``or`` (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 | arg1;
           return var0;
         }
@@ -156,7 +174,9 @@ let xor (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 ^ arg1;
           return var0;
         }
@@ -172,7 +192,9 @@ let leftShift (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 << arg1;
           return var0;
         }
@@ -188,7 +210,9 @@ let rightShift (): unit =
     let expected = """
         int sub_000000(int arg0, int arg1)
         {
-          int var0 = arg0;
+          int var0;
+        
+          var0 = arg0;
           var0 = var0 >> arg1;
           return var0;
         }

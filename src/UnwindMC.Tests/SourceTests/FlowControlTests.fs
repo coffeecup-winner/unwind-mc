@@ -16,12 +16,15 @@ let ifThen (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc0 = 0;
+          int loc0;
+          int var0;
+        
+          loc0 = 0;
           if (arg0 != 0)
           {
             loc0 = 1;
           }
-          int var0 = loc0;
+          var0 = loc0;
           return var0;
         }
         """
@@ -42,7 +45,10 @@ let ifThenElse (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc0 = 0;
+          int loc0;
+          int var0;
+        
+          loc0 = 0;
           if (arg0 != 0)
           {
             loc0 = 1;
@@ -51,7 +57,7 @@ let ifThenElse (): unit =
           {
             loc0 = 2;
           }
-          int var0 = loc0;
+          var0 = loc0;
           return var0;
         }
         """
@@ -71,7 +77,10 @@ let ifElse(): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc0 = 0;
+          int loc0;
+          int var0;
+        
+          loc0 = 0;
           if (arg0 != 0)
           {
           }
@@ -79,7 +88,7 @@ let ifElse(): unit =
           {
             loc0 = 2;
           }
-          int var0 = loc0;
+          var0 = loc0;
           return var0;
         }
         """
@@ -99,17 +108,21 @@ let whileDo (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc0 = 1;
+          int loc0;
+          int var0;
+          int var1;
+        
+          loc0 = 1;
           while (arg0 != 0)
           {
-            int var0 = loc0;
+            var0 = loc0;
             var0 = var0 << 1;
             loc0 = var0;
             var0 = arg0;
             var0 = var0 - 1;
             arg0 = var0;
           }
-          int var1 = loc0;
+          var1 = loc0;
           return var1;
         }
         """
@@ -129,17 +142,21 @@ let doWhile (): unit =
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc0 = 1;
+          int loc0;
+          int var0;
+          int var1;
+        
+          loc0 = 1;
           do
           {
-            int var0 = loc0;
+            var0 = loc0;
             var0 = var0 << 1;
             loc0 = var0;
             var0 = arg0;
             var0 = var0 - 1;
             arg0 = var0;
           } while (arg0 != 0);
-          int var1 = loc0;
+          var1 = loc0;
           return var1;
         }
         """
@@ -155,19 +172,23 @@ let forLoop (): unit =
           }
           return x;
         }"""
-    // TODO: this code is incorrect, move variable declaration out of the modifier
     let expected = """
         int sub_000000(int arg0)
         {
-          int loc1 = 0;
-          int loc0 = 1;
-          for (; loc0 <= arg0; int var0 = loc0, var0 = var0 + 1, loc0 = var0)
+          int loc0;
+          int loc1;
+          int var0;
+          int var1;
+        
+          loc1 = 0;
+          loc0 = 1;
+          for (; loc0 <= arg0; var0 = loc0, var0 = var0 + 1, loc0 = var0)
           {
             var0 = loc1;
             var0 = var0 + loc0;
             loc1 = var0;
           }
-          int var1 = loc1;
+          var1 = loc1;
           return var1;
         }
         """
