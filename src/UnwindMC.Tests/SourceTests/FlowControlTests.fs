@@ -144,3 +144,31 @@ let doWhile (): unit =
         }
         """
     SourceTester.testDecompiler code expected
+
+[<Test>]
+let forLoop (): unit =
+    let code = """
+        int forLoop(int a) {
+          int x = 0;
+          for (int i = 1; i <= a; i++) {
+            x += i;
+          }
+          return x;
+        }"""
+    // TODO: this code is incorrect, move variable declaration out of the modifier
+    let expected = """
+        int sub_000000(int arg0)
+        {
+          int loc1 = 0;
+          int loc0 = 1;
+          for (; loc0 <= arg0; int var0 = loc0, var0 = var0 + 1, loc0 = var0)
+          {
+            var0 = loc1;
+            var0 = var0 + loc0;
+            loc1 = var0;
+          }
+          int var1 = loc1;
+          return var1;
+        }
+        """
+    SourceTester.testDecompiler code expected

@@ -12,6 +12,7 @@ let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
         function
         | Assignment _ -> None
         | DoWhile (loop, _) -> loop |> Seq.tryPick findRoot
+        | For (_, modifier, body) -> modifier |> Seq.append body |> Seq.tryPick findRoot
         | FunctionCall _ -> None
         | IfThenElse (_, trueBranch, falseBranch) ->
             let root = trueBranch |> Seq.tryPick findRoot
@@ -92,15 +93,16 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
     text {
         yield!
             match statement with
-            | Assignment (var, expr) -> emitAssignment t var expr
+            | Assignment (var, expr) -> emitAssignment t var expr true
             | DoWhile (loop, cond) -> emitDoWhile t loop cond
+            | For (cond, modifier, body) -> emitFor t cond modifier body
             | FunctionCall expr -> emitFunctionCall t expr
             | IfThenElse (cond, trueBranch, falseBranch) -> emitIfThenElse t cond trueBranch falseBranch
             | Return var -> emitReturn var
             | While (cond, loop) -> emitWhile t cond loop
     }
 
-let private emitAssignment (t :T) (var: Var) (expr: Expression): TextWorkflow.T =
+let private emitAssignment (t :T) (var: Var) (expr: Expression) (emitSeparator: bool): TextWorkflow.T =
     text {
         let (Var name) = var
         if not (t.parameterNames.Contains(name)) && t.declaredVariables.Add(name) then
@@ -109,8 +111,9 @@ let private emitAssignment (t :T) (var: Var) (expr: Expression): TextWorkflow.T 
             yield name
         yield " = "
         yield! emitExpression t expr
-        yield ";"
-        yield NewLine
+        if emitSeparator then
+            yield ";"
+            yield NewLine
     }
 
 let private emitDoWhile (t: T) (loop: IReadOnlyList<Statement>) (cond: Expression): TextWorkflow.T =
@@ -127,6 +130,29 @@ let private emitDoWhile (t: T) (loop: IReadOnlyList<Statement>) (cond: Expressio
         yield ")"
         yield ";"
         yield NewLine
+    }
+
+let private emitFor (t: T) (cond: Expression) (modifier: IReadOnlyList<Statement>) (body: IReadOnlyList<Statement>): TextWorkflow.T =
+    text {
+        yield "for"
+        yield " "
+        yield "("
+        yield ";"
+        yield " "
+        yield! emitExpression t cond
+        yield ";"
+        yield " "
+        for (index, stmt) in modifier |> Seq.indexed do
+            match stmt with
+            | Assignment (var, expr) -> yield! emitAssignment t var expr false
+            | _ -> impossible
+            if index < modifier.Count - 1 then
+                yield ","
+                yield " "
+        yield ")"
+        yield NewLine
+
+        yield! emitScope t body false
     }
 
 let private emitFunctionCall (t: T) (expr: Expression): TextWorkflow.T =

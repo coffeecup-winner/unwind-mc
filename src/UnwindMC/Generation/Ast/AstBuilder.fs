@@ -80,6 +80,8 @@ let private buildScope (t: T) (blocks: IReadOnlyList<Block>): IReadOnlyList<Stat
             statements.Add(buildWhile t c cs)
         | DoWhileBlock { condition = c; children = cs } ->
             statements.Add(buildDoWhile t c cs)
+        | ForBlock { condition = c; modifier = m; body = b } ->
+            statements.Add(buildFor t c m b)
         | ConditionalBlock { condition = c; trueBranch = tb; falseBranch = fb } ->
             statements.Add(buildIfThenElse t c tb fb)
     statements :> IReadOnlyList<Statement>
@@ -90,6 +92,9 @@ let private buildWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (childre
 let private buildDoWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (children: IReadOnlyList<Block>): Statement =
     DoWhile (buildScope t children, buildCondition t condition)
 
+let private buildFor (t: T) (condition: IReadOnlyList<ILInstruction>) (modifier: IReadOnlyList<ILInstruction>) (body: IReadOnlyList<Block>): Statement =
+    For (buildCondition t condition, buildScope t [| (SequentialBlock { instructions = modifier }) |], buildScope t body)
+
 let private buildIfThenElse (t: T) (condition: IReadOnlyList<ILInstruction>) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
     IfThenElse (buildCondition t condition, buildScope t trueBranch, buildScope t falseBranch)
 
@@ -97,6 +102,9 @@ let private buildCondition (t: T) (condition: IReadOnlyList<ILInstruction>): Exp
     match (condition |> Seq.toList) with
     | (Compare compare) :: (Branch branch) :: [] ->
         buildBinaryOperator t (getBinaryOperator t branch.type_) compare
+    | (Assign assign) :: (Compare compare) :: (Branch branch) :: [] when assign.left = compare.left ->
+        // TODO: this is a special case where we can inline the assigned variable, remove this
+        buildBinaryOperator t (getBinaryOperator t branch.type_) { compare with left = assign.right }
     | _ -> failwith "Instruction is not a valid statement"
 
 let private buildStatement (t: T) (instr: ILInstruction): Statement =
@@ -144,7 +152,7 @@ let private getBinaryOperator (t: T) (condition: BranchType): Operator =
     | Equal -> Operator.Equal
     | NotEqual -> Operator.NotEqual
     | Less -> Operator.Less
-    | LessOrEqual -> Operator.GreaterOrEqual
+    | LessOrEqual -> Operator.LessOrEqual
     | GreaterOrEqual -> Operator.GreaterOrEqual
     | Greater -> Operator.Greater
     | Unconditional -> impossible

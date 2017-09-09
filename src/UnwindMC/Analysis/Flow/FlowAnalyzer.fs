@@ -14,6 +14,12 @@ type DoWhileBlock = {
     children: IReadOnlyList<Block>
 }
 
+type ForBlock = {
+    condition: IReadOnlyList<ILInstruction>
+    modifier: IReadOnlyList<ILInstruction>
+    body: IReadOnlyList<Block>
+}
+
 type SequentialBlock = {
     instructions: IReadOnlyList<ILInstruction>
 }
@@ -26,6 +32,7 @@ type WhileBlock = {
 type Block =
     | ConditionalBlock of ConditionalBlock
     | DoWhileBlock of DoWhileBlock
+    | ForBlock of ForBlock
     | SequentialBlock of SequentialBlock
     | WhileBlock of WhileBlock
 
@@ -47,6 +54,25 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
     let sequence = new List<ILInstruction>()
     let rec run: (int * ILInstruction * int option) list -> unit =
         function
+        (** for loop **
+            ...
+            jmp COND
+            START:
+            <modifier>
+            COND:
+            <neg-cond>
+            br END
+            <body>
+            jmp START
+            END:
+            ...
+        *)
+        | (start, Branch { type_ = Unconditional; target = condition }, _) :: ((_, _, Some end_) :: _ as rest) ->
+            if (sequence.Count > 0) then
+                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
+                sequence.Clear()
+            result.Add(forLoop ((int)condition - start) (end_ + 1) (rest |> List.take (end_ - start - 1)))
+            run (rest |> List.skip (end_ - start))
         (** while loop **
             ...
             START:
@@ -81,18 +107,18 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             run (all |> List.skip (end_ - start + 1))
             ()
         (** conditional **
-          * if-then-else *  |  * if then *   | * if else *
-            ...             |    ...         |   ...
-            <neg-cond>      |    <neg-cond>  |   <neg-cond>
-            br FALSE        |    br END      |   br FALSE
-            <true>          |    <true>      |   jmp END
-            jmp END         |    END:        |   FALSE:
-            FALSE:          |    ...         |   <false>
-            <false>                          |   END:
-            END:                             |   ...
+          * if-then-else *  |  * if then *   |  * if else *
+            ...             |    ...         |    ...
+            <neg-cond>      |    <neg-cond>  |    <neg-cond>
+            br FALSE        |    br END      |    br FALSE
+            <true>          |    <true>      |    jmp END
+            jmp END         |    END:        |    FALSE:
+            FALSE:          |    ...         |    <false>
+            <false>                          |    END:
+            END:                             |    ...
             ...
         *)
-        | ((start, _, _) :: (_, Branch { target = falseBranch }, _) :: _) as all ->
+        | ((start, _, _) :: (_, Branch { type_ = type_; target = falseBranch }, _) :: _) as all when type_ <> Unconditional ->
             if (sequence.Count > 0) then
                 result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
                 sequence.Clear()
@@ -137,6 +163,19 @@ let conditional (falseBranch: int) (instructions: (int * ILInstruction * int opt
             falseBranch = scope falseBranch
         }
 
+let forLoop (condition: int) (afterLoop: int) (instructions: (int * ILInstruction * int option) list): Block =
+    let (modifier, instructions) = instructions |> List.splitAt (condition - 1)
+    let bodyStart =
+        instructions
+        |> List.findIndex (function (_, Branch { target = t }, _) when (int)t = afterLoop -> true | _ -> false) 
+        |> (+) 1
+    let (condition, body) = instructions |> List.splitAt bodyStart
+    ForBlock {
+        condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
+        modifier = modifier |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray
+        body = scope body
+    }
+
 let doWhileLoop (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
     let (instructions, conditionInstructions) = instructions |> List.splitAt condition
     let body =
@@ -160,9 +199,12 @@ let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
     }
 
 let invertCondition (condition: ILInstruction[]): ILInstruction[] =
-    match condition with
-    | [| compare; Branch branch |] -> [| compare; Branch { branch with type_ = invert branch.type_ } |]
-    | _ -> notSupported
+    let branch =
+        match condition.[condition.Length - 1] with
+        | Branch branch -> Branch { branch with type_ = invert branch.type_ }
+        | _ -> notSupported
+    condition.[condition.Length - 1] <- branch
+    condition
 
 let invert (type_: BranchType): BranchType =
     match type_ with

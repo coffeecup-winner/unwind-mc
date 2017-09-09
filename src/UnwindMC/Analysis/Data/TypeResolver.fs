@@ -210,7 +210,7 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
             { isFunction = false; indirectionLevel = 0 }
         else
             match source with
-            | Stack offset -> t.parameterTypes.[offset]
+            | Stack offset -> if offset >= 0 then t.parameterTypes.[offset] else t.localTypes.[offset]
             | _ -> getType t source
     match target with
     | Stack offset ->
@@ -264,6 +264,13 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
                     for child in children do
                         stack.Push(Block child)
                     stack.Push(Instructions condition)
+                    stack.Push(Marker End)
+                | ForBlock { condition = condition; modifier = modifier; body = body } ->
+                    stack.Push(Marker Start)
+                    for child in body do
+                        stack.Push(Block child)
+                    stack.Push(Instructions condition)
+                    stack.Push(Instructions modifier)
                     stack.Push(Marker End)
                 | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
                     stack.Push(Instructions condition)
