@@ -11,7 +11,7 @@ type ConditionalBlock = {
 
 type DoWhileBlock = {
     condition: IReadOnlyList<ILInstruction>
-    children: IReadOnlyList<Block>
+    body: IReadOnlyList<Block>
 }
 
 type ForBlock = {
@@ -26,7 +26,7 @@ type SequentialBlock = {
 
 type WhileBlock = {
     condition: IReadOnlyList<ILInstruction>
-    children: IReadOnlyList<Block>
+    body: IReadOnlyList<Block>
 }
 
 type Block =
@@ -50,9 +50,7 @@ let buildFlowGraph (il: IReadOnlyList<ILInstruction>): List<Block> =
     |> scope
 
 let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
-    let result = new List<Block>()
-    let sequence = new List<ILInstruction>()
-    let rec run: (int * ILInstruction * int option) list -> unit =
+    let rec run: (int * ILInstruction * int option) list -> Either<ILInstruction, Block> list =
         function
         (** for loop **
             ...
@@ -68,11 +66,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             ...
         *)
         | (start, Branch { type_ = Unconditional; target = condition }, _) :: ((_, _, Some end_) :: _ as rest) ->
-            if (sequence.Count > 0) then
-                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
-                sequence.Clear()
-            result.Add(forLoop ((int)condition - start) (end_ + 1) (rest |> List.take (end_ - start - 1)))
-            run (rest |> List.skip (end_ - start))
+            let block = Right <| forLoop ((int)condition - start) (end_ + 1) (rest |> List.take (end_ - start - 1))
+            block :: run (rest |> List.skip (end_ - start))
         (** while loop **
             ...
             START:
@@ -86,11 +81,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
         | ((start, Compare _, Some end_) :: (_, Branch { target = afterLoop }, _) :: _) as all ->
             assert (end_ + 1 = (int)afterLoop)
             assert (all |> List.skip (end_ - start) |> List.head |> function (_, Branch { type_ = Unconditional }, _) -> true | _ -> false)
-            if (sequence.Count > 0) then
-                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
-                sequence.Clear()
-            result.Add(whileLoop (all |> List.take (end_ - start)))
-            run (all |> List.skip (end_ - start + 1))
+            let block = Right <| whileLoop (all |> List.take (end_ - start))
+            block :: run (all |> List.skip (end_ - start + 1))
         (** do while loop **
             ...
             START:
@@ -100,12 +92,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             ...
         *)
         | ((start, _, Some end_) :: _) as all when end_ > start ->
-            if (sequence.Count > 0) then
-                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
-                sequence.Clear()
-            result.Add(doWhileLoop (end_ - start - 1) (all |> List.take (end_ - start + 1)))
-            run (all |> List.skip (end_ - start + 1))
-            ()
+            let block = Right <| doWhileLoop (end_ - start - 1) (all |> List.take (end_ - start + 1))
+            block :: run (all |> List.skip (end_ - start + 1))
         (** conditional **
           * if-then-else *  |  * if then *   |  * if else *
             ...             |    ...         |    ...
@@ -119,29 +107,39 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             ...
         *)
         | ((start, _, _) :: (_, Branch { type_ = type_; target = falseBranch }, _) :: _) as all when type_ <> Unconditional ->
-            if (sequence.Count > 0) then
-                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
-                sequence.Clear()
             let end_ =
                 match all |> List.skip ((int)falseBranch - start - 1) with
                 | (_, Branch { type_ = Unconditional; target = end_ }, _) :: _ -> (int)end_
                 | _ -> (int)falseBranch // no else case
             let (ifThenElse, rest) = all |> List.splitAt (end_ - start)
-            result.Add(conditional ((int)falseBranch - start) ifThenElse)
-            run rest
+            let block = Right <| conditional ((int)falseBranch - start) ifThenElse
+            block :: run rest
         (** sequential flow **
             ...
         *)
         | (_, instr, _) :: rest ->
-            sequence.Add(instr)
-            run rest
+            Left instr :: run rest
         (** end of scope **
         *)
-        | [] ->
-            if (sequence.Count > 0) then
-                result.Add(SequentialBlock { instructions = sequence |> Seq.toArray })
-                sequence.Clear()
-    run instructions
+        | [] -> []
+    let mutable sequence = run instructions
+    let result = new List<Block>()
+    while not (sequence.IsEmpty) do
+        let instructions =
+            sequence
+            |> List.takeWhile (function Left _ -> true | _ -> false)
+            |> List.map (function Left v -> v | _ -> impossible)
+            |> List.toArray
+        if instructions.Length > 0 then
+            result.Add(SequentialBlock { instructions = instructions })
+        sequence <- sequence |> List.skip instructions.Length
+        let blocks =
+            sequence
+            |> List.takeWhile (function Right _ -> true | _ -> false)
+            |> List.map (function Right v -> v | _ -> impossible)
+            |> List.toArray
+        result.AddRange(blocks)
+        sequence <- sequence |> List.skip blocks.Length
     result
 
 let conditional (falseBranch: int) (instructions: (int * ILInstruction * int option) list): Block =
@@ -184,7 +182,7 @@ let doWhileLoop (condition: int) (instructions: (int * ILInstruction * int optio
         | _ -> impossible
     DoWhileBlock {
         condition = conditionInstructions |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray
-        children = scope body
+        body = scope body
     }
 
 let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
@@ -195,7 +193,7 @@ let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
         | _ -> impossible
     WhileBlock {
         condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
-        children = scope body
+        body = scope body
     }
 
 let invertCondition (condition: ILInstruction[]): ILInstruction[] =

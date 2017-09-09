@@ -12,10 +12,10 @@ let rec assertFlowEqual (expected: IReadOnlyList<Block>) (blocks: IReadOnlyList<
             Assert.That(act.instructions, Is.EqualTo(exp.instructions))
         | WhileBlock exp, WhileBlock act ->
             Assert.That(act.condition, Is.EqualTo(exp.condition))
-            assertFlowEqual (exp.children) (act.children)
+            assertFlowEqual (exp.body) (act.body)
         | DoWhileBlock exp, DoWhileBlock act ->
             Assert.That(act.condition, Is.EqualTo(exp.condition))
-            assertFlowEqual exp.children act.children
+            assertFlowEqual exp.body act.body
         | ConditionalBlock exp, ConditionalBlock act ->
             Assert.That(act.condition, Is.EqualTo(exp.condition))
             assertFlowEqual exp.trueBranch act.trueBranch

@@ -76,9 +76,9 @@ let private buildScope (t: T) (blocks: IReadOnlyList<Block>): IReadOnlyList<Stat
         | SequentialBlock { instructions = is } ->
             for instr in is |> Seq.filter (function Nop -> false | _ -> true) do
                 statements.Add(buildStatement t instr);
-        | WhileBlock { condition = c; children = cs } ->
+        | WhileBlock { condition = c; body = cs } ->
             statements.Add(buildWhile t c cs)
-        | DoWhileBlock { condition = c; children = cs } ->
+        | DoWhileBlock { condition = c; body = cs } ->
             statements.Add(buildDoWhile t c cs)
         | ForBlock { condition = c; modifier = m; body = b } ->
             statements.Add(buildFor t c m b)

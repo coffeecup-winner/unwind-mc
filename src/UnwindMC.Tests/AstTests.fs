@@ -29,7 +29,7 @@ let testAstWithFunctionPointers (): unit =
             SequentialBlock { instructions = [| nop0; asn0 |] }
             WhileBlock {
                 condition = invertCondition [| cmp0; br0 |]
-                children =
+                body =
                     [|
                         SequentialBlock { instructions = [| asn1 |] }
                         ConditionalBlock {
@@ -107,7 +107,7 @@ let testAstFindMax (): unit =
                         SequentialBlock { instructions = [| asn2; asn3 |] }
                         DoWhileBlock {
                             condition = [| cmp2; br2 |]
-                            children =
+                            body =
                                 [|
                                     SequentialBlock { instructions = [| asn4 |] }
                                     ConditionalBlock {

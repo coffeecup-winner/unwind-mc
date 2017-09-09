@@ -253,13 +253,13 @@ let private traverseReversed (blocks: IReadOnlyList<Block>): IEnumerable<Either<
                 | SequentialBlock { instructions = instructions } ->
                     for i in [0 .. instructions.Count - 1] |> Seq.rev do
                         yield Right(instructions.[i])
-                | WhileBlock { condition = condition; children = children } ->
+                | WhileBlock { condition = condition; body = children } ->
                     stack.Push(Marker Start)
                     stack.Push(Instructions condition)
                     for child in children do
                         stack.Push(Block child)
                     stack.Push(Marker End)
-                | DoWhileBlock { condition = condition; children = children } ->
+                | DoWhileBlock { condition = condition; body = children } ->
                     stack.Push(Marker Start)
                     for child in children do
                         stack.Push(Block child)
