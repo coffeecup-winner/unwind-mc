@@ -22,6 +22,11 @@ module Seq =
     let toMutableList (collection: 'a seq): List<'a> =
         new List<'a>(collection)
 
+let getValue (dict: IReadOnlyDictionary<'a, 'b>) (key: 'a): 'b option =
+    match dict.TryGetValue(key) with
+    | true, value -> Some value
+    | false, _ -> None
+
 let impossible<'a> : 'a =
     failwith "Should not ever happen"
 

@@ -30,12 +30,12 @@ type private TypeBuilder =
     | Function
     | Pointer of (TypeBuilder ref)
 
-let private build (typeBuilder: TypeBuilder): DataType =
-    match typeBuilder with
+let private build (typeBuilder: TypeBuilder ref): DataType =
+    match !typeBuilder with
     | Fresh
     | Int32 -> DataType.Int32
     | Function -> DataType.Function
-    | Pointer t -> DataType.Pointer <| build !t
+    | Pointer t -> DataType.Pointer <| build t
 
 let resolveTypes (blocks: IReadOnlyList<Block>): Result =
     let t = {
@@ -123,10 +123,10 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                 ()
     let parameterTypes = new List<DataType>()
     for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
-        parameterTypes.Add(!pair.Value |> build)
+        parameterTypes.Add(pair.Value |> build)
     let localTypes = new List<DataType>()
     for pair in t.localTypes.OrderByDescending(fun x -> x.Key) do
-        localTypes.Add(!pair.Value |> build)
+        localTypes.Add(pair.Value |> build)
     while t.types.Count > 0 do
         let pair = t.types.First()
         let operand = pair.Key
@@ -202,8 +202,8 @@ let private setType (t: T) (operand: ILOperand) (type_: TypeBuilder ref): unit =
 let private finalizeType (t: T) (operand: ILOperand): unit =
     let id = getCurrentId t operand
     while t.variableTypes.Count <= id do
-        t.variableTypes.Add(DataType.Int32) // TODO: check if needed
-    t.variableTypes.[id] <- !t.types.[operand] |> build
+        t.variableTypes.Add(DataType.Int32)
+    t.variableTypes.[id] <- t.types.[operand] |> build
     t.types.Remove(operand) |> ignore
 
 let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): unit =
@@ -213,10 +213,10 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
         | Value _ -> ref Fresh
         | Stack offset ->
             let types = if offset >= 0 then t.parameterTypes else t.localTypes
-            match types.TryGetValue(offset) with
-            | true, type_ ->
+            match getValue types offset with
+            | Some type_ ->
                 type_
-            | false, _ ->
+            | None ->
                 let type_ = ref Fresh
                 types.Add(offset, type_)
                 type_
@@ -228,10 +228,10 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
         else
             t.localTypes.[offset] <- typeBuilder
     | _ ->
-        match t.types.TryGetValue(target) with
-        | true, _ ->
+        match getValue t.types target with
+        | Some _ ->
             finalizeType t target
-        | false, _ -> ()
+        | None -> ()
         t.types.[target] <- typeBuilder
         t.currentIds.[target] <- t.nextId
         t.nextId <- t.nextId + 1
@@ -240,15 +240,12 @@ let private getCurrentId (t: T) (op: ILOperand): int =
     match op with
     | Register _
     | ILOperand.Pointer _ ->
-        match t.currentIds.TryGetValue(op) with
-        | true, v -> v
-        | false, _ ->
+        match getValue t.currentIds op with
+        | Some v -> v
+        | None ->
             let ids =
                 t.pushedIds
-                |> Seq.choose (fun ids ->
-                    match ids.TryGetValue(op) with
-                    | true, v -> Some v
-                    | false, _ -> None)
+                |> Seq.choose (fun ids -> getValue ids op)
                 |> Seq.distinct
                 |> Seq.sort
                 |> Seq.toArray

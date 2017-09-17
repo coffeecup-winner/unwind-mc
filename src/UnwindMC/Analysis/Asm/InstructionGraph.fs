@@ -63,10 +63,10 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
 
         member self.GetAdjacent(vertexId: uint64): IEnumerable<Either<uint64 * Link, string>> =
             seq {
-                match (if isReversed then reverseLinks else instructionLinks).TryGetValue(vertexId) with
-                | false, _ ->
+                match getValue (if isReversed then reverseLinks else instructionLinks) vertexId with
+                | None ->
                     yield Right("DFS: Couldn't find links for " + instructions.[vertexId].ToString())
-                | true, links ->
+                | Some links ->
                     for link in (links |> Seq.where edgePredicate) do
                         let linkAddress = if isReversed then link.address else link.targetAddress
                         if self.InBounds(linkAddress) then
@@ -117,9 +117,9 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         new ArraySegment<byte>(bytes.Array, self.ToByteArrayIndex(address), size)
 
     member self.GetExtraData(address: uint64): ExtraData =
-        match extraData.TryGetValue(address) with
-        | true, data -> data
-        | false, _ ->
+        match getValue extraData address with
+        | Some data -> data
+        | None ->
             let data = { functionAddress = 0uL; importName = null; isProtected = false }
             extraData.Add(address, data)
             data
@@ -128,18 +128,18 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         let link = { address = offset; targetAddress = targetOffset; type_ = type_ }
 
         let links =
-            match instructionLinks.TryGetValue(offset) with
-            | true, links -> links
-            | false, _ ->
+            match getValue instructionLinks offset with
+            | Some links -> links
+            | None ->
                 let links = new List<Link>()
                 instructionLinks.[offset] <- links
                 links
         links.Add(link)
 
         let reverseLinks =
-            match reverseLinks.TryGetValue(targetOffset) with
-            | true, links -> links
-            | false, _ ->
+            match getValue reverseLinks targetOffset with
+            | Some links -> links
+            | None ->
                 let links = new List<Link>()
                 reverseLinks.[targetOffset] <- links
                 links
@@ -166,10 +166,10 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
     member self.MarkDataBytes(address: uint64, length: int, dataDisplayText: string): unit =
         // check if there is an instruction at address, otherwise split an existing one
         let mutable size =
-            match instructions.TryGetValue(address) with
-            | true, instr ->
+            match getValue instructions address with
+            | Some instr ->
                 (int)instr.Length
-            | false, _ ->
+            | None ->
                 let instr = self.SplitInstructionAt(address)
                 (int)instr.Length - (int)(address - instr.Offset)
         // write a pseudo instruction
@@ -217,8 +217,8 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         let maxDisassembleLength = 0x100
         let mutable disassembleLength = Math.Min(maxDisassembleLength, (int)(firstAddressAfterCode - address))
         for j in [0 .. disassembleLength] do
-            match extraData.TryGetValue(address + (uint64)j) with
-            | true, data when data.isProtected ->
+            match getValue extraData (address + (uint64)j) with
+            | Some data when data.isProtected ->
                 disassembleLength <- j
             | _ -> ()
         let newInstructions = disassembler.Disassemble(bytes.Array, self.ToByteArrayIndex(address), disassembleLength, true, true)
@@ -226,8 +226,8 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         let rec run (list: Instruction list): unit =
             match list with
             | newInstr :: rest ->
-                match instructions.TryGetValue(newInstr.Offset) with
-                | true, oldInstr when oldInstr.Length = newInstr.Length ->
+                match getValue instructions newInstr.Offset with
+                | Some oldInstr when oldInstr.Length = newInstr.Length ->
                     if not fixedInstructions then
                         run rest
                 | _ ->
