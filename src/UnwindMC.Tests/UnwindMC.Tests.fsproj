@@ -74,12 +74,9 @@
     <Compile Include="SourceTests\TODO.fs" />
     <Compile Include="SourceTests\IntArithmeticTests.fs" />
     <Compile Include="SourceTests\FlowControlTests.fs" />
+    <Compile Include="StageTests\FindMaxTest.fs" />
+    <Compile Include="StageTests\FunctionArrayTest.fs" />
     <Compile Include="DisassemblyTests.fs" />
-    <Compile Include="ILDecompilationTests.fs" />
-    <Compile Include="FlowTests.fs" />
-    <Compile Include="TypeResolutionTests.fs" />
-    <Compile Include="AstTests.fs" />
-    <Compile Include="CppEmitterTests.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

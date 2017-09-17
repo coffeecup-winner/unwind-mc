@@ -1,4 +1,5 @@
-﻿module MiscExtensions
+﻿[<AutoOpen>]
+module MiscExtensions
 
 open System
 open System.Linq
