@@ -45,10 +45,10 @@ let buildAst (name: string) (blocks: IReadOnlyList<Block>) (parameterTypes: IRea
         let name = "arg" + string(index)
         t.parameterNames.[offset] <- name
         t.types.[name] <- parameterTypes.[index]
-        offset <- offset + parameterTypes.[index].size
+        offset <- offset + sizeOf parameterTypes.[index]
     offset <- -Constants.RegisterSize * 2 // TODO: this will not always be correct
     for index in [0 .. localTypes.Count - 1] do
-        offset <- offset - localTypes.[index].size
+        offset <- offset - sizeOf localTypes.[index]
         let name = "loc" + string(index)
         t.localNames.[offset] <- name
         t.types.[name] <- localTypes.[index]
@@ -141,7 +141,7 @@ let private buildStatement (t: T) (instr: ILInstruction): Statement =
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     match op with
-    | Pointer _ -> Dereference (VarRef (Var (getVarName t id)))
+    | ILOperand.Pointer _ -> Dereference (VarRef (Var (getVarName t id)))
     | Register _ -> VarRef (Var (getVarName t id))
     | Stack offset -> VarRef (Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset]))
     | Value value -> Expression.Value (value)

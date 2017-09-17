@@ -89,7 +89,7 @@ let testStages (): unit =
     let br0 = Branch <| branch Equal 15uL
     let asn2 = Assign <| binary (Register OperandType.EDX) (Stack 0)
     let asn3 = Assign <| binary (Register OperandType.EAX) (Value Int32.MinValue)
-    let asn4 = Assign <| binary (Register OperandType.ESI) (Pointer (OperandType.EDX, 0))
+    let asn4 = Assign <| binary (Register OperandType.ESI) (ILOperand.Pointer (OperandType.EDX, 0))
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Register OperandType.ESI)
     let br1 = Branch <| branch GreaterOrEqual 11uL
     let asn5 = Assign <| binary (Register OperandType.EAX) (Register OperandType.ESI)
@@ -139,22 +139,15 @@ let testStages (): unit =
     let parameterTypes = types.parameterTypes
     let variableTypes = types.variableTypes
     Assert.That(parameterTypes.Count, Is.EqualTo(2))
-    Assert.That(parameterTypes.[0].isFunction, Is.False)
-    Assert.That(parameterTypes.[0].indirectionLevel, Is.EqualTo(1))
-    Assert.That(parameterTypes.[1].isFunction, Is.False)
-    Assert.That(parameterTypes.[1].indirectionLevel, Is.EqualTo(0))
+    Assert.That(parameterTypes.[0], Is.EqualTo(Pointer Int32))
+    Assert.That(parameterTypes.[1], Is.EqualTo(Int32))
 
     Assert.That(variableTypes.Count, Is.EqualTo(5))
-    Assert.That(variableTypes.[0].isFunction, Is.False)
-    Assert.That(variableTypes.[0].indirectionLevel, Is.EqualTo(0))
-    Assert.That(variableTypes.[1].isFunction, Is.False)
-    Assert.That(variableTypes.[1].indirectionLevel, Is.EqualTo(0))
-    Assert.That(variableTypes.[2].isFunction, Is.False)
-    Assert.That(variableTypes.[2].indirectionLevel, Is.EqualTo(1))
-    Assert.That(variableTypes.[3].isFunction, Is.False)
-    Assert.That(variableTypes.[3].indirectionLevel, Is.EqualTo(0))
-    Assert.That(variableTypes.[4].isFunction, Is.False)
-    Assert.That(variableTypes.[4].indirectionLevel, Is.EqualTo(0))
+    Assert.That(variableTypes.[0], Is.EqualTo(Int32))
+    Assert.That(variableTypes.[1], Is.EqualTo(Int32))
+    Assert.That(variableTypes.[2], Is.EqualTo(Pointer Int32))
+    Assert.That(variableTypes.[3], Is.EqualTo(Int32))
+    Assert.That(variableTypes.[4], Is.EqualTo(Int32))
 
     match asn0 with
     | Assign { leftId = 0; rightId = -1 } -> ()

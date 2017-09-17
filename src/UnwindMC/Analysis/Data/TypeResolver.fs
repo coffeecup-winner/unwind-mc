@@ -33,11 +33,9 @@ type private TypeBuilder =
 let private build (typeBuilder: TypeBuilder): DataType =
     match typeBuilder with
     | Fresh
-    | Int32 -> { isFunction = false; indirectionLevel = 0; size = Constants.RegisterSize }
-    | Function -> { isFunction = true; indirectionLevel = 0; size = Constants.RegisterSize }
-    | Pointer t ->
-        let type_ = build !t
-        { type_ with indirectionLevel = type_.indirectionLevel + 1 }
+    | Int32 -> DataType.Int32
+    | Function -> DataType.Function
+    | Pointer t -> DataType.Pointer <| build !t
 
 let resolveTypes (blocks: IReadOnlyList<Block>): Result =
     let t = {
@@ -204,7 +202,7 @@ let private setType (t: T) (operand: ILOperand) (type_: TypeBuilder ref): unit =
 let private finalizeType (t: T) (operand: ILOperand): unit =
     let id = getCurrentId t operand
     while t.variableTypes.Count <= id do
-        t.variableTypes.Add({ isFunction = false; indirectionLevel = 0; size = 0 }) // TODO: check if needed
+        t.variableTypes.Add(DataType.Int32) // TODO: check if needed
     t.variableTypes.[id] <- !t.types.[operand] |> build
     t.types.Remove(operand) |> ignore
 

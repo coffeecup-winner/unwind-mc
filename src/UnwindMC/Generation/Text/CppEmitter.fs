@@ -65,10 +65,21 @@ let private emitReturnType (t: T) (var: Var option): TextWorkflow.T =
             yield "void "
         | Some (Var name) ->
             let type_ = t.types.[name]
-            if type_.isFunction then
+            match type_ with
+            | Function ->
                 FIXME "emitting functions not supported yet"
+            | _ -> ()
             yield "int "
-            yield new System.String('*', type_.indirectionLevel)
+            yield! emitPointerStars type_
+    }
+
+let emitPointerStars (type_: DataType): TextWorkflow.T =
+    text {
+        match type_ with
+        | Pointer t ->
+            yield "*"
+            yield! emitPointerStars t
+        | _ -> ()
     }
 
 let private emitBody (t: T): TextWorkflow.T =
@@ -97,17 +108,18 @@ let private emitDeclarations (locals: IReadOnlyList<Variable>) (variables: IRead
 
 let private emitDeclaration (name: string) (type_: DataType): TextWorkflow.T =
     text {
-        if type_.isFunction then
+        if isFunction type_ then
             yield "void"
             yield " "
             yield "("
-            yield new System.String('*', type_.indirectionLevel + 1)
+            yield "*"
+            yield! emitPointerStars type_
             yield name
             yield ")"
             yield "()"
         else
             yield "int "
-            yield new System.String('*', type_.indirectionLevel)
+            yield! emitPointerStars type_
             yield name
     }
 

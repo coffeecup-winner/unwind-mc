@@ -7,12 +7,14 @@ open Type
 let transformer (types: IReadOnlyDictionary<string, DataType>): Transformer.T =
     let fixup (op: Operator) (Var name as var) (value: int): Expression =
         let type_ = types.[name]
-        if type_.indirectionLevel > 0 || type_.isFunction then
-            if value % type_.size <> 0 then
+        match type_ with
+        | Pointer _
+        | Function ->
+            if value % sizeOf type_ <> 0 then
                 failwith "Value size must be divisible by type size"
-            let newValue = Value (value / type_.size)
+            let newValue = Value (value / sizeOf type_)
             Binary (op, VarRef var, newValue)
-        else
+        | _ ->
             Binary (op, VarRef var, Value value)
 
     {

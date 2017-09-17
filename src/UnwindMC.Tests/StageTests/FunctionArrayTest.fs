@@ -71,7 +71,7 @@ let testStages (): unit =
     let asn0 = Assign <| binary (Register OperandType.ESI) (Stack 0)
     let cmp0 = Compare <| binary (Register OperandType.ESI) (Stack 4)
     let br0 = Branch <| branch GreaterOrEqual 10uL
-    let asn1 = Assign <| binary (Register OperandType.EAX) (Pointer (OperandType.ESI, 0))
+    let asn1 = Assign <| binary (Register OperandType.EAX) (ILOperand.Pointer (OperandType.ESI, 0))
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Value 0)
     let br1 = Branch <| branch Equal 8uL
     let call = Call <| unary (Register OperandType.EAX)
@@ -111,16 +111,12 @@ let testStages (): unit =
     let parameterTypes = types.parameterTypes
     let variableTypes = types.variableTypes
     Assert.That(parameterTypes.Count, Is.EqualTo(2))
-    Assert.That(parameterTypes.[0].isFunction, Is.True)
-    Assert.That(parameterTypes.[0].indirectionLevel, Is.EqualTo(1))
-    Assert.That(parameterTypes.[1].isFunction, Is.True)
-    Assert.That(parameterTypes.[1].indirectionLevel, Is.EqualTo(1))
+    Assert.That(parameterTypes.[0], Is.EqualTo(Pointer Function))
+    Assert.That(parameterTypes.[1], Is.EqualTo(Pointer Function))
 
     Assert.That(variableTypes.Count, Is.EqualTo(2))
-    Assert.That(variableTypes.[0].isFunction, Is.True)
-    Assert.That(variableTypes.[0].indirectionLevel, Is.EqualTo(1))
-    Assert.That(variableTypes.[1].isFunction, Is.True)
-    Assert.That(variableTypes.[1].indirectionLevel, Is.EqualTo(0))
+    Assert.That(variableTypes.[0], Is.EqualTo(Pointer Function))
+    Assert.That(variableTypes.[1], Is.EqualTo(Function))
 
     match asn0 with
     | Assign { leftId = 0; rightId = -1 } -> ()
