@@ -111,6 +111,7 @@ let whileDo (): unit =
           int loc0;
           int var0;
           int var1;
+          int var2;
         
           loc0 = 1;
           while (arg0 != 0)
@@ -118,12 +119,12 @@ let whileDo (): unit =
             var0 = loc0;
             var0 = var0 << 1;
             loc0 = var0;
-            var0 = arg0;
-            var0 = var0 - 1;
-            arg0 = var0;
+            var1 = arg0;
+            var1 = var1 - 1;
+            arg0 = var1;
           }
-          var1 = loc0;
-          return var1;
+          var2 = loc0;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected
@@ -145,6 +146,7 @@ let doWhile (): unit =
           int loc0;
           int var0;
           int var1;
+          int var2;
         
           loc0 = 1;
           do
@@ -152,12 +154,12 @@ let doWhile (): unit =
             var0 = loc0;
             var0 = var0 << 1;
             loc0 = var0;
-            var0 = arg0;
-            var0 = var0 - 1;
-            arg0 = var0;
+            var1 = arg0;
+            var1 = var1 - 1;
+            arg0 = var1;
           } while (arg0 != 0);
-          var1 = loc0;
-          return var1;
+          var2 = loc0;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected
@@ -179,17 +181,18 @@ let forLoop (): unit =
           int loc1;
           int var0;
           int var1;
+          int var2;
         
           loc1 = 0;
           loc0 = 1;
           for (; loc0 <= arg0; var0 = loc0, var0 = var0 + 1, loc0 = var0)
           {
-            var0 = loc1;
-            var0 = var0 + loc0;
-            loc1 = var0;
+            var1 = loc1;
+            var1 = var1 + loc0;
+            loc1 = var1;
           }
-          var1 = loc1;
-          return var1;
+          var2 = loc1;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected

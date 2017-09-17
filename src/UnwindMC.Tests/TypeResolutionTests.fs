@@ -134,7 +134,7 @@ let testResolutionFindMax (): unit =
     Assert.That(parameterTypes.[1].isFunction, Is.False)
     Assert.That(parameterTypes.[1].indirectionLevel, Is.EqualTo(0))
 
-    Assert.That(variableTypes.Count, Is.EqualTo(4))
+    Assert.That(variableTypes.Count, Is.EqualTo(5))
     Assert.That(variableTypes.[0].isFunction, Is.False)
     Assert.That(variableTypes.[0].indirectionLevel, Is.EqualTo(0))
     Assert.That(variableTypes.[1].isFunction, Is.False)
@@ -143,40 +143,42 @@ let testResolutionFindMax (): unit =
     Assert.That(variableTypes.[2].indirectionLevel, Is.EqualTo(1))
     Assert.That(variableTypes.[3].isFunction, Is.False)
     Assert.That(variableTypes.[3].indirectionLevel, Is.EqualTo(0))
+    Assert.That(variableTypes.[4].isFunction, Is.False)
+    Assert.That(variableTypes.[4].indirectionLevel, Is.EqualTo(0))
 
     match asn0 with
-    | Assign { leftId = 1; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn1 with
     | Assign { leftId = 0; rightId = -1 } -> ()
     | _ -> Assert.Fail()
+    match asn1 with
+    | Assign { leftId = 1; rightId = -1 } -> ()
+    | _ -> Assert.Fail()
     match cmp0 with
-    | Compare { leftId = 1; rightId = -1 } -> ()
+    | Compare { leftId = 0; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match asn2 with
     | Assign { leftId = 2; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match asn3 with
-    | Assign { leftId = 0; rightId = -1 } -> ()
+    | Assign { leftId = 1; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match asn4 with
-    | Assign { leftId = 3; rightId = 2 } -> ()
+    | Assign { leftId = 4; rightId = 2 } -> ()
     | _ -> Assert.Fail()
     match cmp1 with
-    | Compare { leftId = 0; rightId = 3 } -> ()
+    | Compare { leftId = 1; rightId = 4 } -> ()
     | _ -> Assert.Fail()
     match asn5 with
-    | Assign { leftId = 0; rightId = 3 } -> ()
+    | Assign { leftId = 1; rightId = 4 } -> ()
     | _ -> Assert.Fail()
     match add0 with
     | Add { leftId = 2; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match sub0 with
-    | Subtract { leftId = 1; rightId = -1 } -> ()
+    | Subtract { leftId = 0; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match cmp2 with
-    | Compare { leftId = 1; rightId = -1 } -> ()
+    | Compare { leftId = 0; rightId = -1 } -> ()
     | _ -> Assert.Fail()
     match ret with
-    | Return { operandId = 0 } -> ()
+    | Return { operandId = 1 } -> ()
     | _ -> Assert.Fail()

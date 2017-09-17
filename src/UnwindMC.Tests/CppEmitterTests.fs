@@ -2,7 +2,6 @@
 module rec CppEmitterTests
 
 open System
-open System.Collections.Generic
 open NUnit.Framework
 open Ast
 open Type

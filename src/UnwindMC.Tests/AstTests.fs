@@ -80,22 +80,22 @@ let testAstWithFunctionPointers (): unit =
 [<Test>]
 let testAstFindMax (): unit =
     let nop0 = Nop
-    let asn0 = Assign { left = Register OperandType.ECX; right = Stack 4; leftId = 1; rightId = -1 }
-    let asn1 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 0; rightId = -1 }
-    let cmp0 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 1; rightId = -1 }
+    let asn0 = Assign { left = Register OperandType.ECX; right = Stack 4; leftId = 0; rightId = -1 }
+    let asn1 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 1; rightId = -1 }
+    let cmp0 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 0; rightId = -1 }
     let br0 = Branch <| branch Equal 15uL
     let asn2 = Assign { left = Register OperandType.EDX; right = Stack 0; leftId = 2; rightId = -1 }
-    let asn3 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 0; rightId = -1 }
-    let asn4 = Assign { left = Register OperandType.ESI; right = Pointer (OperandType.EDX, 0); leftId = 3; rightId = 2 }
-    let cmp1 = Compare { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 0; rightId = 3 }
+    let asn3 = Assign { left = Register OperandType.EAX; right = Value Int32.MinValue; leftId = 1; rightId = -1 }
+    let asn4 = Assign { left = Register OperandType.ESI; right = Pointer (OperandType.EDX, 0); leftId = 4; rightId = 2 }
+    let cmp1 = Compare { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 1; rightId = 4 }
     let br1 = Branch <| branch GreaterOrEqual 11uL
-    let asn5 = Assign { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 0; rightId = 3 }
+    let asn5 = Assign { left = Register OperandType.EAX; right = Register OperandType.ESI; leftId = 1; rightId = 4 }
     let add0 = Add { left = Register OperandType.EDX; right = Value 4; leftId = 2; rightId = -1 }
-    let sub0 = Subtract { left = Register OperandType.ECX; right = Value 1; leftId = 1; rightId = -1 }
-    let cmp2 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 1; rightId = -1 }
+    let sub0 = Subtract { left = Register OperandType.ECX; right = Value 1; leftId = 0; rightId = -1 }
+    let cmp2 = Compare { left = Register OperandType.ECX; right = Value 0; leftId = 0; rightId = -1 }
     let br2 = Branch <| branch NotEqual 7uL
     let nop1 = Nop
-    let ret = Return { operand = Register OperandType.EAX; operandId = 0 }
+    let ret = Return { operand = Register OperandType.EAX; operandId = 1 }
 
     let blocks =
         [|
@@ -135,6 +135,7 @@ let testAstFindMax (): unit =
             { isFunction = false; indirectionLevel = 0; size = 4 }
             { isFunction = false; indirectionLevel = 0; size = 4 }
             { isFunction = false; indirectionLevel = 1; size = 4 }
+            { isFunction = false; indirectionLevel = 0; size = 4 }
             { isFunction = false; indirectionLevel = 0; size = 4 }
         |]
 

@@ -24,7 +24,7 @@ let rec private assertExprEqual (expected: Expression) (actual: Expression): uni
 
 let private assertCollectionEqual (assertEqual: 'a -> 'a -> unit) (expected: IReadOnlyList<'a>) (actual: IReadOnlyList<'a>): unit =
     Assert.That(actual.Count, Is.EqualTo(expected.Count))
-    expected |> Seq.zip actual
+    Seq.zip expected actual
     |> Seq.iter (fun (exp, act) -> assertEqual exp act)
 
 let rec private assertStatementEqual (expected: Statement) (actual: Statement): unit =
