@@ -26,12 +26,18 @@ let testDecompiler (code: string) (expected: string): unit =
 
     Assert.That(cppCode, Is.EqualTo(trim(expected)))
 
-let private disassemble (test: string): string =
-    use tempDir = VcTools.CreateTempDirectory()
-    let cppPath = Path.Combine(tempDir.Path, "test.cpp")
-    File.WriteAllText(cppPath, test)
-    let objPath = VcTools.compile(cppPath)
-    VcTools.disassemble(objPath)
+    use tempDir = VcTools.createTempDirectory ()
+    compile tempDir.Path cppCode |> ignore
+
+let private disassemble (code: string): string =
+    use tempDir = VcTools.createTempDirectory ()
+    let objPath = compile tempDir.Path code
+    VcTools.disassemble objPath
+
+let private compile (dir: string) (code: string): string =
+    let cppPath = Path.Combine(dir, "test.cpp")
+    File.WriteAllText(cppPath, code)
+    VcTools.compile cppPath
 
 let private trim (expected: string): string =
     let lines = expected.Split([| '\r'; '\n' |], StringSplitOptions.RemoveEmptyEntries)

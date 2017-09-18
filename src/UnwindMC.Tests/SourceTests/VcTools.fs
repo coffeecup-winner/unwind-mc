@@ -39,7 +39,7 @@ let private run (workingDirectory: string) (exePath: string) (arguments: string 
     proc.Start() |> ignore
     proc.WaitForExit()
     if proc.ExitCode <> 0 then
-        failwith (proc.StandardError.ReadToEnd())
+        failwith (proc.StandardOutput.ReadToEnd() + proc.StandardError.ReadToEnd())
     proc.StandardOutput.ReadToEnd()
 
 let compile (filename: string): string =
@@ -56,7 +56,7 @@ let disassemble (filename: string): string =
             .TakeWhile(fun l -> l <> "Summary")
     System.String.Join("\n", lines)
 
-let CreateTempDirectory(): TempDirectory.T =
+let createTempDirectory (): TempDirectory.T =
     let tempFileName = Path.GetTempFileName()
     File.Delete(tempFileName)
     new TempDirectory.T(tempFileName)
