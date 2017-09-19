@@ -35,6 +35,7 @@ type Expression =
 
 type Statement =
     | Assignment of Var * Expression
+    | Break
     | DoWhile of IReadOnlyList<Statement> * Expression
     | For of Expression * IReadOnlyList<Statement> * IReadOnlyList<Statement>
     | FunctionCall of Expression

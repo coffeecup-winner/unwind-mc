@@ -18,6 +18,7 @@ let private transformExpression (t: T) (expr: Expression): Expression =
 let private transformStatement (t: T) (statement: Statement): Statement =
     match statement with
     | Assignment (var, expr) -> Assignment (var, t.transformExpression t expr)
+    | Break -> Break
     | DoWhile (statements, condition) -> DoWhile (statements |> ROL.map (t.transformStatement t), t.transformExpression t condition)
     | For (condition, modifier, body) -> For (t.transformExpression t condition, modifier |> ROL.map (t.transformStatement t), body |> ROL.map (t.transformStatement t))
     | FunctionCall expr -> FunctionCall (t.transformExpression t expr)

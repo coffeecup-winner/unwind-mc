@@ -118,6 +118,7 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
             | Return unary ->
                 if functionReturnsValue blocks then
                     unary.operandId <- getCurrentId t unary.operand
+            | Break
             | Branch _
             | Nop ->
                 ()
@@ -157,6 +158,7 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
                     binary.leftId <- pair.Value
                 if binary.rightId = pair.Key then
                     binary.rightId <- pair.Value
+            | Break
             | Branch _
             | Nop ->
                 ()

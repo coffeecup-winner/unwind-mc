@@ -47,9 +47,9 @@ let buildFlowGraph (il: IReadOnlyList<ILInstruction>): List<Block> =
     |> Seq.indexed
     |> Seq.map (fun (a, (b, c)) -> (a, b, c))
     |> Seq.toList
-    |> scope
+    |> scope 0
 
-let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
+let scope (pastLoop: int) (instructions: (int * ILInstruction * int option) list): List<Block> =
     let rec run: (int * ILInstruction * int option) list -> Either<ILInstruction, Block> list =
         function
         (** for loop **
@@ -66,8 +66,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             ...
         *)
         | (start, Branch { type_ = Unconditional; target = condition }, _) :: ((_, _, Some end_) :: _ as rest) ->
-            let block = Right <| forLoop ((int)condition - start) (end_ + 1) (rest |> List.take (end_ - start - 1))
-            block :: run (rest |> List.skip (end_ - start))
+            let block = forLoop (end_ + 1) ((int)condition - start) (end_ + 1) (rest |> List.take (end_ - start - 1))
+            Right block :: run (rest |> List.skip (end_ - start))
         (** while loop **
             ...
             START:
@@ -81,8 +81,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
         | ((start, Compare _, Some end_) :: (_, Branch { target = afterLoop }, _) :: _) as all ->
             assert (end_ + 1 = (int)afterLoop)
             assert (all |> List.skip (end_ - start) |> List.head |> function (_, Branch { type_ = Unconditional }, _) -> true | _ -> false)
-            let block = Right <| whileLoop (all |> List.take (end_ - start))
-            block :: run (all |> List.skip (end_ - start + 1))
+            let block = whileLoop (end_ + 1) (all |> List.take (end_ - start))
+            Right block :: run (all |> List.skip (end_ - start + 1))
         (** do while loop **
             ...
             START:
@@ -92,8 +92,8 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
             ...
         *)
         | ((start, _, Some end_) :: _) as all when end_ > start ->
-            let block = Right <| doWhileLoop (end_ - start - 1) (all |> List.take (end_ - start + 1))
-            block :: run (all |> List.skip (end_ - start + 1))
+            let block = doWhileLoop (end_ + 1) (end_ - start - 1) (all |> List.take (end_ - start + 1))
+            Right block :: run (all |> List.skip (end_ - start + 1))
         (** conditional **
           * if-then-else *  |  * if then *   |  * if else *
             ...             |    ...         |    ...
@@ -109,14 +109,16 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
         | ((start, _, _) :: (_, Branch { type_ = type_; target = falseBranch }, _) :: _) as all when type_ <> Unconditional ->
             let end_ =
                 match all |> List.skip ((int)falseBranch - start - 1) with
-                | (_, Branch { type_ = Unconditional; target = end_ }, _) :: _ -> (int)end_
+                | (_, Branch { type_ = Unconditional; target = end_ }, _) :: _ when (int)end_ <> pastLoop -> (int)end_
                 | _ -> (int)falseBranch // no else case
             let (ifThenElse, rest) = all |> List.splitAt (end_ - start)
-            let block = Right <| conditional ((int)falseBranch - start) ifThenElse
-            block :: run rest
+            let block = conditional pastLoop ((int)falseBranch - start) ifThenElse
+            Right block :: run rest
         (** sequential flow **
             ...
         *)
+        | (_, Branch { type_ = Unconditional; target = target}, _) :: rest when (int)target = pastLoop ->
+            Left Break :: run rest
         | (_, instr, _) :: rest ->
             Left instr :: run rest
         (** end of scope **
@@ -142,13 +144,13 @@ let scope (instructions: (int * ILInstruction * int option) list): List<Block> =
         sequence <- sequence |> List.skip blocks.Length
     result
 
-let conditional (falseBranch: int) (instructions: (int * ILInstruction * int option) list): Block =
+let conditional (pastLoop: int) (falseBranch: int) (instructions: (int * ILInstruction * int option) list): Block =
     if falseBranch = (instructions |> List.length) then
         // no else case
         let (condition, trueBranch) = instructions |> List.splitAt 2
         ConditionalBlock {
             condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
-            trueBranch = scope trueBranch
+            trueBranch = scope pastLoop trueBranch
             falseBranch = [||]
         }
     else
@@ -157,11 +159,11 @@ let conditional (falseBranch: int) (instructions: (int * ILInstruction * int opt
         let (_branch, falseBranch) = instructions |> List.splitAt 1
         ConditionalBlock {
             condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
-            trueBranch = scope trueBranch
-            falseBranch = scope falseBranch
+            trueBranch = scope pastLoop trueBranch
+            falseBranch = scope pastLoop falseBranch
         }
 
-let forLoop (condition: int) (afterLoop: int) (instructions: (int * ILInstruction * int option) list): Block =
+let forLoop (pastLoop: int) (condition: int) (afterLoop: int) (instructions: (int * ILInstruction * int option) list): Block =
     let (modifier, instructions) = instructions |> List.splitAt (condition - 1)
     let bodyStart =
         instructions
@@ -171,10 +173,10 @@ let forLoop (condition: int) (afterLoop: int) (instructions: (int * ILInstructio
     ForBlock {
         condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
         modifier = modifier |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray
-        body = scope body
+        body = scope pastLoop body
     }
 
-let doWhileLoop (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
+let doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
     let (instructions, conditionInstructions) = instructions |> List.splitAt condition
     let body =
         match instructions with
@@ -182,10 +184,10 @@ let doWhileLoop (condition: int) (instructions: (int * ILInstruction * int optio
         | _ -> impossible
     DoWhileBlock {
         condition = conditionInstructions |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray
-        body = scope body
+        body = scope pastLoop body
     }
 
-let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
+let whileLoop (pastLoop: int) (instructions: (int * ILInstruction * int option) list): Block =
     let (condition, instructions) = instructions |> List.splitAt 2
     let body =
         match instructions with
@@ -193,7 +195,7 @@ let whileLoop (instructions: (int * ILInstruction * int option) list): Block =
         | _ -> impossible
     WhileBlock {
         condition = invertCondition (condition |> Seq.map (fun (_, i, _) -> i) |> Seq.toArray)
-        body = scope body
+        body = scope pastLoop body
     }
 
 let invertCondition (condition: ILInstruction[]): ILInstruction[] =

@@ -137,6 +137,8 @@ let private buildStatement (t: T) (instr: ILInstruction): Statement =
         Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Subtract binary)
     | Xor binary ->
         Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Xor binary)
+    | Break ->
+        Statement.Break
     | _ -> failwith "Instruction is not a valid statement"
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =

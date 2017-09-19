@@ -55,6 +55,7 @@ type ILInstruction =
     | Subtract of BinaryInstruction
     | Xor of BinaryInstruction
     | Nop // TODO: remove this
+    | Break
 
 let unary (operand: ILOperand): UnaryInstruction = {
     operand = operand

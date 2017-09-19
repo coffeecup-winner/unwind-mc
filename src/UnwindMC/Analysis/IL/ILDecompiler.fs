@@ -89,12 +89,20 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
         | MnemonicCode.Iinc ->
             let operands = convertOperands t instr.Operands
             [| Add <| binary operands.[0] (Value 1) |]
-        | MnemonicCode.Ijae ->
-            [| Branch { type_ = GreaterOrEqual; target = instr.GetTargetAddress() } |]
-        | MnemonicCode.Ijmp ->
-            [| Branch { type_ = Unconditional; target = instr.GetTargetAddress() } |]
+        | MnemonicCode.Ija
         | MnemonicCode.Ijg ->
             [| Branch { type_ = Greater; target = instr.GetTargetAddress() } |]
+        | MnemonicCode.Ijae
+        | MnemonicCode.Ijge ->
+            [| Branch { type_ = GreaterOrEqual; target = instr.GetTargetAddress() } |]
+        | MnemonicCode.Ijb
+        | MnemonicCode.Ijl ->
+            [| Branch { type_ = Less; target = instr.GetTargetAddress() } |]
+        | MnemonicCode.Ijbe
+        | MnemonicCode.Ijle ->
+            [| Branch { type_ = LessOrEqual; target = instr.GetTargetAddress() } |]
+        | MnemonicCode.Ijmp ->
+            [| Branch { type_ = Unconditional; target = instr.GetTargetAddress() } |]
         | MnemonicCode.Ijz ->
             let cond = tryGetVirtualConditionInstruction t
             let branch = Branch { type_ = Equal; target = instr.GetTargetAddress() }
