@@ -36,7 +36,7 @@ let disassemble (bytes: ArraySegment<byte>) (pc: uint64): T =
     let instructionsDict = new SortedDictionary<uint64, Instruction>()
     for instr in instructions do
         instructionsDict.Add(instr.Offset, instr)
-    new T(disassembler, bytes, pc, lastInstruction.Offset + (uint64)lastInstruction.Length,
+    new T(disassembler, bytes, pc, lastInstruction.Offset + uint64 lastInstruction.Length,
         instructionsDict, new Dictionary<uint64, ExtraData>(), new Dictionary<uint64, List<Link>>(),
         new Dictionary<uint64, List<Link>>(), false, fun _ -> true)
 
@@ -104,7 +104,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         address >= firstAddress && address < firstAddressAfterCode
 
     member self.GetNext(address: uint64): uint64 =
-        [address + (uint64)1 .. firstAddressAfterCode - (uint64)1]
+        [address + 1uL .. firstAddressAfterCode - 1uL]
         |> Seq.find (fun a -> instructions.ContainsKey(a))
 
     member self.GetInValue(address: uint64): int =
@@ -168,38 +168,38 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         let mutable size =
             match getValue instructions address with
             | Some instr ->
-                (int)instr.Length
+                int instr.Length
             | None ->
                 let instr = self.SplitInstructionAt(address)
-                (int)instr.Length - (int)(address - instr.Offset)
+                int instr.Length - int (address - instr.Offset)
         // write a pseudo instruction
         let instrText =
             text {
                 for i in [0 .. length - 1] do
-                    yield "%02x" %% bytes.Array.[self.ToByteArrayIndex(address + (uint64)i)]
+                    yield "%02x" %% bytes.Array.[self.ToByteArrayIndex(address + uint64 i)]
             } |> buildText plain
         instructions.[address] <- new Instruction(address, MnemonicCode.Inone, (byte)length, instrText, dataDisplayText,
             Array.empty, 0uy, OperandType.None, false, false, 0uy, 0uy, 0uy, 0uy, 0uy)
         self.GetExtraData(address).isProtected <- true
         // remove old instructions
         while size < length do
-            let instr = instructions.[address + (uint64)size]
-            instructions.Remove(address + (uint64)size) |> ignore
-            size <- size + (int)instr.Length
+            let instr = instructions.[address + uint64 size]
+            instructions.Remove(address + uint64 size) |> ignore
+            size <- size + int instr.Length
         // if there are bytes left from the last removed instruction, re-disassemble them
         if size <> length then
-            disassembler.SetPC(address + (uint64)length)
+            disassembler.SetPC(address + uint64 length)
             let newInstructions = disassembler.Disassemble(bytes.Array, self.ToByteArrayIndex(address) + length, size - length, true, true)
             for newInstr in newInstructions do
                 instructions.[newInstr.Offset] <- newInstr
 
     member self.SplitInstructionAt(address: uint64): Instruction =
-        let mutable instrAddress = address - (uint64)1
+        let mutable instrAddress = address - 1uL
         let oldInstr = ref null
         while not (instructions.TryGetValue(instrAddress, oldInstr)) do
-            instrAddress <- instrAddress - (uint64)1
+            instrAddress <- instrAddress - 1uL
         // Split the old instruction and re-disassemble its first part
-        let extraLength = (int)(address - instrAddress)
+        let extraLength = int (address - instrAddress)
         disassembler.SetPC(instrAddress)
         let newInstructions = disassembler.Disassemble(bytes.Array, self.ToByteArrayIndex(instrAddress), extraLength, true, true)
         for newInstr in newInstructions do
@@ -207,7 +207,7 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         !oldInstr
 
     member self.ReadUInt32(address: uint64): uint64 =
-        (uint64)(ArrayReader.readUInt32 bytes.Array (self.ToByteArrayIndex(address)))
+        uint64 (ArrayReader.readUInt32 bytes.Array (self.ToByteArrayIndex(address)))
 
     member self.Redisassemble(address: uint64): unit =
         // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
@@ -215,9 +215,9 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
             self.SplitInstructionAt(address) |> ignore
         disassembler.SetPC(address)
         let maxDisassembleLength = 0x100
-        let mutable disassembleLength = Math.Min(maxDisassembleLength, (int)(firstAddressAfterCode - address))
+        let mutable disassembleLength = Math.Min(maxDisassembleLength, int (firstAddressAfterCode - address))
         for j in [0 .. disassembleLength] do
-            match getValue extraData (address + (uint64)j) with
+            match getValue extraData (address + uint64 j) with
             | Some data when data.isProtected ->
                 disassembleLength <- j
             | _ -> ()
@@ -232,9 +232,9 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
                         run rest
                 | _ ->
                     instructions.[newInstr.Offset] <- newInstr
-                    for j in [1 .. (int)newInstr.Length - 1] do
-                        if instructions.ContainsKey(newInstr.Offset + (uint64)j) then
-                            instructions.Remove(newInstr.Offset + (uint64)j) |> ignore
+                    for j in [1 .. int newInstr.Length - 1] do
+                        if instructions.ContainsKey(newInstr.Offset + uint64 j) then
+                            instructions.Remove(newInstr.Offset + uint64 j) |> ignore
                     fixedInstructions <- true
                     if rest.IsEmpty then
                         FIXME "extra disassemble size was too small"
@@ -244,4 +244,4 @@ type T (disassembler: Disassembler, bytes: ArraySegment<byte>, firstAddress: uin
         run (newInstructions |> Seq.take (newInstructions.Count - 1) |> Seq.toList)
 
     member private self.ToByteArrayIndex(address: uint64): int =
-        bytes.Offset + (int)(address - firstAddress)
+        bytes.Offset + int (address - firstAddress)

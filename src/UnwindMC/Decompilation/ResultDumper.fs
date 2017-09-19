@@ -78,7 +78,7 @@ let dumpILGraph (il: IReadOnlyList<ILInstruction>): string =
                 System.String.Format(
                     "  {0} -> {1} [label=\"{2}\"]",
                     instr.GetHashCode(),
-                    il.[(int)target].GetHashCode(),
+                    il.[int target].GetHashCode(),
                     "true")) |> ignore
         | _ -> ()
     for pair in il |> Seq.windowed 2 do

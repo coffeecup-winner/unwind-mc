@@ -130,7 +130,7 @@ let private resolveExternalFunctionCalls (t: T): unit =
 let private tryGetImportAddress (t: T) (instr: Instruction) (index: int): uint64 option =
     if instr.Operands.Count > index && instr.Operands.[index].Type = OperandType.Memory &&
         instr.Operands.[index].Base = OperandType.None && instr.Operands.[index].Index = OperandType.None &&
-        t.importResolver.IsImportAddress((uint64)instr.Operands.[index].LValue.udword) then
+        t.importResolver.IsImportAddress(uint64 instr.Operands.[index].LValue.udword) then
         Some instr.Operands.[index].LValue.uqword
     else
         None
@@ -173,7 +173,7 @@ let private addExplicitBranches (t: T) (instr: Instruction): unit =
 
 let private addSwitchCases (t: T) (instr: Instruction): unit =
     if instr.Code = MnemonicCode.Ijmp && instr.Operands.[0].Type = OperandType.Memory then
-        let address = (uint64)instr.Operands.[0].LValue.udword
+        let address = uint64 instr.Operands.[0].LValue.udword
         let table =
             match t.jumpTables.TryGetValue(address) with
             | (true, table) -> table
@@ -183,7 +183,7 @@ let private addSwitchCases (t: T) (instr: Instruction): unit =
                 t.jumpTables.Add(address, table)
                 table
         for i in [table.firstIndex .. table.count - 1] do
-            t.graph.AddLink(table.reference, t.graph.ReadUInt32(table.address + (uint64)(i * Constants.RegisterSize)), InstructionGraph.LinkType.SwitchCaseJump)
+            t.graph.AddLink(table.reference, t.graph.ReadUInt32(table.address + uint64 (i * Constants.RegisterSize)), InstructionGraph.LinkType.SwitchCaseJump)
 
 let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
     if table.address >= t.graph.FirstAddressAfterCode then
@@ -214,7 +214,7 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
                         // update the main jump register if the jump is indirect
                         if indirectAddress = 0uL && instr.Code = MnemonicCode.Imov && instr.Operands.[0].Base = lowByteIdx then
                             idx <- instr.Operands.[1].Base
-                            indirectAddress <- (uint64)instr.Operands.[1].LValue.udword
+                            indirectAddress <- uint64 instr.Operands.[1].LValue.udword
                             Continue
                         else
                             // search for the jump to the default case
@@ -225,7 +225,7 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
                                 // the jump register is irrelevant since it must be the closest one to ja
                                 let value = AssignmentTracker.find t.graph instr.Offset idx (fun i _ ->
                                     i.Code = MnemonicCode.Icmp && i.Operands.[0].Type = OperandType.Register)
-                                Return (value |> Option.map (fun v -> (int)v.ubyte + 1))
+                                Return (value |> Option.map (fun v -> int v.ubyte + 1))
                 )
 
         match casesCountOption with
@@ -234,22 +234,22 @@ let private resolveJumpTable (t: T) (table: JumpTable.T): unit =
                 if indirectAddress = 0uL then
                     (casesCount, 0)
                 else
-                    ((int)(t.graph.GetBytes(indirectAddress, casesCount).Max()) + 1, casesCount)
+                    (int (t.graph.GetBytes(indirectAddress, casesCount).Max()) + 1, casesCount)
 
             let mutable offset = 0uL
             for i in [0 .. jumpsCount - 1] do
                 if not (t.graph.AddJumpTableEntry(table.address + offset)) then
                     table.firstIndex <- table.firstIndex + 1
                 t.graph.AddJumpTableEntry(table.address + offset) |> ignore
-                offset <- offset + (uint64)Constants.RegisterSize
+                offset <- offset + uint64 Constants.RegisterSize
             table.count <- jumpsCount
             while casesCount >= 4 do
                 t.graph.AddJumpTableIndirectEntries(table.address + offset, 4)
                 casesCount <- casesCount - 4
-                offset <- offset + (uint64)Constants.RegisterSize
+                offset <- offset + uint64 Constants.RegisterSize
             if casesCount > 0 then
                 t.graph.AddJumpTableIndirectEntries(table.address + offset, casesCount)
-                offset <- offset + (uint64)casesCount
+                offset <- offset + uint64 casesCount
             t.graph.Redisassemble(table.address + offset)
         | None -> ()
         logger.Info("Done")

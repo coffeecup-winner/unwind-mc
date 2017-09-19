@@ -36,10 +36,10 @@ let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILIns
         |> Graph.dfs address
         |> Seq.iter (fun instr ->
             let ilInstructions = convertInstruction t instr
-            if ilInstructions.Length > (int)instr.Length then
+            if ilInstructions.Length > int instr.Length then
                 FIXME "not enough virtual addresses"
             for i in [0 .. ilInstructions.Length - 1] do
-                instructions.Add(instr.Offset + (uint64)i, ilInstructions.[i])
+                instructions.Add(instr.Offset + uint64 i, ilInstructions.[i])
         )
     let il = new SortedList<uint64, ILInstruction>(instructions)
     let addresses = new Dictionary<ILInstruction, uint64>(instructions.Count)
@@ -49,7 +49,7 @@ let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILIns
     for pair in il do
         match pair.Value with
         | Branch branch ->
-            res.Add(Branch { branch with target = (uint64)(il.IndexOfKey(branch.target)) })
+            res.Add(Branch { branch with target = uint64 (il.IndexOfKey(branch.target)) })
         | instr ->
             res.Add(instr)
     res :> IReadOnlyList<ILInstruction>
@@ -71,7 +71,7 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
         | MnemonicCode.Icmovl ->
             let operands = convertOperands t instr.Operands
             [|
-                Branch <| branch GreaterOrEqual (instr.Offset + (uint64)instr.Length)
+                Branch <| branch GreaterOrEqual (instr.Offset + uint64 instr.Length)
                 Assign <| binary operands.[0] operands.[1]
             |]
         | MnemonicCode.Icmp ->
@@ -205,14 +205,14 @@ let private convertOperand (t: T) (operand: Operand): ILOperand =
         Register operand.Base
     | OperandType.Memory ->
         if operand.Base = OperandType.ESP then
-            Stack (t.stackOffset + (int)(operand.GetMemoryOffset()))
+            Stack (t.stackOffset + int (operand.GetMemoryOffset()))
         elif operand.Base = OperandType.EBP then
-            Stack (t.framePointerOffset + (int)(operand.GetMemoryOffset()))
+            Stack (t.framePointerOffset + int (operand.GetMemoryOffset()))
         elif operand.Index = OperandType.None then
-            Pointer (operand.Base, (int)(operand.GetMemoryOffset()))
+            Pointer (operand.Base, int (operand.GetMemoryOffset()))
         else
             notSupported
     | OperandType.Constant
     | OperandType.Immediate ->
-        Value ((int)(operand.GetValue()))
+        Value (int (operand.GetValue()))
     | _ -> notSupported

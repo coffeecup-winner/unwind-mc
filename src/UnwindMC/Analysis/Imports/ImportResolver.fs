@@ -13,16 +13,16 @@ type ImportResolver(imageBase: uint64, importAddressTableBytes: ArraySegment<byt
     interface IImportResolver with
         member self.IsImportAddress(address: uint64): bool =
             let virtualAddress = address - _imageBase
-            virtualAddress >= (uint64)_importAddressTableBytes.Offset &&
-                virtualAddress <= (uint64)(_importAddressTableBytes.Offset + _importAddressTableBytes.Count - 4)
+            virtualAddress >= uint64 _importAddressTableBytes.Offset &&
+                virtualAddress <= uint64 (importAddressTableBytes.Offset + _importAddressTableBytes.Count - 4)
 
         member self.GetImportName(address: uint64): string =
-            let entryAddress = ArrayReader.readUInt32 _importAddressTableBytes.Array ((int)(address - _imageBase))
-            let hint = ArrayReader.readUInt16 _importBytes.Array ((int)entryAddress)
-            let hasValue, name = _imports.TryGetValue((int)hint)
+            let entryAddress = ArrayReader.readUInt32 _importAddressTableBytes.Array (int (address - _imageBase))
+            let hint = ArrayReader.readUInt16 _importBytes.Array (int entryAddress)
+            let hasValue, name = _imports.TryGetValue(int hint)
             if hasValue then
-                let name = ArrayReader.readZString _importBytes.Array ((int)entryAddress + 2)
-                _imports.[(int)hint] <- name;
+                let name = ArrayReader.readZString _importBytes.Array (int entryAddress + 2)
+                _imports.[int hint] <- name;
                 name
             else
                 name
