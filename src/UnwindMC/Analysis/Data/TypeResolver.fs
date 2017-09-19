@@ -19,7 +19,8 @@ type private T = {
     localTypes: Dictionary<int, TypeBuilder ref>
     variableTypes: List<DataType>
     currentIds: Dictionary<ILOperand, int>
-    pushedIds: List<Dictionary<ILOperand, int>>
+    pushedIds: Stack<Dictionary<ILOperand, int>>
+    sameIds: Dictionary<int, List<int>>
     coalescedIds: SortedDictionary<int, int>
     mutable nextId: int
 }
@@ -44,7 +45,8 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
         localTypes = new Dictionary<int, TypeBuilder ref>()
         variableTypes = new List<DataType>()
         currentIds = new Dictionary<ILOperand, int>()
-        pushedIds = new List<Dictionary<ILOperand, int>>()
+        pushedIds = new Stack<Dictionary<ILOperand, int>>()
+        sameIds = new Dictionary<int, List<int>>()
         coalescedIds = new SortedDictionary<int, int>()
         nextId = 0
     }
@@ -54,9 +56,25 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
             match marker with
             | PushIds ->
                 let copy = t.currentIds.ToDictionary((fun p -> p.Key), (fun p -> p.Value))
-                t.pushedIds.Add(copy)
+                t.pushedIds.Push(copy)
             | JoinPoint ->
+                let ids1 = t.pushedIds.Pop()
+                let ids0 = t.pushedIds.Pop()
                 t.currentIds.Clear()
+                for pair in ids0 do
+                    t.currentIds.Add(pair.Key, pair.Value)
+                for pair in ids1 do
+                    match getValue t.currentIds pair.Key with
+                    | Some value when value <> pair.Value ->
+                        match getValue t.sameIds value with
+                        | Some ids ->
+                            ids.Add(pair.Value)
+                        | None ->
+                            let ids = new List<int>()
+                            ids.Add(pair.Value)
+                            t.sameIds.Add(value, ids)
+                    | Some _ -> () // skip unchanged ids
+                    | None -> t.currentIds.Add(pair.Key, pair.Value)
         | Right instr ->
             match instr with
             | Negate unary
@@ -242,21 +260,22 @@ let private getCurrentId (t: T) (op: ILOperand): int =
     match op with
     | Register _
     | ILOperand.Pointer _ ->
-        match getValue t.currentIds op with
-        | Some v -> v
-        | None ->
-            let ids =
-                t.pushedIds
-                |> Seq.choose (fun ids -> getValue ids op)
-                |> Seq.distinct
-                |> Seq.sort
-                |> Seq.toArray
-            let id = ids.[0]
-            for sameId in ids |> Seq.skip 1 do
-                t.coalescedIds.Add(sameId, id)
-            t.currentIds.Add(op, id)
-            id
+        let id = t.currentIds.[op]
+        coalesceIds t id
+        id
     | _ -> -1
+
+let private coalesceIds (t: T) (id: int): unit =
+    match getValue t.sameIds id with
+    | Some ids ->
+        for sameId in ids do
+            match getValue t.coalescedIds sameId with
+            | Some v when v = id -> ()
+            | Some _ -> failwithf "Trying to coalesce %d with a new id" sameId
+            | None ->
+                t.coalescedIds.Add(sameId, id)
+                coalesceIds t sameId
+    | None -> ()
 
 type private SsaMarker = PushIds | JoinPoint
 

@@ -216,6 +216,7 @@ let breakInWhileDo (): unit =
           int loc0;
           int var0;
           int var1;
+          int var2;
         
           loc0 = 1;
           while (arg0 != 0)
@@ -227,12 +228,12 @@ let breakInWhileDo (): unit =
             {
               break;
             }
-            var0 = arg0;
-            var0 = var0 - 1;
-            arg0 = var0;
+            var1 = arg0;
+            var1 = var1 - 1;
+            arg0 = var1;
           }
-          var1 = loc0;
-          return var1;
+          var2 = loc0;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected
@@ -256,6 +257,7 @@ let breakInDoWhile (): unit =
           int loc0;
           int var0;
           int var1;
+          int var2;
         
           loc0 = 1;
           do
@@ -267,12 +269,12 @@ let breakInDoWhile (): unit =
             {
               break;
             }
-            var0 = arg0;
-            var0 = var0 - 1;
-            arg0 = var0;
+            var1 = arg0;
+            var1 = var1 - 1;
+            arg0 = var1;
           } while (arg0 != 0);
-          var1 = loc0;
-          return var1;
+          var2 = loc0;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected
@@ -296,21 +298,22 @@ let breakInForLoop (): unit =
           int loc1;
           int var0;
           int var1;
+          int var2;
         
           loc1 = 0;
           loc0 = 1;
           for (; loc0 <= arg0; var0 = loc0, var0 = var0 + 1, loc0 = var0)
           {
-            var0 = loc1;
-            var0 = var0 + loc0;
-            loc1 = var0;
+            var1 = loc1;
+            var1 = var1 + loc0;
+            loc1 = var1;
             if (loc1 > 10)
             {
               break;
             }
           }
-          var1 = loc1;
-          return var1;
+          var2 = loc1;
+          return var2;
         }
         """
     SourceTester.testDecompiler code expected
