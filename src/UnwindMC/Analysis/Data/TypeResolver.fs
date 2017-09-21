@@ -50,9 +50,9 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
         coalescedIds = new SortedDictionary<int, int>()
         nextId = 0
     }
-    for item in traverse blocks do
-        match item with
-        | Left marker ->
+    blocks
+    |> convert
+        (fun marker ->
             match marker with
             | PushIds ->
                 let copy = t.currentIds.ToDictionary((fun p -> p.Key), (fun p -> p.Value))
@@ -75,11 +75,13 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
                             t.sameIds.Add(value, ids)
                     | Some _ -> () // skip unchanged ids
                     | None -> t.currentIds.Add(pair.Key, pair.Value)
-        | Right instr ->
+        )
+        (fun instr ->
             match instr with
             | Negate unary
             | Not unary ->
                 unary.operandId <- getCurrentId t unary.operand
+                instr
             | Add binary
             | And binary
             | Compare binary
@@ -90,7 +92,7 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
             | ShiftRight binary
             | Subtract binary
             | Xor binary ->
-                binary.rightId <- getCurrentId t binary.right
+                let rightId = getCurrentId t binary.right
                 match binary.right with
                 | Value _ ->
                     if not (typeExists t binary.left) then
@@ -106,6 +108,8 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
                     else
                         notSupported
                 binary.leftId <- getCurrentId t binary.left
+                binary.rightId <- rightId
+                instr
             | Assign binary ->
                 let operand =
                     match binary.right with
@@ -127,19 +131,21 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
                     setType t binary.left type_
                 | _ -> ()
                 binary.leftId <- getCurrentId t binary.left
-                match binary.left with
-                | Stack _ -> ()
-                | _ -> ()
+                instr
             | Call unary ->
                 (getType t unary.operand) := Function
                 unary.operandId <- getCurrentId t unary.operand
+                instr
             | Return unary ->
                 if functionReturnsValue blocks then
                     unary.operandId <- getCurrentId t unary.operand
+                instr
             | Break
             | Branch _
             | Nop ->
-                ()
+                instr
+        )
+    |> ignore
     let parameterTypes = new List<DataType>()
     for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
         parameterTypes.Add(pair.Value |> build)
@@ -151,36 +157,39 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
         let operand = pair.Key
         finalizeType t operand
     for pair in t.coalescedIds |> Seq.rev do
-        for item in traverse blocks do
-        match item with
-        | Right instr ->
-            match instr with
-            | Negate unary
-            | Not unary
-            | Call unary
-            | Return unary ->
-                if unary.operandId = pair.Key then
-                    unary.operandId <- pair.Value
-            | Add binary
-            | And binary
-            | Compare binary
-            | Divide binary
-            | Multiply binary
-            | Or binary
-            | ShiftLeft binary
-            | ShiftRight binary
-            | Subtract binary
-            | Xor binary
-            | Assign binary ->
-                if binary.leftId = pair.Key then
-                    binary.leftId <- pair.Value
-                if binary.rightId = pair.Key then
-                    binary.rightId <- pair.Value
-            | Break
-            | Branch _
-            | Nop ->
-                ()
-        | _ -> ()
+        blocks
+        |> convert
+            (fun _ -> ())
+            (fun instr ->
+                match instr with
+                | Negate unary
+                | Not unary
+                | Call unary
+                | Return unary ->
+                    if unary.operandId = pair.Key then
+                        unary.operandId <- pair.Value
+                | Add binary
+                | And binary
+                | Compare binary
+                | Divide binary
+                | Multiply binary
+                | Or binary
+                | ShiftLeft binary
+                | ShiftRight binary
+                | Subtract binary
+                | Xor binary
+                | Assign binary ->
+                    if binary.leftId = pair.Key then
+                        binary.leftId <- pair.Value
+                    if binary.rightId = pair.Key then
+                        binary.rightId <- pair.Value
+                | Break
+                | Branch _
+                | Nop ->
+                    ()
+                instr
+            )
+        |> ignore
     {
         parameterTypes = parameterTypes
         localTypes = localTypes
@@ -279,60 +288,60 @@ let private coalesceIds (t: T) (id: int): unit =
 
 type private SsaMarker = PushIds | JoinPoint
 
-type private Traversal =
-    | Marker of SsaMarker
-    | Instructions of IReadOnlyList<ILInstruction<ILOperand>>
-    | Block of Block<ILOperand>
-
-let private traverse (blocks: IReadOnlyList<Block<ILOperand>>): IEnumerable<Either<SsaMarker, ILInstruction<ILOperand>>> =
-    seq {
-        let stack = new Stack<Traversal>(blocks |> Seq.rev |> Seq.map Block)
-        while stack.Count > 0 do
-            match stack.Pop() with
-            | Marker scopeBoundsMarker ->
-                yield Left scopeBoundsMarker
-            | Instructions instructions ->
-                for i in [0 .. instructions.Count - 1] do
-                    yield Right(instructions.[i])
-            | Block block ->
-                match block with
-                | SequentialBlock { instructions = instructions } ->
-                    stack.Push(Instructions instructions)
-                | WhileBlock { condition = condition; body = children } ->
-                    stack.Push(Marker JoinPoint)
-                    stack.Push(Marker PushIds)
-                    for child in children |> Seq.rev do
-                        stack.Push(Block child)
-                    stack.Push(Instructions condition)
-                    stack.Push(Marker PushIds)
-                | DoWhileBlock { condition = condition; body = children } ->
-                    stack.Push(Marker JoinPoint)
-                    stack.Push(Marker PushIds)
-                    stack.Push(Instructions condition)
-                    for child in children |> Seq.rev do
-                        stack.Push(Block child)
-                    stack.Push(Marker PushIds)
-                | ForBlock { condition = condition; modifier = modifier; body = body } ->
-                    stack.Push(Marker JoinPoint)
-                    stack.Push(Marker PushIds)
-                    stack.Push(Instructions modifier)
-                    stack.Push(Instructions condition)
-                    for child in body |> Seq.rev do
-                        stack.Push(Block child)
-                    stack.Push(Marker PushIds)
-                | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
-                    let hasFalseBranch = falseBranch.Count > 0
-                    let hasTrueBranch = trueBranch.Count > 0
-                    stack.Push(Marker JoinPoint)
-                    if hasFalseBranch then
-                        stack.Push(Marker PushIds)
-                        for child in falseBranch |> Seq.rev do
-                            stack.Push(Block child)
-                    if hasTrueBranch then
-                        stack.Push(Marker PushIds)
-                        for child in trueBranch |> Seq.rev do
-                            stack.Push(Block child)
-                    if hasFalseBranch <> hasTrueBranch then
-                        stack.Push(Marker PushIds)
-                    stack.Push(Instructions condition)
-    }
+let private convert<'opA, 'opB>
+    (sendMarker: SsaMarker -> unit)
+    (mapInstruction: ILInstruction<'opA> -> ILInstruction<'opB>)
+    (blocks: IReadOnlyList<Block<'opA>>)
+    : IReadOnlyList<Block<'opB>> =
+    let convertInstructions = ROL.map mapInstruction
+    let convertBlocks = convert sendMarker mapInstruction
+    blocks
+    |> ROL.map
+        (function
+        | SequentialBlock { instructions = instructions } ->
+            SequentialBlock { instructions = convertInstructions instructions }
+        | WhileBlock { condition = condition; body = body } ->
+            sendMarker PushIds
+            let condition = convertInstructions condition
+            let body = convertBlocks body
+            sendMarker PushIds
+            sendMarker JoinPoint
+            WhileBlock { condition = condition; body = body }
+        | DoWhileBlock { condition = condition; body = body } ->
+            sendMarker PushIds
+            let body = convertBlocks body
+            let condition = convertInstructions condition
+            sendMarker PushIds
+            sendMarker JoinPoint
+            DoWhileBlock { condition = condition; body = body }
+        | ForBlock { condition = condition; modifier = modifier; body = body } ->
+            sendMarker PushIds
+            let body = convertBlocks body
+            let condition = convertInstructions condition
+            let modifier = convertInstructions modifier
+            sendMarker PushIds
+            sendMarker JoinPoint
+            ForBlock { condition = condition; modifier = modifier; body = body }
+        | ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch } ->
+            let hasFalseBranch = falseBranch.Count > 0
+            let hasTrueBranch = trueBranch.Count > 0
+            let condition = convertInstructions condition
+            if hasFalseBranch <> hasTrueBranch then
+                sendMarker PushIds
+            let trueBranch =
+                if hasTrueBranch then
+                    let trueBranch = convertBlocks trueBranch
+                    sendMarker PushIds
+                    trueBranch
+                else
+                    [||] :> IReadOnlyList<Block<'opB>>
+            let falseBranch =
+                if hasFalseBranch then
+                    let falseBranch = convertBlocks falseBranch
+                    sendMarker PushIds
+                    falseBranch
+                else
+                    [||] :> IReadOnlyList<Block<'opB>>
+            sendMarker JoinPoint
+            ConditionalBlock { condition = condition; trueBranch = trueBranch; falseBranch = falseBranch }
+        )
