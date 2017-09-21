@@ -11,6 +11,6 @@ let decompile (project : DecompilationProject.T): unit =
 let decompileFunction (graph: InstructionGraph.T) (address: uint64): string =
     let il = ILDecompiler.decompile graph address
     let blocks = FlowAnalyzer.buildFlowGraph(il)
-    let result = TypeResolver.resolveTypes(blocks)
+    let (blocks, result) = TypeResolver.resolveTypes(blocks)
     let func = AstBuilder.buildAst (sprintf "sub_%06x" address) blocks result.parameterTypes result.localTypes result.variableTypes
     CppEmitter.emit func

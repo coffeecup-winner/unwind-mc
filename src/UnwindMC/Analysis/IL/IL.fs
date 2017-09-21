@@ -13,14 +13,14 @@ type BinaryInstruction<'op> = {
     left: 'op
     right: 'op
     // TODO: remove this
-    mutable leftId: int
-    mutable rightId: int
+    leftId: int
+    rightId: int
 }
 
 type UnaryInstruction<'op> = {
     operand: 'op
     // TODO: remove this
-    mutable operandId: int
+    operandId: int
 }
 
 type BranchType =

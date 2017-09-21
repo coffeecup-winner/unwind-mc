@@ -135,7 +135,7 @@ let testStages (): unit =
 
     assertFlowEqual expected blocks
 
-    let types = TypeResolver.resolveTypes blocks
+    let (blocks, types) = TypeResolver.resolveTypes blocks
     let parameterTypes = types.parameterTypes
     let variableTypes = types.variableTypes
     Assert.That(parameterTypes.Count, Is.EqualTo(2))
@@ -149,42 +149,86 @@ let testStages (): unit =
     Assert.That(variableTypes.[3], Is.EqualTo(Int32))
     Assert.That(variableTypes.[4], Is.EqualTo(Int32))
 
-    match asn0 with
-    | Assign { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn1 with
-    | Assign { leftId = 1; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match cmp0 with
-    | Compare { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn2 with
-    | Assign { leftId = 2; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn3 with
-    | Assign { leftId = 1; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn4 with
-    | Assign { leftId = 4; rightId = 2 } -> ()
-    | _ -> Assert.Fail()
-    match cmp1 with
-    | Compare { leftId = 1; rightId = 4 } -> ()
-    | _ -> Assert.Fail()
-    match asn5 with
-    | Assign { leftId = 1; rightId = 4 } -> ()
-    | _ -> Assert.Fail()
-    match add0 with
-    | Add { leftId = 2; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match sub0 with
-    | Subtract { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match cmp2 with
-    | Compare { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match ret with
-    | Return { operandId = 1 } -> ()
-    | _ -> Assert.Fail()
+    let expected =
+        [|
+            SequentialBlock {
+                instructions =
+                    [|
+                        Nop
+                        Assign <| { binary (Register OperandType.ECX) (Stack 4) with leftId = 0; rightId = -1 }
+                        Assign <| { binary (Register OperandType.EAX) (Value Int32.MinValue) with leftId = 1; rightId = -1 }
+                    |]
+            }
+            ConditionalBlock {
+                condition =
+                    invertCondition
+                        [|
+                            Compare <| { binary (Register OperandType.ECX) (Value 0) with leftId = 0; rightId = -1 }
+                            Branch <| branch Equal 15uL
+                        |]
+                trueBranch =
+                    [|
+                        SequentialBlock {
+                            instructions =
+                                [|
+                                    Assign <| { binary (Register OperandType.EDX) (Stack 0) with leftId = 2; rightId = -1 }
+                                    Assign <| { binary (Register OperandType.EAX) (Value Int32.MinValue) with leftId = 1; rightId = -1 }
+                                |]
+                        }
+                        DoWhileBlock {
+                            condition =
+                                [|
+                                    Compare <| { binary (Register OperandType.ECX) (Value 0) with leftId = 0; rightId = -1 }
+                                    Branch <| branch NotEqual 7uL
+                                |]
+                            body =
+                                [|
+                                    SequentialBlock {
+                                        instructions =
+                                            [|
+                                                Assign <| { binary (Register OperandType.ESI) (ILOperand.Pointer (OperandType.EDX, 0)) with leftId = 4; rightId = 2 }
+                                            |]
+                                    }
+                                    ConditionalBlock {
+                                        condition =
+                                            invertCondition
+                                                [|
+                                                    Compare <| { binary (Register OperandType.EAX) (Register OperandType.ESI) with leftId = 1; rightId = 4 }
+                                                    Branch <| branch GreaterOrEqual 11uL
+                                                |]
+                                        trueBranch =
+                                            [|
+                                                SequentialBlock {
+                                                    instructions =
+                                                        [|
+                                                            Assign <| { binary (Register OperandType.EAX) (Register OperandType.ESI) with leftId = 1; rightId = 4 }
+                                                        |]
+                                                }
+                                            |]
+                                        falseBranch = [||]
+                                    }
+                                    SequentialBlock {
+                                        instructions =
+                                            [|
+                                                Add <| { binary (Register OperandType.EDX) (Value 4) with leftId = 2; rightId = -1 }
+                                                Subtract <| { binary (Register OperandType.ECX) (Value 1) with leftId = 0; rightId = -1 }
+                                            |]
+                                    }
+                                |]
+                        }
+                    |]
+                falseBranch = [||]
+            }
+            SequentialBlock {
+                instructions =
+                    [|
+                        Nop
+                        Return <| { unary (Register OperandType.EAX) with operandId = 1 }
+                    |]
+            }
+        |]
+
+    assertFlowEqual expected blocks
 
     let func = AstBuilder.buildAst "findMax" blocks parameterTypes [||] variableTypes
     let expected =

@@ -38,7 +38,7 @@ let private build (typeBuilder: TypeBuilder ref): DataType =
     | Function -> DataType.Function
     | Pointer t -> DataType.Pointer <| build t
 
-let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
+let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<ILOperand>> * Result =
     let t = {
         types = new Dictionary<ILOperand, TypeBuilder ref>()
         parameterTypes = new Dictionary<int, TypeBuilder ref>()
@@ -50,10 +50,11 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
         coalescedIds = new SortedDictionary<int, int>()
         nextId = 0
     }
-    blocks
-    |> convert
-        (fun marker ->
-            match marker with
+    let returnsValue = functionReturnsValue blocks
+    let blocks = 
+        blocks
+        |> convert
+            (function
             | PushIds ->
                 let copy = t.currentIds.ToDictionary((fun p -> p.Key), (fun p -> p.Value))
                 t.pushedIds.Push(copy)
@@ -75,77 +76,27 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
                             t.sameIds.Add(value, ids)
                     | Some _ -> () // skip unchanged ids
                     | None -> t.currentIds.Add(pair.Key, pair.Value)
-        )
-        (fun instr ->
-            match instr with
-            | Negate unary
-            | Not unary ->
-                unary.operandId <- getCurrentId t unary.operand
-                instr
-            | Add binary
-            | And binary
-            | Compare binary
-            | Divide binary
-            | Multiply binary
-            | Or binary
-            | ShiftLeft binary
-            | ShiftRight binary
-            | Subtract binary
-            | Xor binary ->
-                let rightId = getCurrentId t binary.right
-                match binary.right with
-                | Value _ ->
-                    if not (typeExists t binary.left) then
-                        assignTypeBuilder t binary.left NoOperand
-                | _ ->
-                    if typeExists t binary.right && typeExists t binary.left then
-                        if getType t binary.right <> getType t binary.left then
-                            failwith "Type mismatch"
-                    elif typeExists t binary.right then
-                        assignTypeBuilder t binary.left binary.right
-                    elif typeExists t binary.left then
-                        assignTypeBuilder t binary.right binary.left
-                    else
-                        notSupported
-                binary.leftId <- getCurrentId t binary.left
-                binary.rightId <- rightId
-                instr
-            | Assign binary ->
-                let operand =
-                    match binary.right with
-                    | ILOperand.Pointer (reg, _) -> Register reg
-                    | _ -> binary.right
-                if not (typeExists t operand) then
-                    match operand with
-                    | Stack _
-                    | Value _ ->
-                        ()
-                    | _ ->
-                        failwith "Right side of assignment does not have a type assigned"
-                binary.rightId <- getCurrentId t operand
-                assignTypeBuilder t binary.left operand
-                match binary.right with
-                | ILOperand.Pointer _ ->
-                    let type_ = ref !(getType t operand)
-                    (getType t operand) := Pointer <| type_
-                    setType t binary.left type_
-                | _ -> ()
-                binary.leftId <- getCurrentId t binary.left
-                instr
-            | Call unary ->
-                (getType t unary.operand) := Function
-                unary.operandId <- getCurrentId t unary.operand
-                instr
-            | Return unary ->
-                if functionReturnsValue blocks then
-                    unary.operandId <- getCurrentId t unary.operand
-                instr
-            | Break
-            | Branch _
-            | Nop ->
-                instr
-        )
-    |> ignore
+            )
+            (function
+            | Negate unary -> Negate <| convertUnary t unary
+            | Not unary -> Not <| convertUnary t unary
+            | Add binary -> Add <| convertBinary t binary
+            | And binary -> And <| convertBinary t binary
+            | Compare binary -> Compare <| convertBinary t binary
+            | Divide binary -> Divide <| convertBinary t binary
+            | Multiply binary -> Multiply <| convertBinary t binary
+            | Or binary -> Or <| convertBinary t binary
+            | ShiftLeft binary -> ShiftLeft <| convertBinary t binary
+            | ShiftRight binary -> ShiftRight <| convertBinary t binary
+            | Subtract binary -> Subtract <| convertBinary t binary
+            | Xor binary -> Xor <| convertBinary t binary
+            | Assign binary -> Assign <| convertAssign t binary
+            | Call unary -> Call <| convertCall t unary
+            | Return unary -> Return <| convertReturn t unary returnsValue
+            | Break -> Break
+            | Branch branch -> Branch branch
+            | Nop -> Nop
+            )
     let parameterTypes = new List<DataType>()
     for pair in t.parameterTypes.OrderBy(fun x -> x.Key) do
         parameterTypes.Add(pair.Value |> build)
@@ -156,45 +107,107 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
         let pair = t.types.First()
         let operand = pair.Key
         finalizeType t operand
-    for pair in t.coalescedIds |> Seq.rev do
-        blocks
-        |> convert
-            (fun _ -> ())
-            (fun instr ->
-                match instr with
-                | Negate unary
-                | Not unary
-                | Call unary
-                | Return unary ->
-                    if unary.operandId = pair.Key then
-                        unary.operandId <- pair.Value
-                | Add binary
-                | And binary
-                | Compare binary
-                | Divide binary
-                | Multiply binary
-                | Or binary
-                | ShiftLeft binary
-                | ShiftRight binary
-                | Subtract binary
-                | Xor binary
-                | Assign binary ->
-                    if binary.leftId = pair.Key then
-                        binary.leftId <- pair.Value
-                    if binary.rightId = pair.Key then
-                        binary.rightId <- pair.Value
-                | Break
-                | Branch _
-                | Nop ->
-                    ()
-                instr
-            )
-        |> ignore
-    {
-        parameterTypes = parameterTypes
-        localTypes = localTypes
-        variableTypes = t.variableTypes
-    }
+    let blocks =
+        t.coalescedIds
+        |> Seq.rev
+        |> Seq.fold (fun blocks pair ->
+            let coalesceUnary (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
+                if unary.operandId = pair.Key then
+                    { unary with operandId = pair.Value }
+                else
+                    unary
+            let coaleasceBinary (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
+                let leftId = if binary.leftId = pair.Key then pair.Value else binary.leftId
+                let rightId = if binary.rightId = pair.Key then pair.Value else binary.rightId
+                { binary with leftId = leftId; rightId = rightId }
+            blocks
+            |> convert
+                (fun _ -> ())
+                (function
+                | Negate unary -> Negate <| coalesceUnary unary
+                | Not unary -> Not <| coalesceUnary unary
+                | Call unary -> Call <| coalesceUnary unary
+                | Return unary -> Return <| coalesceUnary unary
+                | Add binary -> Add <| coaleasceBinary binary
+                | And binary -> And <| coaleasceBinary binary
+                | Compare binary -> Compare <| coaleasceBinary binary
+                | Divide binary -> Divide <| coaleasceBinary binary
+                | Multiply binary -> Multiply <| coaleasceBinary binary
+                | Or binary -> Or <| coaleasceBinary binary
+                | ShiftLeft binary -> ShiftLeft <| coaleasceBinary binary
+                | ShiftRight binary -> ShiftRight <| coaleasceBinary binary
+                | Subtract binary -> Subtract <| coaleasceBinary binary
+                | Xor binary -> Xor <| coaleasceBinary binary
+                | Assign binary -> Assign <| coaleasceBinary binary
+                | Break -> Break
+                | Branch branch -> Branch branch
+                | Nop -> Nop
+                )
+            ) blocks
+    let result =
+        {
+            parameterTypes = parameterTypes
+            localTypes = localTypes
+            variableTypes = t.variableTypes
+        }
+    (blocks, result)
+
+let private convertUnary (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
+    { unary with operandId = getCurrentId t unary.operand }
+
+let private convertBinary (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
+    let rightId = getCurrentId t binary.right
+    match binary.right with
+    | Value _ ->
+        if not (typeExists t binary.left) then
+            assignTypeBuilder t binary.left NoOperand
+    | _ ->
+        if typeExists t binary.right && typeExists t binary.left then
+            if getType t binary.right <> getType t binary.left then
+                failwith "Type mismatch"
+        elif typeExists t binary.right then
+            assignTypeBuilder t binary.left binary.right
+        elif typeExists t binary.left then
+            assignTypeBuilder t binary.right binary.left
+        else
+            notSupported
+    { binary with
+        leftId = getCurrentId t binary.left
+        rightId = rightId }
+
+let private convertAssign (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
+    let operand =
+        match binary.right with
+        | ILOperand.Pointer (reg, _) -> Register reg
+        | _ -> binary.right
+    if not (typeExists t operand) then
+        match operand with
+        | Stack _
+        | Value _ ->
+            ()
+        | _ ->
+            failwith "Right side of assignment does not have a type assigned"
+    let rightId = getCurrentId t operand
+    assignTypeBuilder t binary.left operand
+    match binary.right with
+    | ILOperand.Pointer _ ->
+        let type_ = ref !(getType t operand)
+        (getType t operand) := Pointer <| type_
+        setType t binary.left type_
+    | _ -> ()
+    { binary with
+        leftId = getCurrentId t binary.left
+        rightId = rightId }
+
+let private convertCall (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
+    (getType t unary.operand) := Function
+    { unary with operandId = getCurrentId t unary.operand }
+
+let private convertReturn (t: T) (unary: UnaryInstruction<ILOperand>) (returnsValue: bool): UnaryInstruction<ILOperand> =
+    if returnsValue then
+        { unary with operandId = getCurrentId t unary.operand }
+    else
+        unary
 
 let private functionReturnsValue (blocks: IReadOnlyList<Block<ILOperand>>): bool =
     // This tests only the top-level scope, which is probably an incomplete heuristic,

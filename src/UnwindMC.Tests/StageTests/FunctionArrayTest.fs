@@ -107,7 +107,7 @@ let testStages (): unit =
 
     assertFlowEqual expected blocks
 
-    let types = TypeResolver.resolveTypes blocks
+    let (blocks, types) = TypeResolver.resolveTypes blocks
     let parameterTypes = types.parameterTypes
     let variableTypes = types.variableTypes
     Assert.That(parameterTypes.Count, Is.EqualTo(2))
@@ -118,27 +118,66 @@ let testStages (): unit =
     Assert.That(variableTypes.[0], Is.EqualTo(Pointer Function))
     Assert.That(variableTypes.[1], Is.EqualTo(Function))
 
-    match asn0 with
-    | Assign { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match cmp0 with
-    | Compare { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match asn1 with
-    | Assign { leftId = 1; rightId = 0 } -> ()
-    | _ -> Assert.Fail()
-    match cmp1 with
-    | Compare { leftId = 1; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match call with
-    | Call { operandId = 1 } -> ()
-    | _ -> Assert.Fail()
-    match add with
-    | Add { leftId = 0; rightId = -1 } -> ()
-    | _ -> Assert.Fail()
-    match ret with
-    | Return { operandId = -1 } -> ()
-    | _ -> Assert.Fail()
+    let expected =
+        [|
+            SequentialBlock {
+                instructions =
+                    [|
+                        Nop
+                        Assign <| { binary (Register OperandType.ESI) (Stack 0) with leftId = 0; rightId = -1 }
+                    |]
+            }
+            WhileBlock {
+                condition =
+                    invertCondition
+                        [|
+                            Compare <| { binary (Register OperandType.ESI) (Stack 4) with leftId = 0; rightId = -1 }
+                            Branch <| branch GreaterOrEqual 10uL
+                        |]
+                body =
+                    [|
+                        SequentialBlock {
+                            instructions =
+                                [|
+                                    Assign <| { binary (Register OperandType.EAX) (ILOperand.Pointer (OperandType.ESI, 0)) with leftId = 1; rightId = 0 }
+                                |]
+                        }
+                        ConditionalBlock {
+                            condition =
+                                invertCondition
+                                    [|
+                                        Compare <| { binary (Register OperandType.EAX) (Value 0) with leftId = 1; rightId = -1 }
+                                        Branch <| branch Equal 8uL
+                                    |]
+                            trueBranch =
+                                [|
+                                    SequentialBlock {
+                                        instructions =
+                                            [|
+                                                Call <| { unary (Register OperandType.EAX) with operandId = 1 }
+                                            |]
+                                    }
+                                |]
+                            falseBranch = [||]
+                        }
+                        SequentialBlock {
+                            instructions =
+                                [|
+                                    Add <| { binary (Register OperandType.ESI) (Value 4) with leftId = 0; rightId = -1 }
+                                |]
+                        }
+                    |]
+            }
+            SequentialBlock {
+                instructions =
+                    [|
+                        Nop
+                        Return <| { unary (Register OperandType.EAX) with operandId = -1 }
+                    |]
+            }
+        |]
+
+    assertFlowEqual expected blocks
 
     let func = AstBuilder.buildAst "functionArray" blocks parameterTypes [||] variableTypes
     let expected =
