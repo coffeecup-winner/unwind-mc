@@ -3,8 +3,9 @@
 open System.Collections.Generic
 open NUnit.Framework
 open FlowAnalyzer
+open IL
 
-let rec assertFlowEqual (expected: IReadOnlyList<Block>) (blocks: IReadOnlyList<Block>): unit =
+let rec assertFlowEqual (expected: IReadOnlyList<Block<ILOperand>>) (blocks: IReadOnlyList<Block<ILOperand>>): unit =
     Assert.That(blocks.Count, Is.EqualTo(expected.Count))
     for i in [0 .. expected.Count - 1] do
         match (expected.[i], blocks.[i]) with

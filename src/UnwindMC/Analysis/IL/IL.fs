@@ -9,16 +9,16 @@ type ILOperand =
     | Pointer of OperandType * int
     | NoOperand // TODO: replace by option on ILOperand
 
-type BinaryInstruction = {
-    left: ILOperand
-    right: ILOperand
+type BinaryInstruction<'op> = {
+    left: 'op
+    right: 'op
     // TODO: remove this
     mutable leftId: int
     mutable rightId: int
 }
 
-type UnaryInstruction = {
-    operand: ILOperand
+type UnaryInstruction<'op> = {
+    operand: 'op
     // TODO: remove this
     mutable operandId: int
 }
@@ -37,32 +37,32 @@ type BranchInstruction = {
     target: uint64
 }
 
-type ILInstruction =
-    | Add of BinaryInstruction
-    | And of BinaryInstruction
-    | Assign of BinaryInstruction
+type ILInstruction<'op> =
+    | Add of BinaryInstruction<'op>
+    | And of BinaryInstruction<'op>
+    | Assign of BinaryInstruction<'op>
     | Branch of BranchInstruction
-    | Call of UnaryInstruction
-    | Compare of BinaryInstruction
-    | Divide of BinaryInstruction
-    | Multiply of BinaryInstruction
-    | Negate of UnaryInstruction
-    | Not of UnaryInstruction
-    | Or of BinaryInstruction
-    | Return of UnaryInstruction // TODO: remove data
-    | ShiftLeft of BinaryInstruction
-    | ShiftRight of BinaryInstruction
-    | Subtract of BinaryInstruction
-    | Xor of BinaryInstruction
+    | Call of UnaryInstruction<'op>
+    | Compare of BinaryInstruction<'op>
+    | Divide of BinaryInstruction<'op>
+    | Multiply of BinaryInstruction<'op>
+    | Negate of UnaryInstruction<'op>
+    | Not of UnaryInstruction<'op>
+    | Or of BinaryInstruction<'op>
+    | Return of UnaryInstruction<'op> // TODO: remove data
+    | ShiftLeft of BinaryInstruction<'op>
+    | ShiftRight of BinaryInstruction<'op>
+    | Subtract of BinaryInstruction<'op>
+    | Xor of BinaryInstruction<'op>
     | Nop // TODO: remove this
     | Break
 
-let unary (operand: ILOperand): UnaryInstruction = {
+let unary (operand: 'op): UnaryInstruction<'op> = {
     operand = operand
     operandId = -1
 }
 
-let binary (left: ILOperand) (right: ILOperand): BinaryInstruction = {
+let binary (left: 'op) (right: 'op): BinaryInstruction<'op> = {
     left = left
     leftId = -1
     right = right

@@ -14,7 +14,7 @@ type private T = {
     mutable prevInstr: Instruction
 }
 
-let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILInstruction> =
+let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILInstruction<ILOperand>> =
     let t = {
         stackObjects = new Dictionary<int, obj>()
         stackOffset = -Constants.RegisterSize // skip the return address on the stack
@@ -22,7 +22,7 @@ let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILIns
         prevInstr = null
     }
     t.stackObjects.Add(t.stackOffset, null)
-    let instructions = new Dictionary<uint64, ILInstruction>()
+    let instructions = new Dictionary<uint64, ILInstruction<ILOperand>>()
     graph.AsGenericGraph()
         |> Graph.withEdgeFilter (fun e ->
             match e.type_ with
@@ -41,20 +41,20 @@ let decompile (graph: InstructionGraph.T) (address: uint64): IReadOnlyList<ILIns
             for i in [0 .. ilInstructions.Length - 1] do
                 instructions.Add(instr.Offset + uint64 i, ilInstructions.[i])
         )
-    let il = new SortedList<uint64, ILInstruction>(instructions)
-    let addresses = new Dictionary<ILInstruction, uint64>(instructions.Count)
+    let il = new SortedList<uint64, ILInstruction<ILOperand>>(instructions)
+    let addresses = new Dictionary<ILInstruction<ILOperand>, uint64>(instructions.Count)
     for pair in il do
         addresses.[pair.Value] <- pair.Key
-    let res = new List<ILInstruction>()
+    let res = new List<ILInstruction<ILOperand>>()
     for pair in il do
         match pair.Value with
         | Branch branch ->
             res.Add(Branch { branch with target = uint64 (il.IndexOfKey(branch.target)) })
         | instr ->
             res.Add(instr)
-    res :> IReadOnlyList<ILInstruction>
+    res :> IReadOnlyList<ILInstruction<ILOperand>>
 
-let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
+let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOperand>[] =
     let result =
         match instr.Code with
         | MnemonicCode.Iadd ->
@@ -173,7 +173,7 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction[] =
     t.prevInstr <- instr
     result
 
-let private tryGetVirtualConditionInstruction (t: T): ILInstruction option =
+let private tryGetVirtualConditionInstruction (t: T): ILInstruction<ILOperand> option =
     if t.prevInstr.Code = MnemonicCode.Icmp || t.prevInstr.Code = MnemonicCode.Itest then
         None
     else

@@ -38,7 +38,7 @@ let private build (typeBuilder: TypeBuilder ref): DataType =
     | Function -> DataType.Function
     | Pointer t -> DataType.Pointer <| build t
 
-let resolveTypes (blocks: IReadOnlyList<Block>): Result =
+let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): Result =
     let t = {
         types = new Dictionary<ILOperand, TypeBuilder ref>()
         parameterTypes = new Dictionary<int, TypeBuilder ref>()
@@ -187,7 +187,7 @@ let resolveTypes (blocks: IReadOnlyList<Block>): Result =
         variableTypes = t.variableTypes
     }
 
-let private functionReturnsValue (blocks: IReadOnlyList<Block>): bool =
+let private functionReturnsValue (blocks: IReadOnlyList<Block<ILOperand>>): bool =
     // This tests only the top-level scope, which is probably an incomplete heuristic,
     // most probably need to check all paths
     blocks
@@ -281,10 +281,10 @@ type private SsaMarker = PushIds | JoinPoint
 
 type private Traversal =
     | Marker of SsaMarker
-    | Instructions of IReadOnlyList<ILInstruction>
-    | Block of Block
+    | Instructions of IReadOnlyList<ILInstruction<ILOperand>>
+    | Block of Block<ILOperand>
 
-let private traverse (blocks: IReadOnlyList<Block>): IEnumerable<Either<SsaMarker, ILInstruction>> =
+let private traverse (blocks: IReadOnlyList<Block<ILOperand>>): IEnumerable<Either<SsaMarker, ILInstruction<ILOperand>>> =
     seq {
         let stack = new Stack<Traversal>(blocks |> Seq.rev |> Seq.map Block)
         while stack.Count > 0 do

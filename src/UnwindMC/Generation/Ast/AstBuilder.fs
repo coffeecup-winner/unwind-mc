@@ -6,6 +6,9 @@ open IL
 open FlowAnalyzer
 open Type
 
+type Block = Block<ILOperand>
+type Instruction = ILInstruction<ILOperand>
+
 type private T = {
     blocks: IReadOnlyList<Block>
     variableTypes: IReadOnlyList<DataType>
@@ -86,19 +89,19 @@ let private buildScope (t: T) (blocks: IReadOnlyList<Block>): IReadOnlyList<Stat
             statements.Add(buildIfThenElse t c tb fb)
     statements :> IReadOnlyList<Statement>
 
-let private buildWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (children: IReadOnlyList<Block>): Statement =
+let private buildWhile (t: T) (condition: IReadOnlyList<Instruction>) (children: IReadOnlyList<Block>): Statement =
     While (buildCondition t condition, buildScope t children)
 
-let private buildDoWhile (t: T) (condition: IReadOnlyList<ILInstruction>) (children: IReadOnlyList<Block>): Statement =
+let private buildDoWhile (t: T) (condition: IReadOnlyList<Instruction>) (children: IReadOnlyList<Block>): Statement =
     DoWhile (buildScope t children, buildCondition t condition)
 
-let private buildFor (t: T) (condition: IReadOnlyList<ILInstruction>) (modifier: IReadOnlyList<ILInstruction>) (body: IReadOnlyList<Block>): Statement =
+let private buildFor (t: T) (condition: IReadOnlyList<Instruction>) (modifier: IReadOnlyList<Instruction>) (body: IReadOnlyList<Block>): Statement =
     For (buildCondition t condition, buildScope t [| (SequentialBlock { instructions = modifier }) |], buildScope t body)
 
-let private buildIfThenElse (t: T) (condition: IReadOnlyList<ILInstruction>) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
+let private buildIfThenElse (t: T) (condition: IReadOnlyList<Instruction>) (trueBranch: IReadOnlyList<Block>) (falseBranch: IReadOnlyList<Block>): Statement =
     IfThenElse (buildCondition t condition, buildScope t trueBranch, buildScope t falseBranch)
 
-let private buildCondition (t: T) (condition: IReadOnlyList<ILInstruction>): Expression =
+let private buildCondition (t: T) (condition: IReadOnlyList<Instruction>): Expression =
     match (condition |> Seq.toList) with
     | (Compare compare) :: (Branch branch) :: [] ->
         buildBinaryOperator t (getBinaryOperator t branch.type_) compare
@@ -107,7 +110,7 @@ let private buildCondition (t: T) (condition: IReadOnlyList<ILInstruction>): Exp
         buildBinaryOperator t (getBinaryOperator t branch.type_) { compare with left = assign.right }
     | _ -> failwith "Instruction is not a valid statement"
 
-let private buildStatement (t: T) (instr: ILInstruction): Statement =
+let private buildStatement (t: T) (instr: Instruction): Statement =
     match instr with
     | Add binary ->
         Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Add binary)
@@ -159,10 +162,10 @@ let private getBinaryOperator (t: T) (condition: BranchType): Operator =
     | Greater -> Operator.Greater
     | Unconditional -> impossible
 
-let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction): Expression =
+let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction<ILOperand>): Expression =
     Binary (op, buildExpression t instr.left instr.leftId, buildExpression t instr.right instr.rightId)
 
-let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction): Expression =
+let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction<ILOperand>): Expression =
     Unary (op, buildExpression t instr.operand instr.operandId)
 
 let private buildVar (t: T) (op: ILOperand) (id: int): Var =

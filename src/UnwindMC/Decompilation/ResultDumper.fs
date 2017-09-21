@@ -65,7 +65,7 @@ let dumpFunctionCallGraph (t: T): string =
     logger.Info("Done")
     result
 
-let dumpILGraph (il: IReadOnlyList<ILInstruction>): string =
+let dumpILGraph (il: IReadOnlyList<ILInstruction<ILOperand>>): string =
     logger.Info("Dumping IL graph")
     let sb = new StringBuilder()
     sb.AppendLine("digraph il {") |> ignore

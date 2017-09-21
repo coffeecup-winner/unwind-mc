@@ -3,52 +3,54 @@
 open System.Collections.Generic
 open IL
 
-type ConditionalBlock = {
-    condition: IReadOnlyList<ILInstruction>
-    trueBranch: IReadOnlyList<Block>
-    falseBranch : IReadOnlyList<Block>
+type Instruction = ILInstruction<ILOperand>
+
+type ConditionalBlock<'op> = {
+    condition: IReadOnlyList<ILInstruction<'op>>
+    trueBranch: IReadOnlyList<Block<'op>>
+    falseBranch : IReadOnlyList<Block<'op>>
 }
 
-type DoWhileBlock = {
-    condition: IReadOnlyList<ILInstruction>
-    body: IReadOnlyList<Block>
+type DoWhileBlock<'op> = {
+    condition: IReadOnlyList<ILInstruction<'op>>
+    body: IReadOnlyList<Block<'op>>
 }
 
-type ForBlock = {
-    condition: IReadOnlyList<ILInstruction>
-    modifier: IReadOnlyList<ILInstruction>
-    body: IReadOnlyList<Block>
+type ForBlock<'op> = {
+    condition: IReadOnlyList<ILInstruction<'op>>
+    modifier: IReadOnlyList<ILInstruction<'op>>
+    body: IReadOnlyList<Block<'op>>
 }
 
-type SequentialBlock = {
-    instructions: IReadOnlyList<ILInstruction>
+type SequentialBlock<'op> = {
+    instructions: IReadOnlyList<ILInstruction<'op>>
 }
 
-type WhileBlock = {
-    condition: IReadOnlyList<ILInstruction>
-    body: IReadOnlyList<Block>
+type WhileBlock<'op> = {
+    condition: IReadOnlyList<ILInstruction<'op>>
+    body: IReadOnlyList<Block<'op>>
 }
 
-type Block =
-    | ConditionalBlock of ConditionalBlock
-    | DoWhileBlock of DoWhileBlock
-    | ForBlock of ForBlock
-    | SequentialBlock of SequentialBlock
-    | WhileBlock of WhileBlock
+type Block<'op> =
+    | ConditionalBlock of ConditionalBlock<'op>
+    | DoWhileBlock of DoWhileBlock<'op>
+    | ForBlock of ForBlock<'op>
+    | SequentialBlock of SequentialBlock<'op>
+    | WhileBlock of WhileBlock<'op>
 
 (* Active patterns for parsing the input IL *)
 
-let (|Br|_|) (instr: ILInstruction) =
+let (|Br|_|) (instr: Instruction) =
     match instr with
     | Branch b when b.type_ <> Unconditional -> Some (int b.target)
     | _ -> None
 
-let (|Jmp|_|) (instr: ILInstruction) =
+let (|Jmp|_|) (instr: Instruction) =
     match instr with
     | Branch b when b.type_ = Unconditional -> Some (int b.target)
     | _ -> None
 
-let buildFlowGraph (il: IReadOnlyList<ILInstruction>): List<Block> =
+let buildFlowGraph (il: IReadOnlyList<Instruction>): List<Block<ILOperand>> =
     let branchTargets = Array.create il.Count None
     for instr in il |> Seq.indexed do
         match instr with
@@ -61,8 +63,8 @@ let buildFlowGraph (il: IReadOnlyList<ILInstruction>): List<Block> =
     |> Seq.toList
     |> scope 0
 
-let private scope (pastLoop: int) (instructions: (int * ILInstruction * int option) list): List<Block> =
-    let rec run: (int * ILInstruction * int option) list -> Either<ILInstruction, Block> list =
+let private scope (pastLoop: int) (instructions: (int * Instruction * int option) list): List<Block<ILOperand>> =
+    let rec run: (int * Instruction * int option) list -> Either<Instruction, Block<ILOperand>> list =
         function
         (** for loop **
             ...
@@ -138,7 +140,7 @@ let private scope (pastLoop: int) (instructions: (int * ILInstruction * int opti
         *)
         | [] -> []
     let mutable sequence = run instructions
-    let result = new List<Block>()
+    let result = new List<Block<ILOperand>>()
     while not (sequence.IsEmpty) do
         let instructions =
             sequence
@@ -157,7 +159,7 @@ let private scope (pastLoop: int) (instructions: (int * ILInstruction * int opti
         sequence <- sequence |> List.skip blocks.Length
     result
 
-let private conditional (pastLoop: int) (falseBranch: int) (instructions: (int * ILInstruction * int option) list): Block =
+let private conditional (pastLoop: int) (falseBranch: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     if falseBranch = (instructions |> List.length) then
         // no else case
         let (condition, trueBranch) = instructions |> List.splitAt 2
@@ -176,7 +178,7 @@ let private conditional (pastLoop: int) (falseBranch: int) (instructions: (int *
             falseBranch = scope pastLoop falseBranch
         }
 
-let private forLoop (pastLoop: int) (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
+let private forLoop (pastLoop: int) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (modifier, instructions) = instructions |> List.splitAt (condition - 1)
     let bodyStart =
         instructions
@@ -189,7 +191,7 @@ let private forLoop (pastLoop: int) (condition: int) (instructions: (int * ILIns
         body = scope pastLoop body
     }
 
-let private doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * ILInstruction * int option) list): Block =
+let private doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (instructions, conditionInstructions) = instructions |> List.splitAt condition
     let body =
         match instructions with
@@ -200,7 +202,7 @@ let private doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * I
         body = scope pastLoop body
     }
 
-let private whileLoop (pastLoop: int) (instructions: (int * ILInstruction * int option) list): Block =
+let private whileLoop (pastLoop: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (condition, instructions) = instructions |> List.splitAt 2
     let body =
         match instructions with
@@ -211,11 +213,11 @@ let private whileLoop (pastLoop: int) (instructions: (int * ILInstruction * int 
         body = scope pastLoop body
     }
 
-let getInstructions: (int * ILInstruction * int option) list -> ILInstruction[] =
+let getInstructions: (int * Instruction * int option) list -> Instruction[] =
     Seq.map (fun (_, i, _) -> i)
     >> Seq.toArray
 
-let invertCondition (condition: ILInstruction[]): ILInstruction[] =
+let invertCondition (condition: Instruction[]): Instruction[] =
     let branch =
         match condition.[condition.Length - 1] with
         | Branch branch -> Branch { branch with type_ = invert branch.type_ }
