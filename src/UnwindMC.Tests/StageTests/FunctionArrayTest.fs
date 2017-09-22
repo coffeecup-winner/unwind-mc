@@ -68,8 +68,8 @@ let testStages (): unit =
     let il = ILDecompiler.decompile graph 0x400000uL
 
     let nop0 = Nop
-    let asn0 = Assign <| binary (Register OperandType.ESI) (Stack 0)
-    let cmp0 = Compare <| binary (Register OperandType.ESI) (Stack 4)
+    let asn0 = Assign <| binary (Register OperandType.ESI) (Argument 0)
+    let cmp0 = Compare <| binary (Register OperandType.ESI) (Argument 4)
     let br0 = Branch <| branch GreaterOrEqual 10uL
     let asn1 = Assign <| binary (Register OperandType.EAX) (ILOperand.Pointer (OperandType.ESI, 0))
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Value 0)
@@ -124,14 +124,14 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Assign <| { binary (Register OperandType.ESI) (Stack 0) with leftId = 0; rightId = -1 }
+                        Assign <| { binary (Register OperandType.ESI) (Argument 0) with leftId = 0; rightId = -1 }
                     |]
             }
             WhileBlock {
                 condition =
                     invertCondition
                         [|
-                            Compare <| { binary (Register OperandType.ESI) (Stack 4) with leftId = 0; rightId = -1 }
+                            Compare <| { binary (Register OperandType.ESI) (Argument 4) with leftId = 0; rightId = -1 }
                             Branch <| branch GreaterOrEqual 10uL
                         |]
                 body =

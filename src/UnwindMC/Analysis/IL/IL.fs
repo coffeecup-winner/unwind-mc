@@ -5,7 +5,8 @@ open NDis86
 type ILOperand =
     | Value of int
     | Register of OperandType
-    | Stack of int
+    | Argument of int
+    | Local of int
     | Pointer of OperandType * int
     | NoOperand // TODO: replace by option on ILOperand
 

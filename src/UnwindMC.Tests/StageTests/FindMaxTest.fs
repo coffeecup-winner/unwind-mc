@@ -83,11 +83,11 @@ let testStages (): unit =
     let il = ILDecompiler.decompile graph 0x8048400uL
 
     let nop0 = Nop
-    let asn0 = Assign <| binary (Register OperandType.ECX) (Stack 4)
+    let asn0 = Assign <| binary (Register OperandType.ECX) (Argument 4)
     let asn1 = Assign <| binary (Register OperandType.EAX) (Value Int32.MinValue)
     let cmp0 = Compare <| binary (Register OperandType.ECX) (Value 0)
     let br0 = Branch <| branch Equal 15uL
-    let asn2 = Assign <| binary (Register OperandType.EDX) (Stack 0)
+    let asn2 = Assign <| binary (Register OperandType.EDX) (Argument 0)
     let asn3 = Assign <| binary (Register OperandType.EAX) (Value Int32.MinValue)
     let asn4 = Assign <| binary (Register OperandType.ESI) (ILOperand.Pointer (OperandType.EDX, 0))
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Register OperandType.ESI)
@@ -155,7 +155,7 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Assign <| { binary (Register OperandType.ECX) (Stack 4) with leftId = 0; rightId = -1 }
+                        Assign <| { binary (Register OperandType.ECX) (Argument 4) with leftId = 0; rightId = -1 }
                         Assign <| { binary (Register OperandType.EAX) (Value Int32.MinValue) with leftId = 1; rightId = -1 }
                     |]
             }
@@ -171,7 +171,7 @@ let testStages (): unit =
                         SequentialBlock {
                             instructions =
                                 [|
-                                    Assign <| { binary (Register OperandType.EDX) (Stack 0) with leftId = 2; rightId = -1 }
+                                    Assign <| { binary (Register OperandType.EDX) (Argument 0) with leftId = 2; rightId = -1 }
                                     Assign <| { binary (Register OperandType.EAX) (Value Int32.MinValue) with leftId = 1; rightId = -1 }
                                 |]
                         }

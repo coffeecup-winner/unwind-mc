@@ -189,7 +189,9 @@ let private convertOperands (t: T) (operands: IReadOnlyList<Operand>): ILOperand
     for i in [0 .. operands.Count - 1] do
         let op = convertOperand t operands.[i]
         match op with
-        | Stack offset -> addOrUpdateStackValue t offset
+        | Argument offset
+        | Local offset ->
+            addOrUpdateStackValue t offset
         | _ -> ()
         result.[i] <- op
     result
@@ -205,9 +207,11 @@ let private convertOperand (t: T) (operand: Operand): ILOperand =
         Register operand.Base
     | OperandType.Memory ->
         if operand.Base = OperandType.ESP then
-            Stack (t.stackOffset + int (operand.GetMemoryOffset()))
+            let offset = t.stackOffset + int (operand.GetMemoryOffset())
+            if offset >= 0 then Argument offset else Local offset
         elif operand.Base = OperandType.EBP then
-            Stack (t.framePointerOffset + int (operand.GetMemoryOffset()))
+            let offset = t.framePointerOffset + int (operand.GetMemoryOffset())
+            if offset >= 0 then Argument offset else Local offset
         elif operand.Index = OperandType.None then
             Pointer (operand.Base, int (operand.GetMemoryOffset()))
         else

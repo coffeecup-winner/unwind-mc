@@ -182,7 +182,8 @@ let private convertAssign (t: T) (binary: BinaryInstruction<ILOperand>): BinaryI
         | _ -> binary.right
     if not (typeExists t operand) then
         match operand with
-        | Stack _
+        | Argument _
+        | Local _
         | Value _ ->
             ()
         | _ ->
@@ -222,24 +223,21 @@ let private functionReturnsValue (blocks: IReadOnlyList<Block<ILOperand>>): bool
 
 let private typeExists (t: T) (operand: ILOperand): bool =
     match operand with
-    | Stack offset ->
-        if offset >= 0 then t.parameterTypes.ContainsKey(offset) else t.localTypes.ContainsKey(offset)
-    | _ ->
-        t.types.ContainsKey(operand)
+    | Argument offset -> t.parameterTypes.ContainsKey(offset)
+    | Local offset -> t.localTypes.ContainsKey(offset)
+    | _ -> t.types.ContainsKey(operand)
 
 let private getType (t: T) (operand: ILOperand): TypeBuilder ref =
     match operand with
-    | Stack offset ->
-        if offset >= 0 then t.parameterTypes.[offset] else t.localTypes.[offset]
-    | _ ->
-        t.types.[operand]
+    | Argument offset -> t.parameterTypes.[offset]
+    | Local offset -> t.localTypes.[offset]
+    | _ -> t.types.[operand]
 
 let private setType (t: T) (operand: ILOperand) (type_: TypeBuilder ref): unit =
     match operand with
-    | Stack offset ->
-        (if offset >= 0 then t.parameterTypes else t.localTypes).[offset] <- type_
-    | _ ->
-        t.types.[operand] <- type_
+    | Argument offset -> t.parameterTypes .[offset] <- type_
+    | Local offset -> t.localTypes.[offset] <- type_
+    | _ -> t.types.[operand] <- type_
 
 let private finalizeType (t: T) (operand: ILOperand): unit =
     let id = getCurrentId t operand
@@ -253,22 +251,26 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
         match source with
         | NoOperand
         | Value _ -> ref Fresh
-        | Stack offset ->
-            let types = if offset >= 0 then t.parameterTypes else t.localTypes
-            match getValue types offset with
+        | Argument offset ->
+            match getValue t.parameterTypes offset with
             | Some type_ ->
                 type_
             | None ->
                 let type_ = ref Fresh
-                types.Add(offset, type_)
+                t.parameterTypes.Add(offset, type_)
+                type_
+        | Local offset ->
+            match getValue t.localTypes offset with
+            | Some type_ ->
+                type_
+            | None ->
+                let type_ = ref Fresh
+                t.localTypes.Add(offset, type_)
                 type_
         | _ -> getType t source
     match target with
-    | Stack offset ->
-        if offset >= 0 then
-            t.parameterTypes.[offset] <- typeBuilder
-        else
-            t.localTypes.[offset] <- typeBuilder
+    | Argument offset -> t.parameterTypes.[offset] <- typeBuilder
+    | Local offset -> t.localTypes.[offset] <- typeBuilder
     | _ ->
         match getValue t.types target with
         | Some _ ->

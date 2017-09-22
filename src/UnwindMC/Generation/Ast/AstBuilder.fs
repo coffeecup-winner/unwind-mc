@@ -148,7 +148,8 @@ let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     match op with
     | ILOperand.Pointer _ -> Dereference (VarRef (Var (getVarName t id)))
     | Register _ -> VarRef (Var (getVarName t id))
-    | Stack offset -> VarRef (Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset]))
+    | Argument offset -> VarRef (Var t.parameterNames.[offset])
+    | Local offset -> VarRef (Var t.localNames.[offset])
     | Value value -> Expression.Value (value)
     | NoOperand -> impossible
 
@@ -171,7 +172,8 @@ let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction<IL
 let private buildVar (t: T) (op: ILOperand) (id: int): Var =
     match op with
     | Register _ -> Var (getVarName t id)
-    | Stack offset -> Var (if offset >= 0 then t.parameterNames.[offset] else t.localNames.[offset])
+    | Argument offset -> Var t.parameterNames.[offset]
+    | Local offset -> Var t.localNames.[offset]
     | _ -> notSupported
 
 let private getVarName (t: T) (id: int): string =
