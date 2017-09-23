@@ -140,9 +140,14 @@ let private buildStatement (t: T) (instr: Instruction): Statement =
         Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Subtract binary)
     | Xor binary ->
         Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Xor binary)
+    | Continue ->
+        Statement.Continue
     | Break ->
         Statement.Break
-    | _ -> failwith "Instruction is not a valid statement"
+    | Nop
+    | Compare _
+    | Branch _ ->
+        impossible
 
 let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     match op with

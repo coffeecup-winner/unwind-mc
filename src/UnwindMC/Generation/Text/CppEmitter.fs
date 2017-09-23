@@ -12,6 +12,7 @@ let private findRootVar (stmts: IReadOnlyList<Statement>): Var option =
         function
         | Assignment _ -> None
         | Break -> None
+        | Continue -> None
         | DoWhile (loop, _) -> loop |> Seq.tryPick findRoot
         | For (_, modifier, body) -> modifier |> Seq.append body |> Seq.tryPick findRoot
         | FunctionCall _ -> None
@@ -130,6 +131,7 @@ let private emitStatement (t: T) (statement: Statement): TextWorkflow.T =
             match statement with
             | Assignment (var, expr) -> emitAssignment t var expr true
             | Break -> emitBreak ()
+            | Continue -> emitContinue ()
             | DoWhile (loop, cond) -> emitDoWhile t loop cond
             | For (cond, modifier, body) -> emitFor t cond modifier body
             | FunctionCall expr -> emitFunctionCall t expr
@@ -152,6 +154,13 @@ let private emitAssignment (t :T) (var: Var) (expr: Expression) (emitSeparator: 
 let private emitBreak (): TextWorkflow.T =
     text {
         yield "break"
+        yield ";"
+        yield NewLine
+    }
+
+let private emitContinue (): TextWorkflow.T =
+    text {
+        yield "continue"
         yield ";"
         yield NewLine
     }

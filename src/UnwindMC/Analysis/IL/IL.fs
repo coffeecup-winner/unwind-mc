@@ -56,6 +56,7 @@ type ILInstruction<'op> =
     | Subtract of BinaryInstruction<'op>
     | Xor of BinaryInstruction<'op>
     | Nop // TODO: remove this
+    | Continue
     | Break
 
 let unary (operand: 'op): UnaryInstruction<'op> = {

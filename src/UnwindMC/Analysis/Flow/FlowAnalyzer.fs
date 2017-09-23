@@ -38,14 +38,19 @@ type Block<'op> =
     | SequentialBlock of SequentialBlock<'op>
     | WhileBlock of WhileBlock<'op>
 
+type private LoopBounds = {
+    condition: int
+    pastLoop: int
+}
+
 (* Active patterns for parsing the input IL *)
 
-let (|Br|_|) (instr: Instruction) =
+let private (|Br|_|) (instr: Instruction) =
     match instr with
     | Branch b when b.type_ <> Unconditional -> Some (int b.target)
     | _ -> None
 
-let (|Jmp|_|) (instr: Instruction) =
+let private (|Jmp|_|) (instr: Instruction) =
     match instr with
     | Branch b when b.type_ = Unconditional -> Some (int b.target)
     | _ -> None
@@ -61,9 +66,9 @@ let buildFlowGraph (il: IReadOnlyList<Instruction>): List<Block<ILOperand>> =
     |> Seq.indexed
     |> Seq.map (fun (a, (b, c)) -> (a, b, c))
     |> Seq.toList
-    |> scope 0
+    |> scope { condition = -1; pastLoop = -1 }
 
-let private scope (pastLoop: int) (instructions: (int * Instruction * int option) list): List<Block<ILOperand>> =
+let private scope (loop: LoopBounds) (instructions: (int * Instruction * int option) list): List<Block<ILOperand>> =
     let rec run: (int * Instruction * int option) list -> Either<Instruction, Block<ILOperand>> list =
         function
         (** for loop **
@@ -80,7 +85,8 @@ let private scope (pastLoop: int) (instructions: (int * Instruction * int option
             ...
         *)
         | (start, Jmp condition, _) :: ((_, _, Some end_) :: _ as rest) ->
-            let block = forLoop (end_ + 1) (condition - start) (rest |> List.take (end_ - start - 1))
+            let loop = { condition = start + 1; pastLoop = end_ + 1 }
+            let block = forLoop loop (condition - start) (rest |> List.take (end_ - start - 1))
             Right block :: run (rest |> List.skip (end_ - start))
         (** while loop **
             ...
@@ -95,7 +101,8 @@ let private scope (pastLoop: int) (instructions: (int * Instruction * int option
         | ((start, Compare _, Some end_) :: (_, Br pastLoop, _) :: _) as all ->
             assert (end_ + 1 = pastLoop)
             assert (all |> List.skip (end_ - start) |> List.head |> function (_, Jmp _, _) -> true | _ -> false)
-            let block = whileLoop pastLoop (all |> List.take (end_ - start))
+            let loop = { condition = start; pastLoop = pastLoop }
+            let block = whileLoop loop (all |> List.take (end_ - start))
             Right block :: run (all |> List.skip (pastLoop - start))
         (** do while loop **
             ...
@@ -106,9 +113,9 @@ let private scope (pastLoop: int) (instructions: (int * Instruction * int option
             ...
         *)
         | ((start, _, Some end_) :: _) as all when end_ > start ->
-            let pastLoop = end_ + 1
-            let block = doWhileLoop pastLoop (pastLoop - start - 2) (all |> List.take (pastLoop - start))
-            Right block :: run (all |> List.skip (pastLoop - start))
+            let loop = { condition = end_ - 1; pastLoop = end_ + 1 }
+            let block = doWhileLoop loop (loop.pastLoop - start - 2) (all |> List.take (loop.pastLoop - start))
+            Right block :: run (all |> List.skip (loop.pastLoop - start))
         (** conditional **
           * if-then-else *  |  * if then *   |  * if else *
             ...             |    ...         |    ...
@@ -121,19 +128,29 @@ let private scope (pastLoop: int) (instructions: (int * Instruction * int option
             END:                             |    ...
             ...
         *)
-        | ((start, _, _) :: (_, Br falseBranch, _) :: _) as all ->
+        | ((start, Compare _, _) :: (_, Br falseBranch, _) :: _) as all ->
             let end_ =
                 match all |> List.skip (falseBranch - start - 1) with
-                | (_, Jmp end_, _) :: _ when end_ <> pastLoop -> end_
+                | (_, Jmp end_, _) :: _ when end_ <> loop.condition && end_ <> loop.pastLoop -> end_
                 | _ -> falseBranch // no else case
             let (ifThenElse, rest) = all |> List.splitAt (end_ - start)
-            let block = conditional pastLoop (falseBranch - start) ifThenElse
+            let block = conditional loop (falseBranch - start) ifThenElse
             Right block :: run rest
+        (** loop control **
+          * continue *     |  * continue *   |  * break *
+            ...            |  ...            |  ...
+            LOOP_COND:     |  jmp LOOP_COND  |  jmp LOOP_END
+            ...            |  ...            |  ...
+            jmp LOOP_COND  |  LOOP_COND:     |  LOOP_END:
+            ...            |  ...            |  ...
+        *)
+        | (_, Jmp target, _) :: rest when target = loop.condition ->
+            Left Continue :: run rest
+        | (_, Jmp target, _) :: rest when target = loop.pastLoop ->
+            Left Break :: run rest
         (** sequential flow **
             ...
         *)
-        | (_, Jmp target, _) :: rest when target = pastLoop ->
-            Left Break :: run rest
         | (_, instr, _) :: rest ->
             Left instr :: run rest
         (** end of scope **
@@ -159,13 +176,13 @@ let private scope (pastLoop: int) (instructions: (int * Instruction * int option
         sequence <- sequence |> List.skip blocks.Length
     result
 
-let private conditional (pastLoop: int) (falseBranch: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
+let private conditional (loop: LoopBounds) (falseBranch: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     if falseBranch = (instructions |> List.length) then
         // no else case
         let (condition, trueBranch) = instructions |> List.splitAt 2
         ConditionalBlock {
             condition = invertCondition (getInstructions condition)
-            trueBranch = scope pastLoop trueBranch
+            trueBranch = scope loop trueBranch
             falseBranch = [||]
         }
     else
@@ -174,24 +191,24 @@ let private conditional (pastLoop: int) (falseBranch: int) (instructions: (int *
         let (_branch, falseBranch) = instructions |> List.splitAt 1
         ConditionalBlock {
             condition = invertCondition (getInstructions condition)
-            trueBranch = scope pastLoop trueBranch
-            falseBranch = scope pastLoop falseBranch
+            trueBranch = scope loop trueBranch
+            falseBranch = scope loop falseBranch
         }
 
-let private forLoop (pastLoop: int) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
+let private forLoop (loop: LoopBounds) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (modifier, instructions) = instructions |> List.splitAt (condition - 1)
     let bodyStart =
         instructions
-        |> List.findIndex (function (_, Br target, _) when target = pastLoop -> true | _ -> false) 
+        |> List.findIndex (function (_, Br target, _) when target = loop.pastLoop -> true | _ -> false)
         |> (+) 1
     let (condition, body) = instructions |> List.splitAt bodyStart
     ForBlock {
         condition = invertCondition (getInstructions condition)
         modifier = getInstructions modifier
-        body = scope pastLoop body
+        body = scope loop body
     }
 
-let private doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
+let private doWhileLoop (loop: LoopBounds) (condition: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (instructions, conditionInstructions) = instructions |> List.splitAt condition
     let body =
         match instructions with
@@ -199,10 +216,10 @@ let private doWhileLoop (pastLoop: int) (condition: int) (instructions: (int * I
         | _ -> impossible
     DoWhileBlock {
         condition = getInstructions conditionInstructions
-        body = scope pastLoop body
+        body = scope loop body
     }
 
-let private whileLoop (pastLoop: int) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
+let private whileLoop (loop: LoopBounds) (instructions: (int * Instruction * int option) list): Block<ILOperand> =
     let (condition, instructions) = instructions |> List.splitAt 2
     let body =
         match instructions with
@@ -210,7 +227,7 @@ let private whileLoop (pastLoop: int) (instructions: (int * Instruction * int op
         | _ -> impossible
     WhileBlock {
         condition = invertCondition (getInstructions condition)
-        body = scope pastLoop body
+        body = scope loop body
     }
 
 let getInstructions: (int * Instruction * int option) list -> Instruction[] =

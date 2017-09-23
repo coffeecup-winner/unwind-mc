@@ -93,6 +93,7 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
             | Assign binary -> Assign <| convertAssign t binary
             | Call unary -> Call <| convertCall t unary
             | Return unary -> Return <| convertReturn t unary returnsValue
+            | Continue -> Continue
             | Break -> Break
             | Branch branch -> Branch branch
             | Nop -> Nop
@@ -139,6 +140,7 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
                 | Subtract binary -> Subtract <| coaleasceBinary binary
                 | Xor binary -> Xor <| coaleasceBinary binary
                 | Assign binary -> Assign <| coaleasceBinary binary
+                | Continue -> Continue
                 | Break -> Break
                 | Branch branch -> Branch branch
                 | Nop -> Nop
