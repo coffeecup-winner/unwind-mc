@@ -93,8 +93,8 @@ let testStages (): unit =
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Register OperandType.ESI)
     let br1 = Branch <| branch GreaterOrEqual 11uL
     let asn5 = Assign <| binary (Register OperandType.EAX) (Register OperandType.ESI)
-    let add0 = Add <| binary (Register OperandType.EDX) (Value 4)
-    let sub0 = Subtract <| binary (Register OperandType.ECX) (Value 1)
+    let add0 = Binary (Add, binary (Register OperandType.EDX) (Value 4))
+    let sub0 = Binary (Subtract, binary (Register OperandType.ECX) (Value 1))
     let cmp2 = Compare <| binary (Register OperandType.ECX) (Value 0)
     let br2 = Branch <| branch NotEqual 7uL
     let nop1 = Nop
@@ -210,8 +210,8 @@ let testStages (): unit =
                                     SequentialBlock {
                                         instructions =
                                             [|
-                                                Add <| { binary (Register OperandType.EDX) (Value 4) with leftId = 2; rightId = -1 }
-                                                Subtract <| { binary (Register OperandType.ECX) (Value 1) with leftId = 0; rightId = -1 }
+                                                Binary (Add, { binary (Register OperandType.EDX) (Value 4) with leftId = 2; rightId = -1 })
+                                                Binary (Subtract, { binary (Register OperandType.ECX) (Value 1) with leftId = 0; rightId = -1 })
                                             |]
                                     }
                                 |]
@@ -237,7 +237,7 @@ let testStages (): unit =
             Assignment (Var "var1", Expression.Value Int32.MinValue)
             IfThenElse
                 (
-                    Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
+                    Expression.Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0),
                     [|
                         Assignment (Var "var2", VarRef (Var "arg0"))
                         Assignment (Var "var1", Expression.Value Int32.MinValue)
@@ -247,14 +247,14 @@ let testStages (): unit =
                                     Assignment (Var "var3", Dereference (VarRef (Var "var2")))
                                     IfThenElse
                                         (
-                                            Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
+                                            Expression.Binary (Operator.Less, VarRef (Var "var1"), VarRef (Var "var3")),
                                             [| Assignment (Var "var1", VarRef (Var "var3")) |],
                                             [||]
                                         )
-                                    Assignment (Var "var2", Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
-                                    Assignment (Var "var0", Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
+                                    Assignment (Var "var2", Expression.Binary (Operator.Add, VarRef (Var "var2"), Expression.Value 1))
+                                    Assignment (Var "var0", Expression.Binary (Operator.Subtract, VarRef (Var "var0"), Expression.Value 1))
                                 |],
-                                Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
+                                Expression.Binary (Operator.NotEqual, VarRef (Var "var0"), Expression.Value 0)
                             )
                     |],
                     [||]

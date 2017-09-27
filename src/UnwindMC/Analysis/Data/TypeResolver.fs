@@ -78,18 +78,9 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
                     | None -> t.currentIds.Add(pair.Key, pair.Value)
             )
             (function
-            | Negate unary -> Negate <| convertUnary t unary
-            | Not unary -> Not <| convertUnary t unary
-            | Add binary -> Add <| convertBinary t binary
-            | And binary -> And <| convertBinary t binary
+            | Binary (op, binary) -> Binary (op, convertBinary t binary)
+            | Unary (op, unary) -> Unary (op, convertUnary t unary)
             | Compare binary -> Compare <| convertBinary t binary
-            | Divide binary -> Divide <| convertBinary t binary
-            | Multiply binary -> Multiply <| convertBinary t binary
-            | Or binary -> Or <| convertBinary t binary
-            | ShiftLeft binary -> ShiftLeft <| convertBinary t binary
-            | ShiftRight binary -> ShiftRight <| convertBinary t binary
-            | Subtract binary -> Subtract <| convertBinary t binary
-            | Xor binary -> Xor <| convertBinary t binary
             | Assign binary -> Assign <| convertAssign t binary
             | Call unary -> Call <| convertCall t unary
             | Return unary -> Return <| convertReturn t unary returnsValue
@@ -125,20 +116,11 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
             |> convert
                 (fun _ -> ())
                 (function
-                | Negate unary -> Negate <| coalesceUnary unary
-                | Not unary -> Not <| coalesceUnary unary
+                | Binary (op, binary) -> Binary (op, coaleasceBinary binary)
+                | Unary (op, unary) -> Unary (op, coalesceUnary unary)
                 | Call unary -> Call <| coalesceUnary unary
                 | Return unary -> Return <| coalesceUnary unary
-                | Add binary -> Add <| coaleasceBinary binary
-                | And binary -> And <| coaleasceBinary binary
                 | Compare binary -> Compare <| coaleasceBinary binary
-                | Divide binary -> Divide <| coaleasceBinary binary
-                | Multiply binary -> Multiply <| coaleasceBinary binary
-                | Or binary -> Or <| coaleasceBinary binary
-                | ShiftLeft binary -> ShiftLeft <| coaleasceBinary binary
-                | ShiftRight binary -> ShiftRight <| coaleasceBinary binary
-                | Subtract binary -> Subtract <| coaleasceBinary binary
-                | Xor binary -> Xor <| coaleasceBinary binary
                 | Assign binary -> Assign <| coaleasceBinary binary
                 | Continue -> Continue
                 | Break -> Break

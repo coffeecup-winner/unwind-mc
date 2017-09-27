@@ -38,23 +38,29 @@ type BranchInstruction = {
     target: uint64
 }
 
+type ILBinaryOperator =
+    | Add
+    | And
+    | Divide
+    | Multiply
+    | Or
+    | ShiftLeft
+    | ShiftRight
+    | Subtract
+    | Xor
+
+type ILUnaryOperator =
+    | Negate
+    | Not
+
 type ILInstruction<'op> =
-    | Add of BinaryInstruction<'op>
-    | And of BinaryInstruction<'op>
+    | Binary of ILBinaryOperator * BinaryInstruction<'op>
+    | Unary of ILUnaryOperator * UnaryInstruction<'op>
     | Assign of BinaryInstruction<'op>
     | Branch of BranchInstruction
     | Call of UnaryInstruction<'op>
     | Compare of BinaryInstruction<'op>
-    | Divide of BinaryInstruction<'op>
-    | Multiply of BinaryInstruction<'op>
-    | Negate of UnaryInstruction<'op>
-    | Not of UnaryInstruction<'op>
-    | Or of BinaryInstruction<'op>
     | Return of UnaryInstruction<'op> // TODO: remove data
-    | ShiftLeft of BinaryInstruction<'op>
-    | ShiftRight of BinaryInstruction<'op>
-    | Subtract of BinaryInstruction<'op>
-    | Xor of BinaryInstruction<'op>
     | Nop // TODO: remove this
     | Continue
     | Break

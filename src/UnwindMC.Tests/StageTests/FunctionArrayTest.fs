@@ -75,7 +75,7 @@ let testStages (): unit =
     let cmp1 = Compare <| binary (Register OperandType.EAX) (Value 0)
     let br1 = Branch <| branch Equal 8uL
     let call = Call <| unary (Register OperandType.EAX)
-    let add = Add <| binary (Register OperandType.ESI) (Value 4)
+    let add = Binary (Add, binary (Register OperandType.ESI) (Value 4))
     let br3 = Branch <| branch Unconditional 2uL
     let nop1 = Nop
     let ret = Return <| unary (Register OperandType.EAX)
@@ -163,7 +163,7 @@ let testStages (): unit =
                         SequentialBlock {
                             instructions =
                                 [|
-                                    Add <| { binary (Register OperandType.ESI) (Value 4) with leftId = 0; rightId = -1 }
+                                    Binary (Add, { binary (Register OperandType.ESI) (Value 4) with leftId = 0; rightId = -1 })
                                 |]
                         }
                     |]
@@ -185,16 +185,16 @@ let testStages (): unit =
             Assignment (Var "var0", VarRef (Var "arg0"))
             While
                 (
-                    Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
+                    Expression.Binary (Operator.Less, VarRef (Var "var0"), VarRef (Var "arg1")),
                     [|
                         Assignment (Var "var1", Dereference (VarRef (Var "var0")))
                         IfThenElse
                             (
-                                Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
+                                Expression.Binary (Operator.NotEqual, VarRef (Var "var1"), Expression.Value 0),
                                 [| FunctionCall (VarRef (Var "var1")) |],
                                 [||]
                             )
-                        Assignment (Var "var0", Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
+                        Assignment (Var "var0", Expression.Binary (Operator.Add, VarRef (Var "var0"), Expression.Value 1))
                     |]
                 )
             Statement.Return None

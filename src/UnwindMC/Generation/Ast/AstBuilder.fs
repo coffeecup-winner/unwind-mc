@@ -104,42 +104,24 @@ let private buildIfThenElse (t: T) (condition: IReadOnlyList<Instruction>) (true
 let private buildCondition (t: T) (condition: IReadOnlyList<Instruction>): Expression =
     match (condition |> Seq.toList) with
     | (Compare compare) :: (Branch branch) :: [] ->
-        buildBinaryOperator t (getBinaryOperator t branch.type_) compare
+        buildBinaryOperator t (getBinaryOperator branch.type_) compare
     | (Assign assign) :: (Compare compare) :: (Branch branch) :: [] when assign.left = compare.left ->
         // TODO: this is a special case where we can inline the assigned variable, remove this
-        buildBinaryOperator t (getBinaryOperator t branch.type_) { compare with left = assign.right }
+        buildBinaryOperator t (getBinaryOperator branch.type_) { compare with left = assign.right }
     | _ -> failwith "Instruction is not a valid statement"
 
 let private buildStatement (t: T) (instr: Instruction): Statement =
     match instr with
-    | Add binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Add binary)
-    | And binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.And binary)
+    | Binary (op, binary) ->
+        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t (convertBinaryOperator op) binary)
+    | Unary (op, unary) ->
+        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t (convertUnaryOperator op) unary)
     | Assign binary ->
         Assignment (buildVar t binary.left binary.leftId, buildExpression t binary.right binary.rightId)
     | Call unary ->
         FunctionCall (buildExpression t unary.operand unary.operandId)
-    | Divide binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Divide binary)
-    | Multiply binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Multiply binary)
-    | Negate unary ->
-        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t Operator.Negate unary)
-    | Not unary ->
-        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t Operator.Not unary)
-    | Or binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Or binary)
     | Return unary ->
         Statement.Return (if unary.operandId = -1 then Option.None else Some(buildVar t unary.operand unary.operandId))
-    | ShiftLeft binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.ShiftLeft binary)
-    | ShiftRight binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.ShiftRight binary)
-    | Subtract binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Subtract binary)
-    | Xor binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t Operator.Xor binary)
     | Continue ->
         Statement.Continue
     | Break ->
@@ -158,7 +140,7 @@ let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
     | Value value -> Expression.Value (value)
     | NoOperand -> impossible
 
-let private getBinaryOperator (t: T) (condition: BranchType): Operator =
+let private getBinaryOperator (condition: BranchType): Operator =
     match condition with
     | Equal -> Operator.Equal
     | NotEqual -> Operator.NotEqual
@@ -168,11 +150,28 @@ let private getBinaryOperator (t: T) (condition: BranchType): Operator =
     | Greater -> Operator.Greater
     | Unconditional -> impossible
 
+let private convertBinaryOperator (op: ILBinaryOperator): Operator =
+    match op with
+    | Add -> Operator.Add
+    | And -> Operator.And
+    | Divide -> Operator.Divide
+    | Multiply -> Operator.Multiply
+    | Or -> Operator.Or
+    | ShiftLeft -> Operator.ShiftLeft
+    | ShiftRight -> Operator.ShiftRight
+    | Subtract -> Operator.Subtract
+    | Xor -> Operator.Xor
+
+let private convertUnaryOperator (op: ILUnaryOperator): Operator =
+    match op with
+    | Negate -> Operator.Negate
+    | Not -> Operator.Not
+
 let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction<ILOperand>): Expression =
-    Binary (op, buildExpression t instr.left instr.leftId, buildExpression t instr.right instr.rightId)
+    Expression.Binary (op, buildExpression t instr.left instr.leftId, buildExpression t instr.right instr.rightId)
 
 let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction<ILOperand>): Expression =
-    Unary (op, buildExpression t instr.operand instr.operandId)
+    Expression.Unary (op, buildExpression t instr.operand instr.operandId)
 
 let private buildVar (t: T) (op: ILOperand) (id: int): Var =
     match op with

@@ -59,10 +59,10 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOper
         match instr.Code with
         | MnemonicCode.Iadd ->
             let operands = convertOperands t instr.Operands
-            [| Add <| binary operands.[0] operands.[1] |]
+            [| Binary (Add, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Iand ->
             let operands = convertOperands t instr.Operands
-            [| And <| binary operands.[0] operands.[1] |]
+            [| Binary (And, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Icall ->
             let operands = convertOperands t instr.Operands
             [| Call <| unary operands.[0] |]
@@ -79,16 +79,16 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOper
             [| Compare <| binary operands.[0] operands.[1] |]
         | MnemonicCode.Idec ->
             let operands = convertOperands t instr.Operands
-            [| Subtract <| binary operands.[0] (Value 1) |]
+            [| Binary (Subtract, binary operands.[0] (Value 1)) |]
         | MnemonicCode.Iidiv ->
             let operands = convertOperands t instr.Operands
-            [| Divide <| binary (Register OperandType.EAX) operands.[0] |]
+            [| Binary (Divide, binary (Register OperandType.EAX) operands.[0]) |]
         | MnemonicCode.Iimul ->
             let operands = convertOperands t instr.Operands
-            [| Multiply <| binary operands.[0] operands.[1] |]
+            [| Binary (Multiply, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Iinc ->
             let operands = convertOperands t instr.Operands
-            [| Add <| binary operands.[0] (Value 1) |]
+            [| Binary (Add, binary operands.[0] (Value 1)) |]
         | MnemonicCode.Ija
         | MnemonicCode.Ijg ->
             [| Branch { type_ = Greater; target = instr.GetTargetAddress() } |]
@@ -131,13 +131,13 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOper
                 [| Assign <| binary operands.[0] operands.[1] |]
         | MnemonicCode.Ineg ->
             let operands = convertOperands t instr.Operands
-            [| Negate <| unary operands.[0] |]
+            [| Unary (Negate, unary operands.[0]) |]
         | MnemonicCode.Inot ->
             let operands = convertOperands t instr.Operands
-            [| Not <| unary operands.[0] |]
+            [| Unary (Not, unary operands.[0]) |]
         | MnemonicCode.Ior ->
             let operands = convertOperands t instr.Operands
-            [| Or <| binary operands.[0] operands.[1] |]
+            [| Binary (Or, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Ipush ->
             t.stackOffset <- t.stackOffset - Constants.RegisterSize
             addOrUpdateStackValue t t.stackOffset
@@ -152,13 +152,13 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOper
             [| Return <| unary (Register OperandType.EAX) |]
         | MnemonicCode.Ishl ->
             let operands = convertOperands t instr.Operands
-            [| ShiftLeft <| binary operands.[0] operands.[1] |]
+            [| Binary (ShiftLeft, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Isar ->
             let operands = convertOperands t instr.Operands
-            [| ShiftRight <| binary operands.[0] operands.[1] |]
+            [| Binary (ShiftRight, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Isub ->
             let operands = convertOperands t instr.Operands
-            [| Subtract <| binary operands.[0] operands.[1] |]
+            [| Binary (Subtract, binary operands.[0] operands.[1]) |]
         | MnemonicCode.Itest ->
             let operands = convertOperands t instr.Operands
             match (operands.[0], operands.[1]) with
@@ -168,7 +168,7 @@ let private convertInstruction (t: T) (instr: Instruction): ILInstruction<ILOper
                 notSupportedWith <| sprintf "Instruction `%O` is not supported yet" instr
         | MnemonicCode.Ixor ->
             let operands = convertOperands t instr.Operands
-            [| Xor <| binary operands.[0] operands.[1] |]
+            [| Binary (Xor, binary operands.[0] operands.[1]) |]
         | _ -> notSupportedWith <| sprintf "Instruction `%O` is not supported yet" instr
     t.prevInstr <- instr
     result
