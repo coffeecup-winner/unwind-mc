@@ -38,7 +38,7 @@ let private build (typeBuilder: TypeBuilder ref): DataType =
     | Function -> DataType.Function
     | Pointer t -> DataType.Pointer <| build t
 
-let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<ILOperand>> * Result =
+let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<ILOperand * int>> * Result =
     let t = {
         types = new Dictionary<ILOperand, TypeBuilder ref>()
         parameterTypes = new Dictionary<int, TypeBuilder ref>()
@@ -103,15 +103,18 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
         t.coalescedIds
         |> Seq.rev
         |> Seq.fold (fun blocks pair ->
-            let coalesceUnary (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
-                if unary.operandId = pair.Key then
-                    { unary with operandId = pair.Value }
+            let coalesceUnary (unary: UnaryInstruction<ResolvedOperand>): UnaryInstruction<ResolvedOperand> =
+                let (op, opId) = unary.operand
+                if opId = pair.Key then
+                    { unary with operand = (op, pair.Value) }
                 else
                     unary
-            let coaleasceBinary (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
-                let leftId = if binary.leftId = pair.Key then pair.Value else binary.leftId
-                let rightId = if binary.rightId = pair.Key then pair.Value else binary.rightId
-                { binary with leftId = leftId; rightId = rightId }
+            let coaleasceBinary (binary: BinaryInstruction<ResolvedOperand>): BinaryInstruction<ResolvedOperand> =
+                let (left, leftId) = binary.left
+                let leftId = if leftId = pair.Key then pair.Value else leftId
+                let (right, rightId) = binary.right
+                let rightId = if rightId = pair.Key then pair.Value else rightId
+                { binary with left = (left, leftId); right = (right, rightId) }
             blocks
             |> convert
                 (fun _ -> ())
@@ -136,10 +139,11 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
         }
     (blocks, result)
 
-let private convertUnary (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
-    { unary with operandId = getCurrentId t unary.operand }
+let private convertUnary (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ResolvedOperand> =
+    let { operand = operand } = unary
+    { operand = (operand, getCurrentId t operand) }
 
-let private convertBinary (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
+let private convertBinary (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ResolvedOperand> =
     let rightId = getCurrentId t binary.right
     match binary.right with
     | Value _ ->
@@ -155,11 +159,10 @@ let private convertBinary (t: T) (binary: BinaryInstruction<ILOperand>): BinaryI
             assignTypeBuilder t binary.right binary.left
         else
             notSupported
-    { binary with
-        leftId = getCurrentId t binary.left
-        rightId = rightId }
+    let { left = left; right = right } = binary
+    { left = (left, getCurrentId t left); right = (right, rightId) }
 
-let private convertAssign (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ILOperand> =
+let private convertAssign (t: T) (binary: BinaryInstruction<ILOperand>): BinaryInstruction<ResolvedOperand> =
     let operand =
         match binary.right with
         | ILOperand.Pointer (reg, _) -> Register reg
@@ -180,19 +183,20 @@ let private convertAssign (t: T) (binary: BinaryInstruction<ILOperand>): BinaryI
         (getType t operand) := Pointer <| type_
         setType t binary.left type_
     | _ -> ()
-    { binary with
-        leftId = getCurrentId t binary.left
-        rightId = rightId }
+    let { left = left; right = right } = binary
+    { left = (left, getCurrentId t left); right = (right, rightId) }
 
-let private convertCall (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ILOperand> =
-    (getType t unary.operand) := Function
-    { unary with operandId = getCurrentId t unary.operand }
+let private convertCall (t: T) (unary: UnaryInstruction<ILOperand>): UnaryInstruction<ResolvedOperand> =
+    let { operand = operand } = unary
+    (getType t operand) := Function
+    { operand = (operand, getCurrentId t operand) }
 
-let private convertReturn (t: T) (unary: UnaryInstruction<ILOperand>) (returnsValue: bool): UnaryInstruction<ILOperand> =
+let private convertReturn (t: T) (unary: UnaryInstruction<ILOperand>) (returnsValue: bool): UnaryInstruction<ResolvedOperand> =
+    let { operand = operand } = unary
     if returnsValue then
-        { unary with operandId = getCurrentId t unary.operand }
+        { operand = (operand, getCurrentId t operand) }
     else
-        unary
+        { operand = (operand, -1) }
 
 let private functionReturnsValue (blocks: IReadOnlyList<Block<ILOperand>>): bool =
     // This tests only the top-level scope, which is probably an incomplete heuristic,

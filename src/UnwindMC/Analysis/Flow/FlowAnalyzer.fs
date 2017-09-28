@@ -234,7 +234,7 @@ let getInstructions: (int * Instruction * int option) list -> Instruction[] =
     Seq.map (fun (_, i, _) -> i)
     >> Seq.toArray
 
-let invertCondition (condition: Instruction[]): Instruction[] =
+let invertCondition<'a> (condition: ILInstruction<'a>[]): ILInstruction<'a>[] =
     let branch =
         match condition.[condition.Length - 1] with
         | Branch branch -> Branch { branch with type_ = invert branch.type_ }

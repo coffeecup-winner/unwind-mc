@@ -6,8 +6,8 @@ open IL
 open FlowAnalyzer
 open Type
 
-type Block = Block<ILOperand>
-type Instruction = ILInstruction<ILOperand>
+type Block = Block<ResolvedOperand>
+type Instruction = ILInstruction<ResolvedOperand>
 
 type private T = {
     blocks: IReadOnlyList<Block>
@@ -113,15 +113,15 @@ let private buildCondition (t: T) (condition: IReadOnlyList<Instruction>): Expre
 let private buildStatement (t: T) (instr: Instruction): Statement =
     match instr with
     | Binary (op, binary) ->
-        Assignment (buildVar t binary.left binary.leftId, buildBinaryOperator t (convertBinaryOperator op) binary)
+        Assignment (buildVar t binary.left, buildBinaryOperator t (convertBinaryOperator op) binary)
     | Unary (op, unary) ->
-        Assignment (buildVar t unary.operand unary.operandId, buildUnaryOperator t (convertUnaryOperator op) unary)
+        Assignment (buildVar t unary.operand, buildUnaryOperator t (convertUnaryOperator op) unary)
     | Assign binary ->
-        Assignment (buildVar t binary.left binary.leftId, buildExpression t binary.right binary.rightId)
+        Assignment (buildVar t binary.left, buildExpression t binary.right)
     | Call unary ->
-        FunctionCall (buildExpression t unary.operand unary.operandId)
-    | Return unary ->
-        Statement.Return (if unary.operandId = -1 then Option.None else Some(buildVar t unary.operand unary.operandId))
+        FunctionCall (buildExpression t unary.operand)
+    | Return { operand = (op, id) } ->
+        Statement.Return (if id = -1 then Option.None else Some(buildVar t (op, id)))
     | Continue ->
         Statement.Continue
     | Break ->
@@ -131,7 +131,8 @@ let private buildStatement (t: T) (instr: Instruction): Statement =
     | Branch _ ->
         impossible
 
-let private buildExpression (t: T) (op: ILOperand) (id: int): Expression =
+let private buildExpression (t: T) (op: ResolvedOperand): Expression =
+    let (op, id) = op
     match op with
     | ILOperand.Pointer _ -> Dereference (VarRef (Var (getVarName t id)))
     | Register _ -> VarRef (Var (getVarName t id))
@@ -167,13 +168,14 @@ let private convertUnaryOperator (op: ILUnaryOperator): Operator =
     | Negate -> Operator.Negate
     | Not -> Operator.Not
 
-let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction<ILOperand>): Expression =
-    Expression.Binary (op, buildExpression t instr.left instr.leftId, buildExpression t instr.right instr.rightId)
+let private buildBinaryOperator (t: T) (op: Operator) (instr: BinaryInstruction<ResolvedOperand>): Expression =
+    Expression.Binary (op, buildExpression t instr.left, buildExpression t instr.right)
 
-let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction<ILOperand>): Expression =
-    Expression.Unary (op, buildExpression t instr.operand instr.operandId)
+let private buildUnaryOperator (t: T) (op: Operator) (instr: UnaryInstruction<ResolvedOperand>): Expression =
+    Expression.Unary (op, buildExpression t instr.operand)
 
-let private buildVar (t: T) (op: ILOperand) (id: int): Var =
+let private buildVar (t: T) (op: ResolvedOperand): Var =
+    let (op, id) = op
     match op with
     | Register _ -> Var (getVarName t id)
     | Argument offset -> Var t.parameterNames.[offset]

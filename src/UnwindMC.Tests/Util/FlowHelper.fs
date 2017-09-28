@@ -5,7 +5,7 @@ open NUnit.Framework
 open FlowAnalyzer
 open IL
 
-let rec assertFlowEqual (expected: IReadOnlyList<Block<ILOperand>>) (blocks: IReadOnlyList<Block<ILOperand>>): unit =
+let rec assertFlowEqual (expected: IReadOnlyList<Block<'a>>) (blocks: IReadOnlyList<Block<'a>>): unit =
     Assert.That(blocks.Count, Is.EqualTo(expected.Count))
     for i in [0 .. expected.Count - 1] do
         match (expected.[i], blocks.[i]) with

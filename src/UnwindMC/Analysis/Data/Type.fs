@@ -1,5 +1,7 @@
 ﻿module Type
 
+open IL
+
 type DataType =
     | Int32
     | Function // void (*)(void)
@@ -13,3 +15,5 @@ let rec isFunction (type_: DataType): bool =
     | Function -> true
     | Pointer t -> isFunction t
     | _ -> false
+
+type ResolvedOperand = ILOperand * int

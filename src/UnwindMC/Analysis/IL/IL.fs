@@ -13,15 +13,10 @@ type ILOperand =
 type BinaryInstruction<'op> = {
     left: 'op
     right: 'op
-    // TODO: remove this
-    leftId: int
-    rightId: int
 }
 
 type UnaryInstruction<'op> = {
     operand: 'op
-    // TODO: remove this
-    operandId: int
 }
 
 type BranchType =
@@ -67,14 +62,11 @@ type ILInstruction<'op> =
 
 let unary (operand: 'op): UnaryInstruction<'op> = {
     operand = operand
-    operandId = -1
 }
 
 let binary (left: 'op) (right: 'op): BinaryInstruction<'op> = {
     left = left
-    leftId = -1
     right = right
-    rightId = -1
 }
 
 let branch (type_: BranchType) (target: uint64): BranchInstruction = {

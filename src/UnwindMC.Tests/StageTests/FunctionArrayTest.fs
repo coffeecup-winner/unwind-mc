@@ -124,14 +124,14 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Assign <| { binary (Register OperandType.ESI) (Argument 0) with leftId = 0; rightId = -1 }
+                        Assign <| { left = (Register OperandType.ESI, 0); right = (Argument 0, -1) }
                     |]
             }
             WhileBlock {
                 condition =
                     invertCondition
                         [|
-                            Compare <| { binary (Register OperandType.ESI) (Argument 4) with leftId = 0; rightId = -1 }
+                            Compare <| { left = (Register OperandType.ESI, 0); right = (Argument 4, -1) }
                             Branch <| branch GreaterOrEqual 10uL
                         |]
                 body =
@@ -139,14 +139,14 @@ let testStages (): unit =
                         SequentialBlock {
                             instructions =
                                 [|
-                                    Assign <| { binary (Register OperandType.EAX) (ILOperand.Pointer (OperandType.ESI, 0)) with leftId = 1; rightId = 0 }
+                                    Assign <| { left = (Register OperandType.EAX, 1); right = (ILOperand.Pointer (OperandType.ESI, 0), 0) }
                                 |]
                         }
                         ConditionalBlock {
                             condition =
                                 invertCondition
                                     [|
-                                        Compare <| { binary (Register OperandType.EAX) (Value 0) with leftId = 1; rightId = -1 }
+                                        Compare <| { left = (Register OperandType.EAX, 1); right = (Value 0, -1) }
                                         Branch <| branch Equal 8uL
                                     |]
                             trueBranch =
@@ -154,7 +154,7 @@ let testStages (): unit =
                                     SequentialBlock {
                                         instructions =
                                             [|
-                                                Call <| { unary (Register OperandType.EAX) with operandId = 1 }
+                                                Call <| { operand = (Register OperandType.EAX, 1) }
                                             |]
                                     }
                                 |]
@@ -163,7 +163,7 @@ let testStages (): unit =
                         SequentialBlock {
                             instructions =
                                 [|
-                                    Binary (Add, { binary (Register OperandType.ESI) (Value 4) with leftId = 0; rightId = -1 })
+                                    Binary (Add, { left = (Register OperandType.ESI, 0); right = (Value 4, -1) })
                                 |]
                         }
                     |]
@@ -172,7 +172,7 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Return <| { unary (Register OperandType.EAX) with operandId = -1 }
+                        Return <| { operand = (Register OperandType.EAX, -1) }
                     |]
             }
         |]
