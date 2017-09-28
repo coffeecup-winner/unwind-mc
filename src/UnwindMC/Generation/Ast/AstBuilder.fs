@@ -120,8 +120,8 @@ let private buildStatement (t: T) (instr: Instruction): Statement =
         Assignment (buildVar t binary.left, buildExpression t binary.right)
     | Call unary ->
         FunctionCall (buildExpression t unary.operand)
-    | Return { operand = (op, id) } ->
-        Statement.Return (if id = -1 then Option.None else Some(buildVar t (op, id)))
+    | Return { operand = (_, id) as operand } ->
+        Statement.Return (id |> Option.map (fun _ -> buildVar t operand))
     | Continue ->
         Statement.Continue
     | Break ->
@@ -182,10 +182,9 @@ let private buildVar (t: T) (op: ResolvedOperand): Var =
     | Local offset -> Var t.localNames.[offset]
     | _ -> notSupported
 
-let private getVarName (t: T) (id: int): string =
-    if id = -1 then
-        failwith "Invalid id"
-    else
+let private getVarName (t: T) (id: int option): string =
+    match id with
+    | Some id ->
         let hasValue, name = t.variableNames.TryGetValue(id)
         if hasValue then
             name
@@ -195,3 +194,4 @@ let private getVarName (t: T) (id: int): string =
             t.variableNames.[id] <- name
             t.types.[name] <- t.variableTypes.[id]
             name
+    | None -> failwith "Invalid id"

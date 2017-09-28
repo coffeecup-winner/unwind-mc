@@ -155,15 +155,15 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Assign <| { left = (Register OperandType.ECX, 0); right = (Argument 4, -1) }
-                        Assign <| { left = (Register OperandType.EAX, 1); right = (Value Int32.MinValue, -1) }
+                        Assign <| { left = (Register OperandType.ECX, Some 0); right = (Argument 4, None) }
+                        Assign <| { left = (Register OperandType.EAX, Some 1); right = (Value Int32.MinValue, None) }
                     |]
             }
             ConditionalBlock {
                 condition =
                     invertCondition
                         [|
-                            Compare <| { left = (Register OperandType.ECX, 0); right = (Value 0, -1) }
+                            Compare <| { left = (Register OperandType.ECX, Some 0); right = (Value 0, None) }
                             Branch <| branch Equal 15uL
                         |]
                 trueBranch =
@@ -171,14 +171,14 @@ let testStages (): unit =
                         SequentialBlock {
                             instructions =
                                 [|
-                                    Assign <| { left = (Register OperandType.EDX, 2); right = (Argument 0, -1) }
-                                    Assign <| { left = (Register OperandType.EAX, 1); right = (Value Int32.MinValue, -1) }
+                                    Assign <| { left = (Register OperandType.EDX, Some 2); right = (Argument 0, None) }
+                                    Assign <| { left = (Register OperandType.EAX, Some 1); right = (Value Int32.MinValue, None) }
                                 |]
                         }
                         DoWhileBlock {
                             condition =
                                 [|
-                                    Compare <| { left = (Register OperandType.ECX, 0); right = (Value 0, -1) }
+                                    Compare <| { left = (Register OperandType.ECX, Some 0); right = (Value 0, None) }
                                     Branch <| branch NotEqual 7uL
                                 |]
                             body =
@@ -186,14 +186,14 @@ let testStages (): unit =
                                     SequentialBlock {
                                         instructions =
                                             [|
-                                                Assign <| { left = (Register OperandType.ESI, 4); right = (ILOperand.Pointer (OperandType.EDX, 0), 2) }
+                                                Assign <| { left = (Register OperandType.ESI, Some 4); right = (ILOperand.Pointer (OperandType.EDX, 0), Some 2) }
                                             |]
                                     }
                                     ConditionalBlock {
                                         condition =
                                             invertCondition
                                                 [|
-                                                    Compare <| { left = (Register OperandType.EAX, 1); right = (Register OperandType.ESI, 4) }
+                                                    Compare <| { left = (Register OperandType.EAX, Some 1); right = (Register OperandType.ESI, Some 4) }
                                                     Branch <| branch GreaterOrEqual 11uL
                                                 |]
                                         trueBranch =
@@ -201,7 +201,7 @@ let testStages (): unit =
                                                 SequentialBlock {
                                                     instructions =
                                                         [|
-                                                            Assign <| { left = (Register OperandType.EAX, 1); right = (Register OperandType.ESI, 4) }
+                                                            Assign <| { left = (Register OperandType.EAX, Some 1); right = (Register OperandType.ESI, Some 4) }
                                                         |]
                                                 }
                                             |]
@@ -210,8 +210,8 @@ let testStages (): unit =
                                     SequentialBlock {
                                         instructions =
                                             [|
-                                                Binary (Add, { left = (Register OperandType.EDX, 2); right = (Value 4, -1) })
-                                                Binary (Subtract, { left = (Register OperandType.ECX, 0); right = (Value 1, -1) })
+                                                Binary (Add, { left = (Register OperandType.EDX, Some 2); right = (Value 4, None) })
+                                                Binary (Subtract, { left = (Register OperandType.ECX, Some 0); right = (Value 1, None) })
                                             |]
                                     }
                                 |]
@@ -223,7 +223,7 @@ let testStages (): unit =
                 instructions =
                     [|
                         Nop
-                        Return <| { operand = (Register OperandType.EAX, 1) }
+                        Return <| { operand = (Register OperandType.EAX, Some 1) }
                     |]
             }
         |]

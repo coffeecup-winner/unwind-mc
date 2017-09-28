@@ -38,7 +38,7 @@ let private build (typeBuilder: TypeBuilder ref): DataType =
     | Function -> DataType.Function
     | Pointer t -> DataType.Pointer <| build t
 
-let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<ILOperand * int>> * Result =
+let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<ResolvedOperand>> * Result =
     let t = {
         types = new Dictionary<ILOperand, TypeBuilder ref>()
         parameterTypes = new Dictionary<int, TypeBuilder ref>()
@@ -105,15 +105,14 @@ let resolveTypes (blocks: IReadOnlyList<Block<ILOperand>>): IReadOnlyList<Block<
         |> Seq.fold (fun blocks pair ->
             let coalesceUnary (unary: UnaryInstruction<ResolvedOperand>): UnaryInstruction<ResolvedOperand> =
                 let (op, opId) = unary.operand
-                if opId = pair.Key then
-                    { unary with operand = (op, pair.Value) }
-                else
-                    unary
+                match opId with
+                | Some id when id = pair.Key -> { unary with operand = (op, Some pair.Value) }
+                | _ -> unary
             let coaleasceBinary (binary: BinaryInstruction<ResolvedOperand>): BinaryInstruction<ResolvedOperand> =
                 let (left, leftId) = binary.left
-                let leftId = if leftId = pair.Key then pair.Value else leftId
+                let leftId = if leftId = Some pair.Key then Some pair.Value else leftId
                 let (right, rightId) = binary.right
-                let rightId = if rightId = pair.Key then pair.Value else rightId
+                let rightId = if rightId = Some pair.Key then Some pair.Value else rightId
                 { binary with left = (left, leftId); right = (right, rightId) }
             blocks
             |> convert
@@ -196,7 +195,7 @@ let private convertReturn (t: T) (unary: UnaryInstruction<ILOperand>) (returnsVa
     if returnsValue then
         { operand = (operand, getCurrentId t operand) }
     else
-        { operand = (operand, -1) }
+        { operand = (operand, None) }
 
 let private functionReturnsValue (blocks: IReadOnlyList<Block<ILOperand>>): bool =
     // This tests only the top-level scope, which is probably an incomplete heuristic,
@@ -228,7 +227,10 @@ let private setType (t: T) (operand: ILOperand) (type_: TypeBuilder ref): unit =
     | _ -> t.types.[operand] <- type_
 
 let private finalizeType (t: T) (operand: ILOperand): unit =
-    let id = getCurrentId t operand
+    let id =
+      match getCurrentId t operand with
+      | Some id -> id
+      | None -> impossible
     while t.variableTypes.Count <= id do
         t.variableTypes.Add(DataType.Int32)
     t.variableTypes.[id] <- t.types.[operand] |> build
@@ -268,14 +270,14 @@ let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): un
         t.currentIds.[target] <- t.nextId
         t.nextId <- t.nextId + 1
 
-let private getCurrentId (t: T) (op: ILOperand): int =
+let private getCurrentId (t: T) (op: ILOperand): int option =
     match op with
     | Register _
     | ILOperand.Pointer _ ->
         let id = t.currentIds.[op]
         coalesceIds t id
-        id
-    | _ -> -1
+        Some id
+    | _ -> None
 
 let private coalesceIds (t: T) (id: int): unit =
     match getValue t.sameIds id with

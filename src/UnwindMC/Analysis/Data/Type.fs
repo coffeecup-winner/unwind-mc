@@ -16,4 +16,4 @@ let rec isFunction (type_: DataType): bool =
     | Pointer t -> isFunction t
     | _ -> false
 
-type ResolvedOperand = ILOperand * int
+type ResolvedOperand = ILOperand * int option
