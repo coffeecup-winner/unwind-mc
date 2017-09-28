@@ -139,7 +139,6 @@ let private buildExpression (t: T) (op: ResolvedOperand): Expression =
     | Argument offset -> VarRef (Var t.parameterNames.[offset])
     | Local offset -> VarRef (Var t.localNames.[offset])
     | Value value -> Expression.Value (value)
-    | NoOperand -> impossible
 
 let private getBinaryOperator (condition: BranchType): Operator =
     match condition with

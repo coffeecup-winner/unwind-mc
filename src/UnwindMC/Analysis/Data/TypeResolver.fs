@@ -147,7 +147,7 @@ let private convertBinary (t: T) (binary: BinaryInstruction<ILOperand>): BinaryI
     match binary.right with
     | Value _ ->
         if not (typeExists t binary.left) then
-            assignTypeBuilder t binary.left NoOperand
+            assignTypeBuilder t binary.left (Value 0) // get a fresh type
     | _ ->
         if typeExists t binary.right && typeExists t binary.left then
             if getType t binary.right <> getType t binary.left then
@@ -239,7 +239,6 @@ let private finalizeType (t: T) (operand: ILOperand): unit =
 let private assignTypeBuilder (t: T) (target: ILOperand) (source: ILOperand): unit =
     let typeBuilder =
         match source with
-        | NoOperand
         | Value _ -> ref Fresh
         | Argument offset ->
             match getValue t.parameterTypes offset with

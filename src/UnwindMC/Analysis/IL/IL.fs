@@ -8,7 +8,6 @@ type ILOperand =
     | Argument of int
     | Local of int
     | Pointer of OperandType * int
-    | NoOperand // TODO: replace by option on ILOperand
 
 type BinaryInstruction<'op> = {
     left: 'op
