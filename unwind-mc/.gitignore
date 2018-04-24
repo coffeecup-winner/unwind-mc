@@ -1,0 +1,3 @@
+## Ignore Rust temporary files/build results
+target
+**/*.rs.bk

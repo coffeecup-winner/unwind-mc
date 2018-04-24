@@ -1,0 +1,6 @@
+[package]
+name = "unwind-mc"
+version = "0.1.0"
+authors = ["Dmitry Polyanitsa <coffeecup.winner@gmail.com>"]
+
+[dependencies]
