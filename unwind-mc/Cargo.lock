@@ -1,4 +1,32 @@
 [[package]]
+name = "capstone"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "capstone-sys 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "capstone-sys"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cc"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "unwind-mc"
 version = "0.1.0"
+dependencies = [
+ "capstone 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
+[metadata]
+"checksum capstone 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "81a8df1eb14df845e195177b49465dd48feef1b4ead67d98a678d6d8c47b581d"
+"checksum capstone-sys 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "759130ed9ac48e6d1f80309042cc69b11f51ece848537d81adb02a479b08ccb7"
+"checksum cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)" = "0ebb87d1116151416c0cf66a0e3fb6430cccd120fd6300794b4dfaa050ac40ba"
