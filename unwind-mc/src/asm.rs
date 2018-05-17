@@ -3,6 +3,7 @@ use capstone::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub enum LinkType {
     Next,
     Branch,
@@ -10,6 +11,7 @@ pub enum LinkType {
     SwitchCaseJump,
 }
 
+#[derive(Clone)]
 pub struct Link {
     pub address: u64,
     pub target_address: u64,
@@ -36,8 +38,7 @@ pub struct InstructionGraph<'a> {
     edge_predicate: Box<Fn(Link) -> bool>,
 }
 
-#[allow(dead_code)]
-fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
+pub fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
     let cs = Capstone::new()
         .x86()
         .mode(arch::x86::ArchMode::Mode32)
@@ -68,4 +69,87 @@ fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
     };
 
     Ok(graph)
+}
+
+impl<'a> InstructionGraph<'a> {
+    // pub fn instructions(&self) -> Values<'a, u64, Insn> {
+    //     self.instructions.values()
+    // }
+
+    pub fn first_address_after_code(&self) -> u64 {
+        self.first_address_after_code
+    }
+
+    pub fn contains_address(&self, address: u64) -> bool {
+        self.instructions.contains_key(&address)
+    }
+
+    pub fn contains(&self, instr: Insn) -> bool {
+        self.instructions.contains_key(&instr.address())
+    }
+
+    pub fn in_bounds(&self, address: u64) -> bool {
+        address >= self.first_address && address < self.first_address_after_code
+    }
+
+    pub fn get_next(&self, address: u64) -> u64 {
+        match (address + 1..self.first_address_after_code - 1)
+            .find(|a| self.instructions.contains_key(a))
+        {
+            Some(address) => address,
+            None => panic!("Failed to find the next address."),
+        }
+    }
+
+    pub fn get_in_value(&self, address: u64) -> u32 {
+        self.reverse_links[&address].len() as u32
+    }
+
+    pub fn get_out_value(&self, address: u64) -> u32 {
+        self.instruction_links[&address].len() as u32
+    }
+
+    // pub fn get_bytes(...)
+
+    // pub fn get_extra_data(...)
+
+    pub fn add_link(&mut self, offset: u64, target_offset: u64, type_: LinkType) -> () {
+        let link = Link {
+            address: offset,
+            target_address: target_offset,
+            type_,
+        };
+
+        let links = match self.instruction_links.get_mut(&offset) {
+            Some(links) => links,
+            None => {
+                let links = Vec::new();
+                self.instruction_links.insert(offset, links);
+                self.instruction_links.get_mut(&offset).unwrap()
+            }
+        };
+        links.push(link.clone());
+
+        let reverse_links = match self.reverse_links.get_mut(&offset) {
+            Some(links) => links,
+            None => {
+                let links = Vec::new();
+                self.instruction_links.insert(offset, links);
+                self.instruction_links.get_mut(&offset).unwrap()
+            }
+        };
+        reverse_links.push(link);
+    }
+
+    // pub fn add_jump_table_entry(...)
+
+    // pub fn add_jump_table_indirect_entries(...)
+
+    // pub fn split_instruction_at(...)
+
+    // pub fn read_u32(...)
+
+    // pub fn redisassemble(...)
+
+    // fn to_byte_array_index(...)
 }
