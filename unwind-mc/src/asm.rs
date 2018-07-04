@@ -2,6 +2,9 @@ use capstone::prelude::*;
 use capstone::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
+
+use common::Graph;
 
 #[derive(Clone)]
 pub enum LinkType {
@@ -35,7 +38,7 @@ pub struct InstructionGraph<'a> {
     instruction_links: HashMap<u64, Vec<Link>>,
     reverse_links: HashMap<u64, Vec<Link>>,
     is_reversed: bool,
-    edge_predicate: Box<Fn(Link) -> bool>,
+    edge_predicate: Box<Fn(&Link) -> bool>,
 }
 
 pub fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
@@ -69,6 +72,61 @@ pub fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
     };
 
     Ok(graph)
+}
+
+impl<'a> Graph<u64, Insn, Link> for InstructionGraph<'a> {
+    fn set_subgraph(&mut self, _subgraph: Option<HashSet<u64>>) -> &Self {
+        panic!("NOT SUPPORTED");
+    }
+
+    fn set_edge_filter(&mut self, filter: Box<Fn(&Link) -> bool>) -> &Self {
+        self.edge_predicate = filter;
+        self
+    }
+
+    fn reverse_edges(&mut self) -> &Self {
+        self.is_reversed = !self.is_reversed;
+        self
+    }
+
+    fn contains(&self, vid: &u64) -> bool {
+        self.instructions.contains_key(vid)
+    }
+
+    fn get_vertex(&self, vid: &u64) -> &Insn {
+        self.instructions.get(vid).unwrap()
+    }
+
+    fn get_adjacent(&self, vid: &u64) -> Vec<Result<(&u64, &Link), String>> {
+        let mut result = vec![];
+        let instruction_links = if self.is_reversed {
+            &self.reverse_links
+        } else {
+            &self.instruction_links
+        };
+        match instruction_links.get(vid) {
+            Some(links) => for link in links.iter().filter(|e| (*self.edge_predicate)(e)) {
+                let address = if self.is_reversed {
+                    &link.address
+                } else {
+                    &link.target_address
+                };
+                if self.in_bounds(*address) {
+                    result.push(Result::Ok((address, link)));
+                } else {
+                    result.push(Result::Err(format!(
+                        "DFS: Jump outside of code section: {}",
+                        address
+                    )));
+                }
+            },
+            None => result.push(Result::Err(format!(
+                "DFS: Couldn't find links for {}",
+                self.instructions.get(vid).unwrap().to_string()
+            ))),
+        }
+        result
+    }
 }
 
 impl<'a> InstructionGraph<'a> {

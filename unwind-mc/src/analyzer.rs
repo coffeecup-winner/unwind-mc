@@ -53,4 +53,50 @@ impl<'a> Analyzer<'a> {
         };
         Ok(analyzer)
     }
+
+    pub fn graph(&self) -> &InstructionGraph<'a> {
+        &self.graph
+    }
+
+    pub fn add_function(&mut self, address: u64) -> () {
+        self.functions.insert(
+            address,
+            Function {
+                address,
+                status: FunctionStatus::Created,
+            },
+        );
+    }
+
+    pub fn analyze(&mut self) -> () {
+        self.add_explicit_calls();
+        self.resolve_function_bounds();
+        self.resolve_external_function_calls();
+    }
+
+    fn add_explicit_calls(&self) -> () {
+        // TODO
+    }
+
+    fn resolve_function_bounds(&mut self) -> () {
+        for func in self.functions.values_mut() {
+            if !self.graph.in_bounds(func.address) {
+                func.status = FunctionStatus::BoundsNotResolvedInvalidAddress;
+                continue;
+            }
+            if !self.graph.contains_address(func.address) {
+                // TODO: redisassemble
+            }
+            let visited_all_links = true; // TODO: do DFS on graph
+            func.status = if visited_all_links {
+                FunctionStatus::BoundsResolved
+            } else {
+                FunctionStatus::BoundsNotResolvedIncompleteGraph
+            }
+        }
+    }
+
+    fn resolve_external_function_calls(&self) -> () {
+        // TODO
+    }
 }

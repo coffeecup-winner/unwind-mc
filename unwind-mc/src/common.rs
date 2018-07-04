@@ -9,12 +9,11 @@ pub enum Pick<T> {
 pub trait Graph<VId, V, E>
 where
     VId: Copy + Eq + Hash,
-    V: Copy,
 {
     // Options/setup
-    fn get_subgraph(&mut self, Option<HashSet<V>>) -> Self;
-    fn with_edge_filter(&mut self, Fn(E) -> bool) -> Self;
-    fn reverse_edges(&mut self) -> Self;
+    fn set_subgraph(&mut self, Option<HashSet<VId>>) -> &Self;
+    fn set_edge_filter(&mut self, Box<Fn(&E) -> bool>) -> &Self;
+    fn reverse_edges(&mut self) -> &Self;
 
     // Getters
     fn contains(&self, &VId) -> bool;
@@ -63,22 +62,21 @@ where
         result
     }
 
-    fn dfs(&self, start: &VId) -> Vec<V> {
-        use common::Pick::*;
+    // fn dfs(&self, start: &VId) -> Vec<V> {
+    //     use common::Pick::*;
 
-        // TODO: can be made lazy
-        let mut result = Vec::<V>::new();
-        self.dfs_pick::<()>(start, &mut |v, _e| {
-            result.push(*v);
-            Continue
-        });
-        result
-    }
+    //     // TODO: can be made lazy
+    //     let mut result = Vec::<V>::new();
+    //     self.dfs_pick::<()>(start, &mut |v, _e| {
+    //         result.push(*v);
+    //         Continue
+    //     });
+    //     result
+    // }
 
-    fn bfs(&self, start: &VId) -> Vec<V> {
-        let mut result = Vec::new();
+    fn bfs_with(&self, start: &VId, consume: &mut FnMut(&V) -> bool) -> () {
         if !self.contains(start) {
-            return result;
+            return ();
         }
         let mut queue = VecDeque::new();
         let mut visited = HashSet::new();
@@ -86,7 +84,7 @@ where
         visited.insert(start);
         while queue.len() > 0 {
             let vid = queue.pop_front().unwrap();
-            result.push(*self.get_vertex(vid));
+            consume(self.get_vertex(vid));
             for adj in self.get_adjacent(vid).iter() {
                 match adj {
                     Err(_message) => { /* TODO: log */ }
@@ -98,6 +96,6 @@ where
                 }
             }
         }
-        result
+        ()
     }
 }

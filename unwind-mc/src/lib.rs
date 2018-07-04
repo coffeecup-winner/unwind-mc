@@ -14,10 +14,10 @@ mod tests {
 
     #[test]
     fn create_empty_analyzer() {
-        assert_eq!(2 + 2, 4);
-        match Analyzer::create(&[90], 0) {
-            Ok(_) => {}
-            Err(_) => assert!(false),
-        }
+        let mut analyzer = match Analyzer::create(&[90], 0) {
+            Ok(analyzer) => analyzer,
+            Err(_) => panic!("Failed to create an analyzer."),
+        };
+        analyzer.analyze();
     }
 }
