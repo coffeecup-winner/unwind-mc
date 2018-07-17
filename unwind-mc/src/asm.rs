@@ -1,11 +1,13 @@
+use std;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use udis86::*;
+use libudis86_sys::{ud_mnemonic_code, ud_type};
 
 use common::Graph;
+use udis86::*;
 
 #[derive(Clone)]
 pub enum LinkType {
@@ -138,7 +140,7 @@ impl<'a> InstructionGraph<'a> {
     }
 
     pub fn contains(&self, instr: Insn) -> bool {
-        false // self.instructions.contains_key(&instr.address())
+        self.instructions.contains_key(&instr.address)
     }
 
     pub fn in_bounds(&self, address: u64) -> bool {
@@ -162,9 +164,22 @@ impl<'a> InstructionGraph<'a> {
         self.instruction_links[&address].len() as u32
     }
 
-    // pub fn get_bytes(...)
+    pub fn get_bytes(&self, address: u64, size: usize) -> &[u8] {
+        let addr = self.to_byte_array_index(address);
+        &self.bytes[addr..(addr + size)]
+    }
 
-    // pub fn get_extra_data(...)
+    pub fn get_extra_data(&mut self, address: u64) -> &mut ExtraData {
+        if !self.extra_data.contains_key(&address) {
+            let data = ExtraData {
+                function_address: 0,
+                import_name: "".to_string(),
+                is_protected: false,
+            };
+            self.extra_data.insert(address, data);
+        }
+        self.extra_data.get_mut(&address).unwrap()
+    }
 
     pub fn add_link(&mut self, offset: u64, target_offset: u64, type_: LinkType) -> () {
         let link = Link {
@@ -194,15 +209,151 @@ impl<'a> InstructionGraph<'a> {
         reverse_links.push(link);
     }
 
-    // pub fn add_jump_table_entry(...)
+    pub fn add_jump_table_entry(&mut self, address: u64) -> bool {
+        let data = self.read_u32(address);
+        if !self.in_bounds(data as u64) {
+            false
+        } else {
+            self.mark_data_bytes(address, 4, "TODO: TEXT".to_string());
+            true
+        }
+    }
 
-    // pub fn add_jump_table_indirect_entries(...)
+    pub fn add_jump_table_indirect_entries(&mut self, address: u64, count: u8) -> () {
+        let display_text = "TODO: TEXT".to_string();
+        self.mark_data_bytes(address, count, display_text);
+    }
 
-    // pub fn split_instruction_at(...)
+    pub fn mark_data_bytes(&mut self, address: u64, length: u8, data_display_text: String) -> () {
+        // check if there is an instruction at address, otherwise split an existing one
+        let mut size = match self.instructions.get(&address) {
+            Some(instr) => instr.length,
+            None => {
+                let insn = self.split_instruction_at(address);
+                insn.length - ((address - insn.address) as u8)
+            }
+        };
+        // write a pseudo instruction
+        // TODO: add hex string
+        self.instructions.insert(
+            address,
+            Insn {
+                address: address,
+                code: ud_mnemonic_code::UD_Inone,
+                length: length,
+                hex: "<TODO:HEX>".to_string(),
+                assembly: data_display_text,
+                operands: vec![],
+                prefix_rex: 0,
+                prefix_segment: ud_type::UD_NONE,
+                prefix_operand_size: false,
+                prefix_address_size: false,
+                prefix_lock: 0,
+                prefix_str: 0,
+                prefix_rep: 0,
+                prefix_repe: 0,
+                prefix_repne: 0,
+            },
+        );
+        self.get_extra_data(address).is_protected = true;
+        // remove old instructions
+        while size < length {
+            let insn = self
+                .instructions
+                .remove(&(address + (size as u64)))
+                .unwrap();
+            size += insn.length;
+        }
+        // if there are bytes left from the last removed instruction, re-disassemble them
+        if size != length {
+            self.disassembler.set_pc(address + (length as u64));
+            let new_instructions = self.disassembler.disassemble(
+                self.bytes,
+                self.to_byte_array_index(address) + (length as usize),
+                (size - length) as usize,
+            );
+            for new_insn in new_instructions {
+                self.instructions.insert(new_insn.address, new_insn);
+            }
+        }
+    }
 
-    // pub fn read_u32(...)
+    pub fn split_instruction_at(&mut self, address: u64) -> Insn {
+        let mut insn_address = address - 1;
+        while !self.instructions.contains_key(&insn_address) {
+            insn_address -= 1;
+        }
+        let old_insn = self.instructions.get(&insn_address).unwrap().clone();
+        // Split the old instruction and re-disassemble its first part
+        let extra_length = (address - insn_address) as usize;
+        self.disassembler.set_pc(insn_address);
+        let new_instructions = self.disassembler.disassemble(
+            self.bytes,
+            self.to_byte_array_index(insn_address),
+            extra_length,
+        );
+        for new_insn in new_instructions {
+            self.instructions.insert(new_insn.address, new_insn);
+        }
+        old_insn
+    }
 
-    // pub fn redisassemble(...)
+    pub fn read_u32(&self, address: u64) -> u32 {
+        let addr = (address - self.first_address) as usize;
+        let mut result = self.bytes[addr] as u32;
+        result |= (self.bytes[addr + 1] as u32) << 8;
+        result |= (self.bytes[addr + 2] as u32) << 16;
+        result |= (self.bytes[addr + 3] as u32) << 24;
+        result
+    }
 
-    // fn to_byte_array_index(...)
+    pub fn redisassemble(&mut self, address: u64) -> () {
+        // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
+        if !self.instructions.contains_key(&address) {
+            self.split_instruction_at(address);
+        }
+        self.disassembler.set_pc(address);
+        let max_disasm_length = 0x100;
+        let mut disasm_length =
+            std::cmp::min(max_disasm_length, self.first_address_after_code - address);
+        for j in 0..disasm_length {
+            match self.extra_data.get(&(address + j)) {
+                Some(data) if data.is_protected => {
+                    disasm_length = j;
+                }
+                _ => (),
+            }
+        }
+        let mut new_instructions = self.disassembler.disassemble(
+            self.bytes,
+            self.to_byte_array_index(address),
+            disasm_length as usize,
+        );
+        // Take 1 instruction less since it can be incorrectly disassembled (partial data)
+        new_instructions.pop();
+        let mut fixed_instructions = false;
+        for new_insn in new_instructions {
+            match self.instructions.get(&new_insn.address) {
+                Some(old_insn) if old_insn.length == new_insn.length => {
+                    if fixed_instructions {
+                        return;
+                    }
+                }
+                _ => {
+                    let length = new_insn.length as u64;
+                    let addr = new_insn.address;
+                    self.instructions.insert(new_insn.address, new_insn);
+                    for j in 1..(length - 1) {
+                        self.instructions.remove(&(addr + j));
+                    }
+                    fixed_instructions = true;
+                }
+            }
+        }
+        panic!("FIXME: Extra disassemble size was too small");
+    }
+
+    fn to_byte_array_index(&self, address: u64) -> usize {
+        (address - self.first_address) as usize
+    }
 }
