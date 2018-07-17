@@ -1,4 +1,3 @@
-use capstone::prelude::*;
 use std::collections::BTreeMap;
 
 use asm::disassemble;
@@ -45,7 +44,7 @@ pub struct Analyzer<'a> {
 }
 
 impl<'a> Analyzer<'a> {
-    pub fn create(text_bytes: &'a [u8], pc: u64) -> CsResult<Analyzer> {
+    pub fn create(text_bytes: &'a [u8], pc: u64) -> Result<Analyzer, String> {
         let analyzer = Analyzer {
             graph: disassemble(text_bytes, pc)?,
             functions: BTreeMap::new(),
@@ -75,6 +74,9 @@ impl<'a> Analyzer<'a> {
     }
 
     fn add_explicit_calls(&self) -> () {
+        for (_, instr) in self.graph.instructions_iter() {
+            // TODO
+        }
         // TODO
     }
 

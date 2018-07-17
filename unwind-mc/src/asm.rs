@@ -1,5 +1,6 @@
-use capstone::prelude::*;
-use capstone::*;
+use super::Insn;
+use super::TODO;
+use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -29,7 +30,7 @@ pub struct ExtraData {
 
 #[allow(dead_code)]
 pub struct InstructionGraph<'a> {
-    disassembler: Capstone,
+    disassembler: TODO,
     bytes: &'a [u8],
     first_address: u64,
     first_address_after_code: u64,
@@ -41,28 +42,23 @@ pub struct InstructionGraph<'a> {
     edge_predicate: Box<Fn(&Link) -> bool>,
 }
 
-pub fn disassemble(bytes: &[u8], pc: u64) -> CsResult<InstructionGraph> {
-    let cs = Capstone::new()
-        .x86()
-        .mode(arch::x86::ArchMode::Mode32)
-        .syntax(arch::x86::ArchSyntax::Intel)
-        .detail(true)
-        .build()?;
+pub fn disassemble(bytes: &[u8], pc: u64) -> Result<InstructionGraph, String> {
+    // TODO: disassemble
 
-    let instructions = cs.disasm_all(bytes, pc)?;
+    // let instructions = cs.disasm_all(bytes, pc)?;
     let mut instruction_map = BTreeMap::new();
 
-    for instr in instructions.iter() {
-        instruction_map.insert(instr.address(), instr);
-    }
+    // for instr in instructions.iter() {
+    //     instruction_map.insert(instr.address(), instr);
+    // }
     let last_instruction = instruction_map.iter().next_back().unwrap().1;
 
     let graph = InstructionGraph {
-        disassembler: cs,
+        disassembler: 0,
         bytes: bytes,
         first_address: pc,
-        first_address_after_code: last_instruction.address()
-            + (last_instruction.bytes().len() as u64),
+        first_address_after_code: 0, // last_instruction.address()
+        //    + (last_instruction.bytes().len() as u64),
         instructions: instruction_map,
         extra_data: HashMap::new(),
         instruction_links: HashMap::new(),
@@ -130,9 +126,9 @@ impl<'a> Graph<u64, Insn, Link> for InstructionGraph<'a> {
 }
 
 impl<'a> InstructionGraph<'a> {
-    // pub fn instructions(&self) -> Values<'a, u64, Insn> {
-    //     self.instructions.values()
-    // }
+    pub fn instructions_iter(&self) -> Iter<u64, Insn> {
+        self.instructions.iter()
+    }
 
     pub fn first_address_after_code(&self) -> u64 {
         self.first_address_after_code
@@ -143,7 +139,7 @@ impl<'a> InstructionGraph<'a> {
     }
 
     pub fn contains(&self, instr: Insn) -> bool {
-        self.instructions.contains_key(&instr.address())
+        false // self.instructions.contains_key(&instr.address())
     }
 
     pub fn in_bounds(&self, address: u64) -> bool {

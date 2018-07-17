@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Dmitry Polyanitsa <coffeecup.winner@gmail.com>"]
 
 [dependencies]
-capstone = "0.3.1"
+libudis86-sys = "0.2.0"

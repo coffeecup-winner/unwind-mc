@@ -1,32 +1,30 @@
 [[package]]
-name = "capstone"
-version = "0.3.1"
+name = "gcc"
+version = "0.3.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "capstone-sys 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
-name = "capstone-sys"
-version = "0.7.0"
+name = "libc"
+version = "0.2.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
-name = "cc"
-version = "1.0.15"
+name = "libudis86-sys"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "unwind-mc"
 version = "0.1.0"
 dependencies = [
- "capstone 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libudis86-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [metadata]
-"checksum capstone 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "81a8df1eb14df845e195177b49465dd48feef1b4ead67d98a678d6d8c47b581d"
-"checksum capstone-sys 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "759130ed9ac48e6d1f80309042cc69b11f51ece848537d81adb02a479b08ccb7"
-"checksum cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)" = "0ebb87d1116151416c0cf66a0e3fb6430cccd120fd6300794b4dfaa050ac40ba"
+"checksum gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)" = "5e33ec290da0d127825013597dbdfc28bee4964690c7ce1166cbc2a7bd08b1bb"
+"checksum libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)" = "b685088df2b950fccadf07a7187c8ef846a959c142338a48f9dc0b94517eb5f1"
+"checksum libudis86-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "75fee815a3f27f81b6da24f6f6fb8ee02a91ada49d6ccf5784fcbf7d42964ed2"

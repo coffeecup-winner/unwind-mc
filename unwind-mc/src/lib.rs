@@ -1,7 +1,8 @@
 #![feature(nll)]
-extern crate capstone;
+extern crate libudis86_sys;
 
 pub type TODO = i32;
+pub type Insn = TODO;
 
 pub mod analyzer;
 pub mod asm;
