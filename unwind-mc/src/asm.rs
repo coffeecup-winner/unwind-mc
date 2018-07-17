@@ -1,9 +1,9 @@
-use super::Insn;
-use super::TODO;
 use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+
+use udis86::*;
 
 use common::Graph;
 
@@ -30,7 +30,7 @@ pub struct ExtraData {
 
 #[allow(dead_code)]
 pub struct InstructionGraph<'a> {
-    disassembler: TODO,
+    disassembler: Disassembler,
     bytes: &'a [u8],
     first_address: u64,
     first_address_after_code: u64,
@@ -43,22 +43,21 @@ pub struct InstructionGraph<'a> {
 }
 
 pub fn disassemble(bytes: &[u8], pc: u64) -> Result<InstructionGraph, String> {
-    // TODO: disassemble
+    let mut disassembler = Disassembler::new(pc);
 
-    // let instructions = cs.disasm_all(bytes, pc)?;
+    let instructions = disassembler.disassemble(bytes, 0, bytes.len());
     let mut instruction_map = BTreeMap::new();
 
-    // for instr in instructions.iter() {
-    //     instruction_map.insert(instr.address(), instr);
-    // }
+    for instr in instructions.into_iter() {
+        instruction_map.insert(instr.address, instr);
+    }
     let last_instruction = instruction_map.iter().next_back().unwrap().1;
 
     let graph = InstructionGraph {
-        disassembler: 0,
+        disassembler: disassembler,
         bytes: bytes,
         first_address: pc,
-        first_address_after_code: 0, // last_instruction.address()
-        //    + (last_instruction.bytes().len() as u64),
+        first_address_after_code: last_instruction.address + (last_instruction.length as u64),
         instructions: instruction_map,
         extra_data: HashMap::new(),
         instruction_links: HashMap::new(),

@@ -2,12 +2,12 @@
 extern crate libudis86_sys;
 
 pub type TODO = i32;
-pub type Insn = TODO;
 
 pub mod analyzer;
 pub mod asm;
 pub mod common;
 pub mod il;
+pub mod udis86;
 
 #[cfg(test)]
 mod tests {
