@@ -1,6 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 use std::hash::Hash;
 
+pub const REGISTER_SIZE: u32 = 4;
+
 pub enum Pick<T> {
     Return(Option<T>),
     Continue,
@@ -11,9 +13,9 @@ where
     VId: Copy + Eq + Hash,
 {
     // Options/setup
-    fn set_subgraph(&mut self, Option<HashSet<VId>>) -> &Self;
-    fn set_edge_filter(&mut self, Box<Fn(&E) -> bool>) -> &Self;
-    fn reverse_edges(&mut self) -> &Self;
+    fn set_subgraph(&mut self, Option<HashSet<VId>>) -> &mut Self;
+    fn set_edge_filter(&mut self, Box<Fn(&E) -> bool>) -> &mut Self;
+    fn reverse_edges(&mut self) -> &mut Self;
 
     // Getters
     fn contains(&self, &VId) -> bool;

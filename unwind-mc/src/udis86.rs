@@ -32,6 +32,13 @@ impl ToString for Insn {
     }
 }
 
+impl Insn {
+    pub fn get_target_address(&self) -> u64 {
+        let target_address = self.address + self.length as u64;
+        (target_address as i64 + self.operands[0].get_i64()) as u64
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Operand {
     pub type_: ud_type,
@@ -41,6 +48,33 @@ pub struct Operand {
     pub scale: u8,
     pub offset: u8,
     pub lvalue: ud_lval,
+}
+
+impl Operand {
+    pub fn get_i64(&self) -> i64 {
+        unsafe {
+            match self.size {
+                8 => self.lvalue.sbyte as i64,
+                16 => self.lvalue.sword as i64,
+                32 => self.lvalue.sdword as i64,
+                64 => self.lvalue.sqword as i64,
+                _ => panic!("Impossible"),
+            }
+        }
+    }
+
+    pub fn get_memory_offset(&self) -> i64 {
+        unsafe {
+            match self.offset {
+                0 => 0,
+                8 => self.lvalue.sbyte as i64,
+                16 => self.lvalue.sword as i64,
+                32 => self.lvalue.sdword as i64,
+                64 => self.lvalue.sqword as i64,
+                _ => panic!("Impossible"),
+            }
+        }
+    }
 }
 
 impl Disassembler {

@@ -9,7 +9,7 @@ use libudis86_sys::{ud_mnemonic_code, ud_type};
 use common::Graph;
 use udis86::*;
 
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum LinkType {
     Next,
     Branch,
@@ -17,20 +17,20 @@ pub enum LinkType {
     SwitchCaseJump,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Link {
     pub address: u64,
     pub target_address: u64,
     pub type_: LinkType,
 }
 
+#[derive(Debug, Clone)]
 pub struct ExtraData {
     pub function_address: u64,
     pub import_name: String,
     pub is_protected: bool,
 }
 
-#[allow(dead_code)]
 pub struct InstructionGraph<'a> {
     disassembler: Disassembler,
     bytes: &'a [u8],
@@ -72,16 +72,16 @@ pub fn disassemble(bytes: &[u8], pc: u64) -> Result<InstructionGraph, String> {
 }
 
 impl<'a> Graph<u64, Insn, Link> for InstructionGraph<'a> {
-    fn set_subgraph(&mut self, _subgraph: Option<HashSet<u64>>) -> &Self {
+    fn set_subgraph(&mut self, _subgraph: Option<HashSet<u64>>) -> &mut Self {
         panic!("NOT SUPPORTED");
     }
 
-    fn set_edge_filter(&mut self, filter: Box<Fn(&Link) -> bool>) -> &Self {
+    fn set_edge_filter(&mut self, filter: Box<Fn(&Link) -> bool>) -> &mut Self {
         self.edge_predicate = filter;
         self
     }
 
-    fn reverse_edges(&mut self) -> &Self {
+    fn reverse_edges(&mut self) -> &mut Self {
         self.is_reversed = !self.is_reversed;
         self
     }
