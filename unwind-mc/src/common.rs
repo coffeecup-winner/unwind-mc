@@ -23,14 +23,14 @@ where
     fn get_adjacent(&self, &VId) -> Vec<Result<(&VId, &E), String>>;
 
     // Implemented algorithms
-    fn dfs_with(&self, start: &VId, consume: &mut FnMut(&V, &E) -> bool) -> bool {
+    fn dfs_with(&self, start: &VId, consume: &mut FnMut(&V, Option<&E>) -> bool) -> bool {
         let mut stack = vec![(start, None)];
         let mut visited = HashSet::new();
         visited.insert(start);
         let mut visited_all_edges = false;
         while stack.len() > 0 {
             let (vid, edge) = stack.pop().unwrap();
-            if consume(self.get_vertex(vid), edge.unwrap()) {
+            if consume(self.get_vertex(vid), edge) {
                 for adj in self.get_adjacent(vid).iter().rev() {
                     match adj {
                         Err(_message) => {
@@ -49,7 +49,7 @@ where
         visited_all_edges
     }
 
-    fn dfs_pick<T>(&self, start: &VId, pick: &mut FnMut(&V, &E) -> Pick<T>) -> Option<T> {
+    fn dfs_pick<T>(&self, start: &VId, pick: &mut FnMut(&V, Option<&E>) -> Pick<T>) -> Option<T> {
         use common::Pick::*;
 
         let mut result = None;

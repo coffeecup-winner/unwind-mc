@@ -198,12 +198,12 @@ impl<'a> InstructionGraph<'a> {
         };
         links.push(link.clone());
 
-        let reverse_links = match self.reverse_links.get_mut(&offset) {
+        let reverse_links = match self.reverse_links.get_mut(&target_offset) {
             Some(links) => links,
             None => {
                 let links = Vec::new();
-                self.instruction_links.insert(offset, links);
-                self.instruction_links.get_mut(&offset).unwrap()
+                self.reverse_links.insert(target_offset, links);
+                self.reverse_links.get_mut(&target_offset).unwrap()
             }
         };
         reverse_links.push(link);
@@ -234,14 +234,20 @@ impl<'a> InstructionGraph<'a> {
             }
         };
         // write a pseudo instruction
-        // TODO: add hex string
+        let mut hex = String::new();
+        for i in 0..length {
+            hex.push_str(&format!(
+                "{:02x}",
+                self.bytes[self.to_byte_array_index(address + i as u64)]
+            ));
+        }
         self.instructions.insert(
             address,
             Insn {
                 address: address,
                 code: ud_mnemonic_code::UD_Inone,
                 length: length,
-                hex: "<TODO:HEX>".to_string(),
+                hex: hex,
                 assembly: data_display_text,
                 operands: vec![],
                 prefix_rex: 0,
@@ -343,7 +349,7 @@ impl<'a> InstructionGraph<'a> {
                     let length = new_insn.length as u64;
                     let addr = new_insn.address;
                     self.instructions.insert(new_insn.address, new_insn);
-                    for j in 1..(length - 1) {
+                    for j in 1..length {
                         self.instructions.remove(&(addr + j));
                     }
                     fixed_instructions = true;

@@ -83,7 +83,9 @@ impl Disassembler {
             let mut ud: ud = mem::uninitialized();
             ud_init(&mut ud);
             ud_set_mode(&mut ud, 32);
-            ud_set_syntax(&mut ud, Some(ud_translate_intel));
+            // TODO: fix syntax generation bug in udis86 (vsnprintf calls)
+            // ud_set_syntax(&mut ud, Some(ud_translate_intel));
+            ud_set_syntax(&mut ud, None);
             ud_set_pc(&mut ud, pc);
             Disassembler { ud: ud }
         }

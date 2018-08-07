@@ -237,8 +237,7 @@ impl<'a> Analyzer<'a> {
                 .set_edge_filter(Box::new(|e: &Link| match e.type_ {
                     LinkType::Next | LinkType::Branch => true,
                     _ => false,
-                }))
-                .reverse_edges();
+                })).reverse_edges();
             self.graph.dfs_pick(&table.reference, &mut |insn, _| {
                 // find out the jump index register
                 if idx == ud_type::UD_NONE {
@@ -291,13 +290,14 @@ impl<'a> Analyzer<'a> {
                     .get_bytes(indirect_access, cases_count as usize)
                     .iter()
                     .max()
-                    .unwrap() as u32 + 1,
+                    .unwrap() as u32
+                    + 1,
                 cases_count,
             )
         };
 
         let mut offset = 0;
-        for _ in 0..(jumps_count - 1) {
+        for _ in 0..jumps_count {
             if !self.graph.add_jump_table_entry(table.address + offset) {
                 table.first_index += 1;
             }
