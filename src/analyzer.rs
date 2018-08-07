@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use libudis86_sys::{ud_mnemonic_code, ud_type};
 
@@ -116,6 +116,8 @@ impl<'a> Analyzer<'a> {
             }
 
             let mut stack = vec![func.address];
+            let mut visited = HashSet::new();
+            visited.insert(func.address);
             let mut visited_all_links = true;
             while stack.len() > 0 {
                 let address = stack.pop().unwrap();
@@ -138,7 +140,10 @@ impl<'a> Analyzer<'a> {
                         let (addr, link) = pair.unwrap();
                         match link.type_ {
                             LinkType::Next | LinkType::Branch | LinkType::SwitchCaseJump => {
-                                stack.push(*addr);
+                                if !visited.contains(addr) {
+                                    stack.push(*addr);
+                                    visited.insert(*addr);
+                                }
                             }
                             _ => {}
                         }
@@ -212,7 +217,7 @@ impl<'a> Analyzer<'a> {
             self.jump_tables.insert(address, table);
         }
         let table = self.jump_tables.get(&address).unwrap();
-        for i in table.first_index..(table.count - 1) {
+        for i in table.first_index..table.count {
             self.graph.add_link(
                 table.reference,
                 self.graph

@@ -148,7 +148,7 @@ impl<'a> InstructionGraph<'a> {
     }
 
     pub fn get_next(&self, address: u64) -> u64 {
-        match (address + 1..self.first_address_after_code - 1)
+        match (address + 1..self.first_address_after_code)
             .find(|a| self.instructions.contains_key(a))
         {
             Some(address) => address,
@@ -322,7 +322,7 @@ impl<'a> InstructionGraph<'a> {
         let max_disasm_length = 0x100;
         let mut disasm_length =
             std::cmp::min(max_disasm_length, self.first_address_after_code - address);
-        for j in 0..disasm_length {
+        for j in 0..(disasm_length + 1) {
             match self.extra_data.get(&(address + j)) {
                 Some(data) if data.is_protected => {
                     disasm_length = j;
