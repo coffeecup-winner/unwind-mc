@@ -131,9 +131,7 @@ impl<'a> Analyzer<'a> {
                 self.add_explicit_branches(&insn);
                 self.add_switch_cases(&insn);
 
-                let adj = self.graph.get_adjacent(&address);
-
-                for pair in adj {
+                for pair in self.graph.get_adjacent(&address) {
                     if pair.is_err() {
                         visited_all_links = false;
                     } else {

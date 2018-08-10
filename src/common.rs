@@ -64,18 +64,6 @@ where
         result
     }
 
-    // fn dfs(&self, start: &VId) -> Vec<V> {
-    //     use common::Pick::*;
-
-    //     // TODO: can be made lazy
-    //     let mut result = Vec::<V>::new();
-    //     self.dfs_pick::<()>(start, &mut |v, _e| {
-    //         result.push(*v);
-    //         Continue
-    //     });
-    //     result
-    // }
-
     fn bfs_with(&self, start: &VId, consume: &mut FnMut(&V) -> bool) -> () {
         if !self.contains(start) {
             return ();

@@ -8,6 +8,7 @@ pub mod asm;
 pub mod assignment_tracker;
 pub mod common;
 pub mod il;
+pub mod il_decompiler;
 pub mod udis86;
 
 #[cfg(test)]
