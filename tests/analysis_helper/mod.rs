@@ -2,7 +2,7 @@ use regex::Regex;
 
 use unwind_mc::analyzer::Analyzer;
 
-pub fn analyze<'a>(func: &'a str) -> () {
+pub fn analyze<'a>(func: &'a str) -> Analyzer {
     let normal_line_regex = Regex::new(
         r"^(?P<address>[0-9a-fA-F]{8}): (?P<bytes>((([0-9a-fA-F]{2})|  ) ){6}) (?P<asm>.+)$",
     ).unwrap();
@@ -45,7 +45,7 @@ pub fn analyze<'a>(func: &'a str) -> () {
     }
     canon_lines.push('\n');
 
-    let mut analyzer = Analyzer::create(&bytes, address).unwrap();
+    let mut analyzer = Analyzer::create(bytes, address).unwrap();
     analyzer.add_function(address);
     analyzer.analyze();
 
@@ -55,4 +55,6 @@ pub fn analyze<'a>(func: &'a str) -> () {
     }
 
     assert_eq!(instructions, canon_lines);
+
+    analyzer
 }

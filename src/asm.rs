@@ -31,9 +31,9 @@ pub struct ExtraData {
     pub is_protected: bool,
 }
 
-pub struct InstructionGraph<'a> {
+pub struct InstructionGraph {
     disassembler: Disassembler,
-    bytes: &'a [u8],
+    bytes: Vec<u8>,
     first_address: u64,
     first_address_after_code: u64,
     instructions: BTreeMap<u64, Insn>,
@@ -44,10 +44,10 @@ pub struct InstructionGraph<'a> {
     edge_predicate: Box<Fn(&Link) -> bool>,
 }
 
-pub fn disassemble(bytes: &[u8], pc: u64) -> Result<InstructionGraph, String> {
+pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> {
     let mut disassembler = Disassembler::new(pc);
 
-    let instructions = disassembler.disassemble(bytes, 0, bytes.len());
+    let instructions = disassembler.disassemble(&bytes[..], 0, bytes.len());
     let mut instruction_map = BTreeMap::new();
 
     for instr in instructions.into_iter() {
@@ -71,7 +71,7 @@ pub fn disassemble(bytes: &[u8], pc: u64) -> Result<InstructionGraph, String> {
     Ok(graph)
 }
 
-impl<'a> Graph<u64, Insn, Link> for InstructionGraph<'a> {
+impl Graph<u64, Insn, Link> for InstructionGraph {
     fn set_subgraph(&mut self, _subgraph: Option<HashSet<u64>>) -> &mut Self {
         panic!("NOT SUPPORTED");
     }
@@ -126,7 +126,7 @@ impl<'a> Graph<u64, Insn, Link> for InstructionGraph<'a> {
     }
 }
 
-impl<'a> InstructionGraph<'a> {
+impl InstructionGraph {
     pub fn instructions_iter(&self) -> Iter<u64, Insn> {
         self.instructions.iter()
     }
@@ -274,7 +274,7 @@ impl<'a> InstructionGraph<'a> {
         if size != length {
             self.disassembler.set_pc(address + (length as u64));
             let new_instructions = self.disassembler.disassemble(
-                self.bytes,
+                &self.bytes[..],
                 self.to_byte_array_index(address) + (length as usize),
                 (size - length) as usize,
             );
@@ -294,7 +294,7 @@ impl<'a> InstructionGraph<'a> {
         let extra_length = (address - insn_address) as usize;
         self.disassembler.set_pc(insn_address);
         let new_instructions = self.disassembler.disassemble(
-            self.bytes,
+            &self.bytes[..],
             self.to_byte_array_index(insn_address),
             extra_length,
         );
@@ -331,7 +331,7 @@ impl<'a> InstructionGraph<'a> {
             }
         }
         let mut new_instructions = self.disassembler.disassemble(
-            self.bytes,
+            &self.bytes[..],
             self.to_byte_array_index(address),
             disasm_length as usize,
         );

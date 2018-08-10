@@ -17,7 +17,7 @@ mod tests {
 
     #[test]
     fn create_empty_analyzer() {
-        let mut analyzer = match Analyzer::create(&[90], 0) {
+        let mut analyzer = match Analyzer::create(vec![90], 0) {
             Ok(analyzer) => analyzer,
             Err(_) => panic!("Failed to create an analyzer."),
         };

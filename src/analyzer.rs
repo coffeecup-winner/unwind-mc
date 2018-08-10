@@ -40,15 +40,15 @@ impl JumpTable {
     }
 }
 
-pub struct Analyzer<'a> {
-    graph: InstructionGraph<'a>,
+pub struct Analyzer {
+    graph: InstructionGraph,
     // import_resolver: ...,
     functions: BTreeMap<u64, Function>,
     jump_tables: BTreeMap<u64, JumpTable>,
 }
 
-impl<'a> Analyzer<'a> {
-    pub fn create(text_bytes: &'a [u8], pc: u64) -> Result<Analyzer, String> {
+impl Analyzer {
+    pub fn create(text_bytes: Vec<u8>, pc: u64) -> Result<Analyzer, String> {
         let analyzer = Analyzer {
             graph: disassemble(text_bytes, pc)?,
             functions: BTreeMap::new(),
@@ -57,7 +57,7 @@ impl<'a> Analyzer<'a> {
         Ok(analyzer)
     }
 
-    pub fn graph(&self) -> &InstructionGraph<'a> {
+    pub fn graph(&self) -> &InstructionGraph {
         &self.graph
     }
 
