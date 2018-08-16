@@ -2,7 +2,7 @@ use libudis86_sys::ud_type;
 
 pub type OperandType = ud_type;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ILOperand {
     Value(i32),
     Register(OperandType),
@@ -11,18 +11,18 @@ pub enum ILOperand {
     Pointer(OperandType, i32),
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct BinaryInstruction<Op> {
     pub left: Op,
     pub right: Op,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct UnaryInstruction<Op> {
     pub operand: Op,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum BranchType {
     Equal,
     NotEqual,
@@ -33,13 +33,13 @@ pub enum BranchType {
     Unconditional,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct BranchInstruction {
     pub type_: BranchType,
     pub target: u64,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ILBinaryOperator {
     Add,
     And,
@@ -52,13 +52,13 @@ pub enum ILBinaryOperator {
     Xor,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ILUnaryOperator {
     Negate,
     Not,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ILInstruction<Op> {
     Binary(ILBinaryOperator, BinaryInstruction<Op>),
     Unary(ILUnaryOperator, UnaryInstruction<Op>),

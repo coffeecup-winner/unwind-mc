@@ -131,7 +131,7 @@ impl Analyzer {
                 self.add_explicit_branches(&insn);
                 self.add_switch_cases(&insn);
 
-                for pair in self.graph.get_adjacent(&address) {
+                for pair in self.graph.get_adjacent(&address).into_iter().rev() {
                     if pair.is_err() {
                         visited_all_links = false;
                     } else {

@@ -18,7 +18,7 @@ impl AssignmentTracker {
         while stack.len() > 0 {
             let address = stack.pop().unwrap();
 
-            for pair in graph.get_adjacent(&address) {
+            for pair in graph.get_adjacent(&address).into_iter().rev() {
                 match pair {
                     Ok((addr, link)) => match link.type_ {
                         LinkType::Next | LinkType::Branch | LinkType::SwitchCaseJump => {

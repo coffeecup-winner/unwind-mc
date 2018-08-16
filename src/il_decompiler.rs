@@ -7,20 +7,17 @@ use il::*;
 use udis86::*;
 
 struct ILDecompiler {
-    pub stack_objects: HashMap<i32, i32>, // TODO: obj?
     pub stack_offset: i32,
     pub frame_pointer_offset: i32,
     pub prev_insn: Option<Insn>,
 }
 
-pub fn decompile(graph: InstructionGraph, address: u64) -> Vec<ILInstruction<ILOperand>> {
+pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<ILOperand>> {
     let mut decompiler = ILDecompiler {
-        stack_objects: HashMap::new(),
         stack_offset: -(REGISTER_SIZE as i32),
         frame_pointer_offset: 0,
         prev_insn: None,
     };
-    decompiler.stack_objects.insert(decompiler.stack_offset, 0);
     let mut il = BTreeMap::new();
     let mut stack = vec![address];
     let mut visited = HashSet::new();
@@ -38,7 +35,7 @@ pub fn decompile(graph: InstructionGraph, address: u64) -> Vec<ILInstruction<ILO
             i += 1;
         }
 
-        for pair in graph.get_adjacent(&address) {
+        for pair in graph.get_adjacent(&address).into_iter().rev() {
             match pair {
                 Err(_) => {}
                 Ok((addr, link)) => match link.type_ {
@@ -135,6 +132,15 @@ impl ILDecompiler {
             UD_Ijz => {
                 let prev = self.prev_insn.take().unwrap();
                 let cond = self.try_get_virtual_condition_insn(&prev);
+                let branch = Branch(branch(Equal, insn.get_target_address()));
+                match cond {
+                    Some(insn) => vec![insn, branch],
+                    None => vec![branch],
+                }
+            }
+            UD_Ijnz => {
+                let prev = self.prev_insn.take().unwrap();
+                let cond = self.try_get_virtual_condition_insn(&prev);
                 let branch = Branch(branch(NotEqual, insn.get_target_address()));
                 match cond {
                     Some(insn) => vec![insn, branch],
@@ -170,7 +176,6 @@ impl ILDecompiler {
             }
             UD_Ipush => {
                 self.stack_offset -= REGISTER_SIZE as i32;
-                self.add_or_update_stack_value(self.stack_offset);
                 vec![Nop]
             }
             UD_Ipop => {
@@ -202,14 +207,14 @@ impl ILDecompiler {
                     (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
                         vec![Compare(binary(left, Value(0)))]
                     }
-                    _ => panic!("Not supported"),
+                    _ => panic!(format!("Unsupported instruction\n{:#?}", insn)),
                 }
             }
             UD_Ixor => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
                 vec![Binary(Xor, binary(left, right))]
             }
-            _ => panic!("Not supported"),
+            _ => panic!(format!("Unsupported instruction\n{:#?}", insn)),
         };
         // TODO: remove this clone()
         self.prev_insn = Some(insn.clone());
@@ -248,28 +253,7 @@ impl ILDecompiler {
     }
 
     fn convert_operands(&mut self, operands: &Vec<Operand>) -> Vec<ILOperand> {
-        let mut result = vec![];
-        for op in operands.iter() {
-            let il_op = self.convert_operand(op);
-            use il::ILOperand::*;
-            match il_op {
-                Argument(offset) | Local(offset) => {
-                    self.add_or_update_stack_value(offset);
-                }
-                _ => {}
-            }
-            result.push(il_op);
-        }
-        result
-    }
-
-    fn add_or_update_stack_value(&mut self, offset: i32) -> () {
-        match self.stack_objects.get(&offset) {
-            Some(_) => {}
-            None => {
-                self.stack_objects.insert(offset, 0);
-            }
-        };
+        operands.iter().map(|op| self.convert_operand(op)).collect()
     }
 
     fn convert_operand(&self, operand: &Operand) -> ILOperand {
