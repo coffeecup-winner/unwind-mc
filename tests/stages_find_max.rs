@@ -7,6 +7,7 @@ mod analysis_helper;
 
 use libudis86_sys::ud_type::*;
 
+use unwind_mc::flow_analyzer::*;
 use unwind_mc::il::*;
 use unwind_mc::il_decompiler;
 
@@ -56,9 +57,64 @@ fn stage_test_find_max() {
     let ret = Return(unary(Register(UD_R_EAX)));
 
     let expected = vec![
-        nop0, asn0, asn1, cmp0, br0, asn2, asn3, asn4, cmp1, br1, asn5, add0, sub0, cmp2, br2,
-        nop1, ret,
+        nop0.clone(),
+        asn0.clone(),
+        asn1.clone(),
+        cmp0.clone(),
+        br0.clone(),
+        asn2.clone(),
+        asn3.clone(),
+        asn4.clone(),
+        cmp1.clone(),
+        br1.clone(),
+        asn5.clone(),
+        add0.clone(),
+        sub0.clone(),
+        cmp2.clone(),
+        br2.clone(),
+        nop1.clone(),
+        ret.clone(),
     ];
 
     assert_eq!(il, expected);
+
+    let blocks = build_flow_graph(il);
+
+    let expected = vec![
+        Block::SequentialBlock(SequentialBlock {
+            instructions: vec![nop0, asn0, asn1],
+        }),
+        Block::ConditionalBlock(ConditionalBlock {
+            condition: invert_condition(vec![cmp0, br0]),
+            true_branch: vec![
+                Block::SequentialBlock(SequentialBlock {
+                    instructions: vec![asn2, asn3],
+                }),
+                Block::DoWhileBlock(DoWhileBlock {
+                    condition: vec![cmp2, br2],
+                    body: vec![
+                        Block::SequentialBlock(SequentialBlock {
+                            instructions: vec![asn4],
+                        }),
+                        Block::ConditionalBlock(ConditionalBlock {
+                            condition: invert_condition(vec![cmp1, br1]),
+                            true_branch: vec![Block::SequentialBlock(SequentialBlock {
+                                instructions: vec![asn5],
+                            })],
+                            false_branch: vec![],
+                        }),
+                        Block::SequentialBlock(SequentialBlock {
+                            instructions: vec![add0, sub0],
+                        }),
+                    ],
+                }),
+            ],
+            false_branch: vec![],
+        }),
+        Block::SequentialBlock(SequentialBlock {
+            instructions: vec![nop1, ret],
+        }),
+    ];
+
+    assert_eq!(blocks, expected);
 }
