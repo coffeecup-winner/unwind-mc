@@ -1,6 +1,12 @@
-## Ignore Rust temporary files/build results
+# IDEs
+.idea/
+.vscode/
+
+# Rust temporary files/build results
 target
 **/*.rs.bk
+
+# Global files
 GPATH
 GRTAGS
 GTAGS
