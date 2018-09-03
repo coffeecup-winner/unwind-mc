@@ -10,6 +10,7 @@ use libudis86_sys::ud_type::*;
 use unwind_mc::flow_analyzer::*;
 use unwind_mc::il::*;
 use unwind_mc::il_decompiler;
+use unwind_mc::type_resolver::*;
 
 #[test]
 fn stage_test_find_max() {
@@ -117,4 +118,28 @@ fn stage_test_find_max() {
     ];
 
     assert_eq!(blocks, expected);
+
+    let (blocks, types) = TypeResolver::resolve_types(blocks);
+    let parameter_types = types.parameter_types;
+    let variable_types = types.variable_types;
+    let local_types = types.local_types;
+
+    assert_eq!(parameter_types.len(), 2);
+    assert_eq!(
+        parameter_types[0],
+        DataType::Pointer(Box::new(DataType::Int32))
+    );
+    assert_eq!(parameter_types[1], DataType::Int32);
+
+    assert_eq!(variable_types.len(), 5);
+    assert_eq!(variable_types[0], DataType::Int32);
+    assert_eq!(variable_types[1], DataType::Int32);
+    assert_eq!(
+        variable_types[2],
+        DataType::Pointer(Box::new(DataType::Int32))
+    );
+    assert_eq!(variable_types[3], DataType::Int32);
+    assert_eq!(variable_types[4], DataType::Int32);
+
+    assert_eq!(local_types.len(), 0);
 }

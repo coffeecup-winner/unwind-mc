@@ -2,7 +2,7 @@ use libudis86_sys::ud_type;
 
 pub type OperandType = ud_type;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ILOperand {
     Value(i32),
     Register(OperandType),

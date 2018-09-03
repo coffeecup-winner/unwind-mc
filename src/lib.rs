@@ -12,6 +12,7 @@ pub mod common;
 pub mod flow_analyzer;
 pub mod il;
 pub mod il_decompiler;
+pub mod type_resolver;
 pub mod udis86;
 
 #[cfg(test)]
