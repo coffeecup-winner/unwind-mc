@@ -30,7 +30,7 @@ impl DataType {
     }
 }
 
-type ResolvedOperand = (ILOperand, Option<i32>);
+pub type ResolvedOperand = (ILOperand, Option<i32>);
 
 pub struct Result {
     pub parameter_types: Vec<DataType>,

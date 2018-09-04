@@ -7,6 +7,8 @@ mod analysis_helper;
 
 use libudis86_sys::ud_type::*;
 
+use unwind_mc::ast::*;
+use unwind_mc::ast_builder::*;
 use unwind_mc::flow_analyzer::*;
 use unwind_mc::il::*;
 use unwind_mc::il_decompiler;
@@ -127,9 +129,9 @@ fn stage_test_find_max() {
     assert_eq!(blocks, expected);
 
     let (blocks, types) = TypeResolver::resolve_types(blocks);
-    let parameter_types = types.parameter_types;
-    let variable_types = types.variable_types;
-    let local_types = types.local_types;
+    let parameter_types = &types.parameter_types;
+    let variable_types = &types.variable_types;
+    let local_types = &types.local_types;
 
     assert_eq!(parameter_types.len(), 2);
     assert_eq!(
@@ -227,4 +229,81 @@ fn stage_test_find_max() {
     ];
 
     assert_eq!(blocks, expected);
+
+    let func = AstBuilder::build_ast(String::from("find_max"), &blocks, &types);
+
+    use unwind_mc::ast::Expression::{Dereference, VarRef};
+    use unwind_mc::ast::Statement::{Assignment, DoWhile, IfThenElse};
+    let expected = vec![
+        Assignment(
+            Var::Var(String::from("var0")),
+            VarRef(Var::Var(String::from("arg1"))),
+        ),
+        Assignment(
+            Var::Var(String::from("var1")),
+            Expression::Value(0x80000000),
+        ),
+        IfThenElse(
+            Expression::Binary(
+                Operator::NotEqual,
+                Box::new(VarRef(Var::Var(String::from("var0")))),
+                Box::new(Expression::Value(0)),
+            ),
+            vec![
+                Assignment(
+                    Var::Var(String::from("var2")),
+                    VarRef(Var::Var(String::from("arg0"))),
+                ),
+                Assignment(
+                    Var::Var(String::from("var1")),
+                    Expression::Value(0x80000000),
+                ),
+                DoWhile(
+                    vec![
+                        Assignment(
+                            Var::Var(String::from("var3")),
+                            Dereference(Box::new(VarRef(Var::Var(String::from("var2"))))),
+                        ),
+                        IfThenElse(
+                            Expression::Binary(
+                                Operator::Less,
+                                Box::new(VarRef(Var::Var(String::from("var1")))),
+                                Box::new(VarRef(Var::Var(String::from("var3")))),
+                            ),
+                            vec![Assignment(
+                                Var::Var(String::from("var1")),
+                                VarRef(Var::Var(String::from("var3"))),
+                            )],
+                            vec![],
+                        ),
+                        Assignment(
+                            Var::Var(String::from("var2")),
+                            Expression::Binary(
+                                Operator::Add,
+                                Box::new(VarRef(Var::Var(String::from("var2")))),
+                                Box::new(Expression::Value(1)),
+                            ),
+                        ),
+                        Assignment(
+                            Var::Var(String::from("var0")),
+                            Expression::Binary(
+                                Operator::Subtract,
+                                Box::new(VarRef(Var::Var(String::from("var0")))),
+                                Box::new(Expression::Value(1)),
+                            ),
+                        ),
+                    ],
+                    Expression::Binary(
+                        Operator::NotEqual,
+                        Box::new(VarRef(Var::Var(String::from("var0")))),
+                        Box::new(Expression::Value(0)),
+                    ),
+                ),
+            ],
+            vec![],
+        ),
+        Statement::Return(Some(Var::Var(String::from("var1")))),
+    ];
+
+    assert_eq!(func.body, expected);
 }
