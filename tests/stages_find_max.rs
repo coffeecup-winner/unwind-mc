@@ -9,6 +9,7 @@ use libudis86_sys::ud_type::*;
 
 use unwind_mc::ast::*;
 use unwind_mc::ast_builder::*;
+use unwind_mc::cpp_emitter::*;
 use unwind_mc::flow_analyzer::*;
 use unwind_mc::il::*;
 use unwind_mc::il_decompiler;
@@ -306,4 +307,33 @@ fn stage_test_find_max() {
     ];
 
     assert_eq!(func.body, expected);
+
+    let code = CppEmitter::emit(&func);
+    let expected = "int find_max(int *arg0, int arg1)
+        {
+          int var0;
+          int var1;
+          int *var2;
+          int var3;
+        
+          var0 = arg1;
+          var1 = -2147483648;
+          if (var0 != 0)
+          {
+            var2 = arg0;
+            var1 = -2147483648;
+            do
+            {
+              var3 = *(var2);
+              if (var1 < var3)
+              {
+                var1 = var3;
+              }
+              var2 = var2 + 1;
+              var0 = var0 - 1;
+            } while (var0 != 0);
+          }
+          return var1;
+        }";
+    assert_eq!(code, analysis_helper::strip_indent(expected));
 }

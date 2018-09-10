@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use ast::*;
 use common::REGISTER_SIZE;
@@ -14,9 +14,9 @@ type Instruction = ILInstruction<ResolvedOperand>;
 
 pub struct AstBuilder<'a> {
     variable_types: &'a Vec<DataType>,
-    variable_names: HashMap<i32, String>,
-    parameter_names: HashMap<i32, String>,
-    local_names: HashMap<i32, String>,
+    variable_names: BTreeMap<i32, String>,
+    parameter_names: BTreeMap<i32, String>,
+    local_names: BTreeMap<i32, String>,
     types: HashMap<String, DataType>,
     next_var_name_idx: i32,
 }
@@ -40,9 +40,9 @@ impl<'a> AstBuilder<'a> {
     pub fn build_ast(name: String, blocks: &Vec<ResolvedBlock>, types: &Result) -> Function {
         let mut builder = AstBuilder {
             variable_types: &types.variable_types,
-            variable_names: HashMap::new(),
-            parameter_names: HashMap::new(),
-            local_names: HashMap::new(),
+            variable_names: BTreeMap::new(),
+            parameter_names: BTreeMap::new(),
+            local_names: BTreeMap::new(),
             types: HashMap::new(),
             next_var_name_idx: 0,
         };

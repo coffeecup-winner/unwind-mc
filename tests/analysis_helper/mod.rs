@@ -58,3 +58,22 @@ pub fn analyze<'a>(func: &'a str) -> Analyzer {
 
     analyzer
 }
+
+pub fn strip_indent(text: &str) -> String {
+    let lines = text.lines().collect::<Vec<&str>>();
+    let indent = lines
+        .iter()
+        .skip(1)
+        .map(|l| l.chars().take_while(|&c| c == ' ').count())
+        .min()
+        .unwrap();
+    let mut result = String::new();
+    result += lines[0];
+    result += "\n";
+    for i in 1..lines.len() {
+        let (_, trimmed_line) = lines[i].split_at(indent);
+        result += trimmed_line;
+        result += "\n";
+    }
+    result
+}
