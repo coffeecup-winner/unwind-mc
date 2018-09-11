@@ -57,7 +57,10 @@ impl CppEmitter {
 
     fn emit_return_type(&mut self, var: &Option<Var>) {
         match var {
-            None => self.text_writer.write("void"),
+            None => {
+                self.text_writer.write("void");
+                self.text_writer.write(" ");
+            }
             Some(Var::Var(name)) => {
                 let type_ = self.types[name].clone();
                 match type_ {
