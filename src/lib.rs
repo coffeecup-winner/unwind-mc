@@ -13,6 +13,7 @@ pub mod ast;
 pub mod ast_builder;
 pub mod common;
 pub mod cpp_emitter;
+pub mod decompiler;
 pub mod flow_analyzer;
 pub mod il;
 pub mod il_decompiler;

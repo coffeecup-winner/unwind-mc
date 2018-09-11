@@ -10,10 +10,50 @@ use libudis86_sys::ud_type::*;
 use unwind_mc::ast::*;
 use unwind_mc::ast_builder::*;
 use unwind_mc::cpp_emitter::*;
+use unwind_mc::decompiler;
 use unwind_mc::flow_analyzer::*;
 use unwind_mc::il::*;
 use unwind_mc::il_decompiler;
 use unwind_mc::type_resolver::*;
+
+#[test]
+fn end_to_end_functions_array() {
+    let analyzer = analysis_helper::analyze(
+        "
+        00400000: 56                 push esi
+        00400001: 8b 74 24 08        mov esi, [esp+0x8]
+        00400005: 3b 74 24 0c        cmp esi, [esp+0xc]
+        00400009: 73 0d              jae 0x400018
+        0040000b: 8b 06              mov eax, [esi]
+        0040000d: 85 c0              test eax, eax
+        0040000f: 74 02              jz 0x400013
+        00400011: ff d0              call eax
+        00400013: 83 c6 04           add esi, 0x4
+        00400016: eb ed              jmp 0x400005
+        00400018: 5e                 pop esi
+        00400019: c3                 ret",
+    );
+
+    let code = decompiler::decompile_function(analyzer.graph(), 0x400000);
+    let expected = "void sub_400000(void (**arg0)(), void (**arg1)())
+        {
+          void (**var0)();
+          void (*var1)();
+        
+          var0 = arg0;
+          while (var0 < arg1)
+          {
+            var1 = *(var0);
+            if (var1 != 0)
+            {
+              var1();
+            }
+            var0 = var0 + 1;
+          }
+          return;
+        }";
+    assert_eq!(code, analysis_helper::strip_indent(expected));
+}
 
 #[test]
 fn stage_test_functions_array() {
