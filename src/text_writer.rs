@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 #[cfg(windows)]
-const NEWLINE: &'static str = "\r\n";
+const NEWLINE: &str = "\r\n";
 #[cfg(not(windows))]
-const NEWLINE: &'static str = "\n";
+const NEWLINE: &str = "\n";
 
 pub struct TextWriter {
     text: String,
@@ -18,7 +18,7 @@ impl TextWriter {
     pub fn new(indent_size: u32) -> TextWriter {
         let mut writer = TextWriter {
             text: String::new(),
-            indent_size: indent_size,
+            indent_size,
             indent_cache: HashMap::new(),
             indent_level: 0,
             indent: String::from(""),
@@ -49,7 +49,7 @@ impl TextWriter {
     pub fn decrease_indent(&mut self) {
         let new_level = self.indent_level - 1;
         self.indent_level = new_level;
-        self.indent = self.indent_cache.get(&new_level).unwrap().clone(); // TODO: remove clone()
+        self.indent = self.indent_cache[&new_level].clone(); // TODO: remove clone()
     }
 
     pub fn write(&mut self, text: &str) {

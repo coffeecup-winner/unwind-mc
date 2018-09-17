@@ -90,15 +90,10 @@ impl Analyzer {
             let target_address = call.get_target_address();
             self.graph
                 .add_link(call.address, target_address, LinkType::Call);
-            if !self.functions.contains_key(&target_address) {
-                self.functions.insert(
-                    target_address,
-                    Function {
-                        address: target_address,
-                        status: FunctionStatus::Created,
-                    },
-                );
-            }
+            self.functions.entry(target_address).or_insert(Function {
+                address: target_address,
+                status: FunctionStatus::Created,
+            });
         }
     }
 
@@ -119,7 +114,7 @@ impl Analyzer {
             let mut visited = HashSet::new();
             visited.insert(func.address);
             let mut visited_all_links = true;
-            while stack.len() > 0 {
+            while !stack.is_empty() {
                 let address = stack.pop().unwrap();
                 self.graph.get_extra_data(address).function_address = func.address;
                 let insn = self.graph.get_vertex(&address).clone();
@@ -208,18 +203,20 @@ impl Analyzer {
         }
 
         // TODO: move unsafe into udis86 module
-        let address = unsafe { insn.operands[0].lvalue.udword } as u64;
+        let address = u64::from(unsafe { insn.operands[0].lvalue.udword });
         if !self.jump_tables.contains_key(&address) {
             let mut table = JumpTable::new(insn.address, address);
             self.resolve_jump_table(&mut table);
             self.jump_tables.insert(address, table);
         }
-        let table = self.jump_tables.get(&address).unwrap();
+        let table = self.jump_tables[&address];
         for i in table.first_index..table.count {
             self.graph.add_link(
                 table.reference,
-                self.graph
-                    .read_u32(table.address + (i * REGISTER_SIZE) as u64) as u64,
+                u64::from(
+                    self.graph
+                        .read_u32(table.address + u64::from(i * REGISTER_SIZE)),
+                ),
                 LinkType::SwitchCaseJump,
             );
         }
@@ -255,7 +252,7 @@ impl Analyzer {
                     && insn.operands[0].base == low_byte_idx
                 {
                     idx = insn.operands[1].base;
-                    indirect_access = unsafe { insn.operands[1].lvalue.udword } as u64;
+                    indirect_access = u64::from(unsafe { insn.operands[1].lvalue.udword });
                     return Pick::Continue;
                 }
 
@@ -285,16 +282,17 @@ impl Analyzer {
 
         let cases_count = cases_count_option.unwrap();
         let (jumps_count, mut cases_count) = if indirect_access == 0 {
-            (cases_count as u32, 0)
+            (u32::from(cases_count), 0)
         } else {
             (
-                *self
-                    .graph
-                    .get_bytes(indirect_access, cases_count as usize)
-                    .iter()
-                    .max()
-                    .unwrap() as u32
-                    + 1,
+                u32::from(
+                    *self
+                        .graph
+                        .get_bytes(indirect_access, cases_count as usize)
+                        .iter()
+                        .max()
+                        .unwrap(),
+                ) + 1,
                 cases_count,
             )
         };
@@ -305,19 +303,19 @@ impl Analyzer {
                 table.first_index += 1;
             }
             self.graph.add_jump_table_entry(table.address + offset);
-            offset += REGISTER_SIZE as u64;
+            offset += u64::from(REGISTER_SIZE);
         }
         table.count = jumps_count;
         while cases_count >= 4 {
             self.graph
                 .add_jump_table_indirect_entries(table.address + offset, 4);
             cases_count -= 4;
-            offset += REGISTER_SIZE as u64;
+            offset += u64::from(REGISTER_SIZE);
         }
         if cases_count > 0 {
             self.graph
                 .add_jump_table_indirect_entries(table.address + offset, cases_count);
-            offset += cases_count as u64;
+            offset += u64::from(cases_count);
         }
         self.graph.redisassemble(table.address + offset);
     }

@@ -10,7 +10,7 @@ pub struct T<'a> {
 
 impl<'a> T<'a> {
     pub fn new(types: &'a HashMap<String, DataType>) -> T {
-        T { types: types }
+        T { types }
     }
 
     fn fixup(&self, op: Operator, var: Var, value: i32) -> Expression {

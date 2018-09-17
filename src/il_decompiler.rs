@@ -21,7 +21,7 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<IL
     let mut il = BTreeMap::new();
     let mut stack = vec![address];
     let mut visited = HashSet::new();
-    while stack.len() > 0 {
+    while !stack.is_empty() {
         let address = stack.pop().unwrap();
         let insn = graph.get_vertex(&address).clone();
 
@@ -29,10 +29,8 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<IL
         if il_insns.len() > insn.length as usize {
             panic!("FIXME: not enough virtual addresses");
         }
-        let mut i = 0;
-        for il_insn in il_insns {
+        for (i, il_insn) in il_insns.into_iter().enumerate() {
             il.insert(insn.address + i as u64, il_insn);
-            i += 1;
         }
 
         for pair in graph.get_adjacent(&address).into_iter().rev() {
@@ -52,10 +50,8 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<IL
     }
 
     let mut targets = HashMap::new();
-    let mut i = 0;
-    for (addr, _) in il.iter() {
-        targets.insert(*addr, i);
-        i += 1;
+    for (i, (addr, _)) in il.iter().enumerate() {
+        targets.insert(*addr, i as u64);
     }
 
     use il::ILInstruction::Branch;
@@ -100,7 +96,10 @@ impl ILDecompiler {
             UD_Icmovl => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
                 vec![
-                    Branch(branch(GreaterOrEqual, insn.address + insn.length as u64)),
+                    Branch(branch(
+                        GreaterOrEqual,
+                        insn.address + u64::from(insn.length),
+                    )),
                     Assign(binary(left, right)),
                 ]
             }
@@ -221,13 +220,12 @@ impl ILDecompiler {
         result
     }
 
-    fn get_unary_operand(&mut self, operands: &Vec<Operand>) -> ILOperand {
+    fn get_unary_operand(&mut self, operands: &[Operand]) -> ILOperand {
         let mut ops = self.convert_operands(operands);
-        let operand = ops.remove(0);
-        operand
+        ops.remove(0)
     }
 
-    fn get_binary_operands(&mut self, operands: &Vec<Operand>) -> (ILOperand, ILOperand) {
+    fn get_binary_operands(&mut self, operands: &[Operand]) -> (ILOperand, ILOperand) {
         let mut ops = self.convert_operands(operands);
         let right = ops.remove(1);
         let left = ops.remove(0);
@@ -252,7 +250,7 @@ impl ILDecompiler {
         }
     }
 
-    fn convert_operands(&mut self, operands: &Vec<Operand>) -> Vec<ILOperand> {
+    fn convert_operands(&mut self, operands: &[Operand]) -> Vec<ILOperand> {
         operands.iter().map(|op| self.convert_operand(op)).collect()
     }
 

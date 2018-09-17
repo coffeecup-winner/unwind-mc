@@ -15,18 +15,17 @@ impl AssignmentTracker {
     ) -> Option<ud_lval> {
         let mut skipped_initial_instruction = false;
         let mut stack = vec![address];
-        while stack.len() > 0 {
+        while !stack.is_empty() {
             let address = stack.pop().unwrap();
 
             for pair in graph.get_adjacent(&address).into_iter().rev() {
-                match pair {
-                    Ok((addr, link)) => match link.type_ {
+                if let Ok((addr, link)) = pair {
+                    match link.type_ {
                         LinkType::Next | LinkType::Branch | LinkType::SwitchCaseJump => {
                             stack.push(*addr);
                         }
                         _ => (),
-                    },
-                    _ => (),
+                    }
                 }
             }
 
@@ -62,21 +61,18 @@ impl AssignmentTracker {
                 return None;
             }
 
-            match insn.code {
-                ud_mnemonic_code::UD_Imov => {
-                    if insn.operands[0].type_ == ud_type::UD_OP_REG
-                        && insn.operands[1].type_ == ud_type::UD_OP_REG
-                        && insn.operands[0].base == register
-                    {
-                        return AssignmentTracker::find(
-                            graph,
-                            insn.address,
-                            insn.operands[1].base,
-                            try_match,
-                        );
-                    }
+            if let ud_mnemonic_code::UD_Imov = insn.code {
+                if insn.operands[0].type_ == ud_type::UD_OP_REG
+                    && insn.operands[1].type_ == ud_type::UD_OP_REG
+                    && insn.operands[0].base == register
+                {
+                    return AssignmentTracker::find(
+                        graph,
+                        insn.address,
+                        insn.operands[1].base,
+                        try_match,
+                    );
                 }
-                _ => (),
             }
         }
         None

@@ -28,7 +28,7 @@ where
         let mut visited = HashSet::new();
         visited.insert(start);
         let mut visited_all_edges = false;
-        while stack.len() > 0 {
+        while !stack.is_empty() {
             let (vid, edge) = stack.pop().unwrap();
             if consume(self.get_vertex(vid), edge) {
                 for adj in self.get_adjacent(vid).iter().rev() {
@@ -72,7 +72,7 @@ where
         let mut visited = HashSet::new();
         queue.push_back(start);
         visited.insert(start);
-        while queue.len() > 0 {
+        while !queue.is_empty() {
             let vid = queue.pop_front().unwrap();
             consume(self.get_vertex(vid));
             for adj in self.get_adjacent(vid).iter() {

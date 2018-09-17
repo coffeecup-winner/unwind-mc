@@ -56,6 +56,7 @@ impl TypeBuilder {
     }
 }
 
+#[derive(Clone, Copy)]
 enum SsaMarker {
     PushIds,
     JoinPoint,
@@ -104,7 +105,7 @@ impl TypeResolver {
             local_types.push(type_builder.borrow().build());
         }
 
-        while resolver.types.len() > 0 {
+        while !resolver.types.is_empty() {
             let (&op, _) = resolver.types.iter().nth(0).unwrap();
             resolver.finalize_type(&op);
         }
@@ -115,8 +116,8 @@ impl TypeResolver {
         }
 
         let result = Result {
-            parameter_types: parameter_types,
-            local_types: local_types,
+            parameter_types,
+            local_types,
             variable_types: resolver.variable_types,
         };
         (blocks, result)
@@ -165,12 +166,12 @@ impl TypeResolver {
         insns
             .into_iter()
             .map(|i| match i {
-                Binary(op, binary) => Binary(op, self.coalesce_binary(id_from, id_to, binary)),
+                Binary(op, binary) => Binary(op, self.coalesce_binary(id_from, id_to, &binary)),
                 Unary(op, unary) => Unary(op, self.coalesce_unary(id_from, id_to, unary)),
                 Call(unary) => Call(self.coalesce_unary(id_from, id_to, unary)),
                 Return(unary) => Return(self.coalesce_unary(id_from, id_to, unary)),
-                Compare(binary) => Compare(self.coalesce_binary(id_from, id_to, binary)),
-                Assign(binary) => Assign(self.coalesce_binary(id_from, id_to, binary)),
+                Compare(binary) => Compare(self.coalesce_binary(id_from, id_to, &binary)),
+                Assign(binary) => Assign(self.coalesce_binary(id_from, id_to, &binary)),
                 Continue => Continue,
                 Break => Break,
                 Branch(branch) => Branch(branch),
@@ -195,7 +196,7 @@ impl TypeResolver {
         &self,
         id_from: i32,
         id_to: i32,
-        binary: BinaryInstruction<ResolvedOperand>,
+        binary: &BinaryInstruction<ResolvedOperand>,
     ) -> BinaryInstruction<ResolvedOperand> {
         let (left, left_id) = binary.left;
         let left_id = if left_id == Some(id_from) {
@@ -265,10 +266,7 @@ impl TypeResolver {
                     let body = self.convert_blocks(b.body, returns_value);
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
-                    Block::WhileBlock(WhileBlock {
-                        condition: condition,
-                        body: body,
-                    })
+                    Block::WhileBlock(WhileBlock { condition, body })
                 }
                 Block::DoWhileBlock(b) => {
                     self.on_ssa_marker(PushIds);
@@ -276,10 +274,7 @@ impl TypeResolver {
                     let condition = self.convert_instructions(b.condition, returns_value);
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
-                    Block::DoWhileBlock(DoWhileBlock {
-                        condition: condition,
-                        body: body,
-                    })
+                    Block::DoWhileBlock(DoWhileBlock { condition, body })
                 }
                 Block::ForBlock(b) => {
                     self.on_ssa_marker(PushIds);
@@ -289,14 +284,14 @@ impl TypeResolver {
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
                     Block::ForBlock(ForBlock {
-                        condition: condition,
-                        modifier: modifier,
-                        body: body,
+                        condition,
+                        modifier,
+                        body,
                     })
                 }
                 Block::ConditionalBlock(b) => {
-                    let has_false_branch = b.false_branch.len() > 0;
-                    let has_true_branch = b.true_branch.len() > 0;
+                    let has_false_branch = !b.false_branch.is_empty();
+                    let has_true_branch = !b.true_branch.is_empty();
                     let condition = self.convert_instructions(b.condition, returns_value);
                     if has_false_branch != has_true_branch {
                         self.on_ssa_marker(PushIds);
@@ -317,9 +312,9 @@ impl TypeResolver {
                     };
                     self.on_ssa_marker(JoinPoint);
                     Block::ConditionalBlock(ConditionalBlock {
-                        condition: condition,
-                        true_branch: true_branch,
-                        false_branch: false_branch,
+                        condition,
+                        true_branch,
+                        false_branch,
                     })
                 }
             }).collect()
@@ -334,12 +329,12 @@ impl TypeResolver {
         insns
             .into_iter()
             .map(|i| match i {
-                Binary(op, binary) => Binary(op, self.convert_binary(binary)),
-                Unary(op, unary) => Unary(op, self.convert_unary(unary)),
-                Compare(binary) => Compare(self.convert_binary(binary)),
-                Assign(binary) => Assign(self.convert_assign(binary)),
-                Call(unary) => Call(self.convert_call(unary)),
-                Return(unary) => Return(self.convert_return(unary, returns_value)),
+                Binary(op, binary) => Binary(op, self.convert_binary(&binary)),
+                Unary(op, unary) => Unary(op, self.convert_unary(&unary)),
+                Compare(binary) => Compare(self.convert_binary(&binary)),
+                Assign(binary) => Assign(self.convert_assign(&binary)),
+                Call(unary) => Call(self.convert_call(&unary)),
+                Return(unary) => Return(self.convert_return(&unary, returns_value)),
                 Continue => Continue,
                 Break => Break,
                 Branch(branch) => Branch(branch),
@@ -349,14 +344,14 @@ impl TypeResolver {
 
     fn convert_unary(
         &mut self,
-        unary: UnaryInstruction<ILOperand>,
+        unary: &UnaryInstruction<ILOperand>,
     ) -> UnaryInstruction<ResolvedOperand> {
         il::unary((unary.operand, self.get_current_id(&unary.operand)))
     }
 
     fn convert_binary(
         &mut self,
-        binary: BinaryInstruction<ILOperand>,
+        binary: &BinaryInstruction<ILOperand>,
     ) -> BinaryInstruction<ResolvedOperand> {
         let right_id = self.get_current_id(&binary.right);
         match binary.right {
@@ -387,7 +382,7 @@ impl TypeResolver {
 
     fn convert_assign(
         &mut self,
-        binary: BinaryInstruction<ILOperand>,
+        binary: &BinaryInstruction<ILOperand>,
     ) -> BinaryInstruction<ResolvedOperand> {
         use il::ILOperand::*;
         let op = match binary.right {
@@ -403,14 +398,11 @@ impl TypeResolver {
 
         let right_id = self.get_current_id(&op);
         self.assign_type_builder(&binary.left, &op);
-        match binary.right {
-            Pointer(_, _) => {
-                let type_ = Rc::new(RefCell::new((*self.get_type(&op).borrow()).clone()));
-                *self.get_type(&op).borrow_mut() = TypeBuilder::Pointer(type_.clone());
-                self.set_type(&binary.left, type_);
-            }
-            _ => (),
-        };
+        if let Pointer(_, _) = binary.right {
+            let type_ = Rc::new(RefCell::new((*self.get_type(&op).borrow()).clone()));
+            *self.get_type(&op).borrow_mut() = TypeBuilder::Pointer(type_.clone());
+            self.set_type(&binary.left, type_);
+        }
         il::binary(
             (binary.left, self.get_current_id(&binary.left)),
             (binary.right, right_id),
@@ -419,7 +411,7 @@ impl TypeResolver {
 
     fn convert_call(
         &mut self,
-        unary: UnaryInstruction<ILOperand>,
+        unary: &UnaryInstruction<ILOperand>,
     ) -> UnaryInstruction<ResolvedOperand> {
         let op = unary.operand;
         *self.get_type(&op).borrow_mut() = TypeBuilder::Function;
@@ -428,7 +420,7 @@ impl TypeResolver {
 
     fn convert_return(
         &mut self,
-        unary: UnaryInstruction<ILOperand>,
+        unary: &UnaryInstruction<ILOperand>,
         returns_value: bool,
     ) -> UnaryInstruction<ResolvedOperand> {
         let op = unary.operand;
@@ -439,7 +431,7 @@ impl TypeResolver {
         }
     }
 
-    fn function_returns_value(blocks: &Vec<Block<ILOperand>>) -> bool {
+    fn function_returns_value(blocks: &[Block<ILOperand>]) -> bool {
         // This tests only the top-level scope, which is probably an incomplete heuristic,
         // most probably need to check all paths
         blocks.iter().any(|b| match b {
@@ -494,9 +486,8 @@ impl TypeResolver {
                 self.local_types.insert(*offset, type_builder);
             }
             _ => {
-                match self.types.get(&target) {
-                    Some(_) => self.finalize_type(&target),
-                    None => (),
+                if self.types.get(&target).is_some() {
+                    self.finalize_type(&target);
                 }
                 self.types.insert(*target, type_builder);
                 self.current_ids.insert(*target, self.next_id);
@@ -549,20 +540,17 @@ impl TypeResolver {
 
     fn coalesce_ids(&mut self, id: i32) {
         let mut ids_to_coalesce = vec![];
-        match self.same_ids.get(&id) {
-            Some(ids) => {
-                for &same_id in ids.iter() {
-                    match self.coalesced_ids.get(&same_id) {
-                        Some(&v) if v == id => (),
-                        Some(_) => panic!("Trying to coalesce with a new id"),
-                        None => {
-                            self.coalesced_ids.insert(same_id, id);
-                            ids_to_coalesce.push(same_id);
-                        }
+        if let Some(ids) = self.same_ids.get(&id) {
+            for &same_id in ids.iter() {
+                match self.coalesced_ids.get(&same_id) {
+                    Some(&v) if v == id => (),
+                    Some(_) => panic!("Trying to coalesce with a new id"),
+                    None => {
+                        self.coalesced_ids.insert(same_id, id);
+                        ids_to_coalesce.push(same_id);
                     }
                 }
             }
-            None => (),
         }
         for id in ids_to_coalesce {
             self.coalesce_ids(id);

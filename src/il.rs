@@ -73,19 +73,13 @@ pub enum ILInstruction<Op> {
 }
 
 pub fn unary<Op>(operand: Op) -> UnaryInstruction<Op> {
-    UnaryInstruction { operand: operand }
+    UnaryInstruction { operand }
 }
 
 pub fn binary<Op>(left: Op, right: Op) -> BinaryInstruction<Op> {
-    BinaryInstruction {
-        left: left,
-        right: right,
-    }
+    BinaryInstruction { left, right }
 }
 
 pub fn branch(type_: BranchType, target: u64) -> BranchInstruction {
-    BranchInstruction {
-        type_: type_,
-        target: target,
-    }
+    BranchInstruction { type_, target }
 }

@@ -1,13 +1,8 @@
 use ast::*;
 use transformer::*;
 
+#[derive(Default)]
 pub struct T {}
-
-impl T {
-    pub fn new() -> T {
-        T {}
-    }
-}
 
 impl Transformer for T {
     fn transform_statement(&mut self, stmt: Statement) -> Statement {

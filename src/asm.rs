@@ -56,10 +56,10 @@ pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> 
     let last_instruction = instruction_map.iter().next_back().unwrap().1;
 
     let graph = InstructionGraph {
-        disassembler: disassembler,
-        bytes: bytes,
+        disassembler,
+        bytes,
         first_address: pc,
-        first_address_after_code: last_instruction.address + (last_instruction.length as u64),
+        first_address_after_code: last_instruction.address + u64::from(last_instruction.length),
         instructions: instruction_map,
         extra_data: HashMap::new(),
         instruction_links: HashMap::new(),
@@ -91,7 +91,7 @@ impl Graph<u64, Insn, Link> for InstructionGraph {
     }
 
     fn get_vertex(&self, vid: &u64) -> &Insn {
-        self.instructions.get(vid).unwrap()
+        &self.instructions[vid]
     }
 
     fn get_adjacent(&self, vid: &u64) -> Vec<Result<(&u64, &Link), String>> {
@@ -119,7 +119,7 @@ impl Graph<u64, Insn, Link> for InstructionGraph {
             },
             None => result.push(Result::Err(format!(
                 "DFS: Couldn't find links for {}",
-                self.instructions.get(vid).unwrap().to_string()
+                &self.instructions[vid].to_string()
             ))),
         }
         result
@@ -139,7 +139,7 @@ impl InstructionGraph {
         self.instructions.contains_key(&address)
     }
 
-    pub fn contains(&self, instr: Insn) -> bool {
+    pub fn contains(&self, instr: &Insn) -> bool {
         self.instructions.contains_key(&instr.address)
     }
 
@@ -170,15 +170,11 @@ impl InstructionGraph {
     }
 
     pub fn get_extra_data(&mut self, address: u64) -> &mut ExtraData {
-        if !self.extra_data.contains_key(&address) {
-            let data = ExtraData {
-                function_address: 0,
-                import_name: "".to_string(),
-                is_protected: false,
-            };
-            self.extra_data.insert(address, data);
-        }
-        self.extra_data.get_mut(&address).unwrap()
+        self.extra_data.entry(address).or_insert(ExtraData {
+            function_address: 0,
+            import_name: "".to_string(),
+            is_protected: false,
+        })
     }
 
     pub fn add_link(&mut self, offset: u64, target_offset: u64, type_: LinkType) -> () {
@@ -196,7 +192,7 @@ impl InstructionGraph {
                 self.instruction_links.get_mut(&offset).unwrap()
             }
         };
-        links.push(link.clone());
+        links.push(link);
 
         let reverse_links = match self.reverse_links.get_mut(&target_offset) {
             Some(links) => links,
@@ -211,7 +207,7 @@ impl InstructionGraph {
 
     pub fn add_jump_table_entry(&mut self, address: u64) -> bool {
         let data = self.read_u32(address);
-        if !self.in_bounds(data as u64) {
+        if !self.in_bounds(u64::from(data)) {
             false
         } else {
             self.mark_data_bytes(address, 4, "TODO: TEXT".to_string());
@@ -238,16 +234,16 @@ impl InstructionGraph {
         for i in 0..length {
             hex.push_str(&format!(
                 "{:02x}",
-                self.bytes[self.to_byte_array_index(address + i as u64)]
+                self.bytes[self.to_byte_array_index(address + u64::from(i))]
             ));
         }
         self.instructions.insert(
             address,
             Insn {
-                address: address,
+                address,
                 code: ud_mnemonic_code::UD_Inone,
-                length: length,
-                hex: hex,
+                length,
+                hex,
                 assembly: data_display_text,
                 operands: vec![],
                 prefix_rex: 0,
@@ -266,13 +262,13 @@ impl InstructionGraph {
         while size < length {
             let insn = self
                 .instructions
-                .remove(&(address + (size as u64)))
+                .remove(&(address + u64::from(size)))
                 .unwrap();
             size += insn.length;
         }
         // if there are bytes left from the last removed instruction, re-disassemble them
         if size != length {
-            self.disassembler.set_pc(address + (length as u64));
+            self.disassembler.set_pc(address + u64::from(length));
             let new_instructions = self.disassembler.disassemble(
                 &self.bytes[..],
                 self.to_byte_array_index(address) + (length as usize),
@@ -289,7 +285,7 @@ impl InstructionGraph {
         while !self.instructions.contains_key(&insn_address) {
             insn_address -= 1;
         }
-        let old_insn = self.instructions.get(&insn_address).unwrap().clone();
+        let old_insn = &self.instructions[&insn_address].clone();
         // Split the old instruction and re-disassemble its first part
         let extra_length = (address - insn_address) as usize;
         self.disassembler.set_pc(insn_address);
@@ -301,15 +297,15 @@ impl InstructionGraph {
         for new_insn in new_instructions {
             self.instructions.insert(new_insn.address, new_insn);
         }
-        old_insn
+        old_insn.clone()
     }
 
     pub fn read_u32(&self, address: u64) -> u32 {
         let addr = (address - self.first_address) as usize;
-        let mut result = self.bytes[addr] as u32;
-        result |= (self.bytes[addr + 1] as u32) << 8;
-        result |= (self.bytes[addr + 2] as u32) << 16;
-        result |= (self.bytes[addr + 3] as u32) << 24;
+        let mut result = u32::from(self.bytes[addr]);
+        result |= u32::from(self.bytes[addr + 1]) << 8;
+        result |= u32::from(self.bytes[addr + 2]) << 16;
+        result |= u32::from(self.bytes[addr + 3]) << 24;
         result
     }
 
@@ -322,14 +318,12 @@ impl InstructionGraph {
         let max_disasm_length = 0x100;
         let mut disasm_length =
             std::cmp::min(max_disasm_length, self.first_address_after_code - address);
-        for j in 0..(disasm_length + 1) {
-            match self.extra_data.get(&(address + j)) {
-                Some(data) if data.is_protected => {
-                    disasm_length = j;
-                }
-                _ => (),
-            }
-        }
+        disasm_length = (0..=disasm_length)
+            .find(|len| {
+                self.extra_data
+                    .get(&(address + len))
+                    .map_or(false, |d| d.is_protected)
+            }).unwrap_or(disasm_length);
         let mut new_instructions = self.disassembler.disassemble(
             &self.bytes[..],
             self.to_byte_array_index(address),
@@ -346,7 +340,7 @@ impl InstructionGraph {
                     }
                 }
                 _ => {
-                    let length = new_insn.length as u64;
+                    let length = u64::from(new_insn.length);
                     let addr = new_insn.address;
                     self.instructions.insert(new_insn.address, new_insn);
                     for j in 1..length {

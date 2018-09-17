@@ -32,7 +32,7 @@ impl CppEmitter {
         emitter.text_writer.build_text()
     }
 
-    fn find_return_var(stmts: &Vec<Statement>) -> &Option<Var> {
+    fn find_return_var(stmts: &[Statement]) -> &Option<Var> {
         // TODO: rewrite Function to include return var
         match stmts.iter().rev().nth(0).unwrap() {
             Statement::Return(var) => var,
@@ -63,10 +63,9 @@ impl CppEmitter {
             }
             Some(Var::Var(name)) => {
                 let type_ = self.types[name].clone();
-                match type_ {
-                    DataType::Function => panic!("FIXME: emitting functions not supported yet"),
-                    _ => (),
-                };
+                if let DataType::Function = type_ {
+                    panic!("FIXME: emitting functions not supported yet")
+                }
                 self.text_writer.write("int");
                 self.text_writer.write(" ");
                 self.emit_pointer_stars(&type_);
@@ -89,7 +88,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
     }
 
-    fn emit_declarations(&mut self, locals: &Vec<Variable>, variables: &Vec<Variable>) {
+    fn emit_declarations(&mut self, locals: &[Variable], variables: &[Variable]) {
         for var in locals.iter().chain(variables.iter()) {
             self.emit_declaration(&var.name, &var.type_);
             self.text_writer.write(";");
@@ -98,7 +97,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
     }
 
-    fn emit_declaration(&mut self, name: &String, type_: &DataType) {
+    fn emit_declaration(&mut self, name: &str, type_: &DataType) {
         if type_.is_function() {
             self.text_writer.write("void");
             self.text_writer.write(" ");
@@ -117,12 +116,9 @@ impl CppEmitter {
     }
 
     fn emit_pointer_stars(&mut self, type_: &DataType) {
-        match type_ {
-            DataType::Pointer(t) => {
-                self.text_writer.write("*");
-                self.emit_pointer_stars(t);
-            }
-            _ => (),
+        if let DataType::Pointer(t) = type_ {
+            self.text_writer.write("*");
+            self.emit_pointer_stars(t);
         }
     }
 
@@ -143,7 +139,7 @@ impl CppEmitter {
         }
     }
 
-    fn emit_scope(&mut self, stmts: &Vec<Statement>, skip_newline: bool) {
+    fn emit_scope(&mut self, stmts: &[Statement], skip_newline: bool) {
         self.text_writer.write("{");
         self.text_writer.write_newline();
 
@@ -184,7 +180,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
     }
 
-    fn emit_do_while(&mut self, body: &Vec<Statement>, cond: &Expression) {
+    fn emit_do_while(&mut self, body: &[Statement], cond: &Expression) {
         self.text_writer.write("do");
         self.text_writer.write_newline();
 
@@ -199,7 +195,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
     }
 
-    fn emit_for(&mut self, cond: &Expression, modifier: &Vec<Statement>, body: &Vec<Statement>) {
+    fn emit_for(&mut self, cond: &Expression, modifier: &[Statement], body: &[Statement]) {
         self.text_writer.write("for");
         self.text_writer.write(" ");
         self.text_writer.write("(");
@@ -234,8 +230,8 @@ impl CppEmitter {
     fn emit_if_then_else(
         &mut self,
         cond: &Expression,
-        true_branch: &Vec<Statement>,
-        false_branch: &Vec<Statement>,
+        true_branch: &[Statement],
+        false_branch: &[Statement],
     ) {
         self.text_writer.write("if");
         self.text_writer.write(" ");
@@ -245,7 +241,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
 
         self.emit_scope(true_branch, false);
-        if false_branch.len() > 0 {
+        if !false_branch.is_empty() {
             self.text_writer.write("else");
             self.text_writer.write_newline();
             self.emit_scope(false_branch, false);
@@ -262,7 +258,7 @@ impl CppEmitter {
         self.text_writer.write_newline();
     }
 
-    fn emit_while(&mut self, condition: &Expression, body: &Vec<Statement>) {
+    fn emit_while(&mut self, condition: &Expression, body: &[Statement]) {
         self.text_writer.write("while");
         self.text_writer.write(" ");
         self.text_writer.write("(");
@@ -276,15 +272,15 @@ impl CppEmitter {
     fn emit_expression(&mut self, expr: &Expression) {
         use ast::Expression::*;
         match expr {
-            Binary(op, left, right) => self.emit_binary(op, left, right),
+            Binary(op, left, right) => self.emit_binary(*op, left, right),
             Dereference(expr) => self.emit_dereference(expr),
-            Unary(op, operand) => self.emit_unary(op, operand),
-            Value(value) => self.emit_value(value),
+            Unary(op, operand) => self.emit_unary(*op, operand),
+            Value(value) => self.emit_value(*value),
             VarRef(var) => self.emit_var(var),
         }
     }
 
-    fn emit_binary(&mut self, op: &Operator, left: &Expression, right: &Expression) {
+    fn emit_binary(&mut self, op: Operator, left: &Expression, right: &Expression) {
         self.emit_expression(left);
         self.text_writer.write(" ");
         use ast::Operator::*;
@@ -318,7 +314,7 @@ impl CppEmitter {
         self.text_writer.write(")");
     }
 
-    fn emit_unary(&mut self, op: &Operator, operand: &Expression) {
+    fn emit_unary(&mut self, op: Operator, operand: &Expression) {
         self.text_writer.write(match op {
             Operator::Negate => "-",
             Operator::Not => "~",
@@ -327,7 +323,7 @@ impl CppEmitter {
         self.emit_expression(operand);
     }
 
-    fn emit_value(&mut self, value: &i32) {
+    fn emit_value(&mut self, value: i32) {
         self.text_writer.write(&value.to_string());
     }
 

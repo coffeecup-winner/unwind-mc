@@ -50,11 +50,8 @@ struct LoopBounds {
 pub fn build_flow_graph(il: Vec<ILInstruction<ILOperand>>) -> Vec<Block<ILOperand>> {
     let mut branch_targets: Vec<Option<usize>> = (0..il.len()).map(|_| None).collect();
     for pair in il.iter().enumerate() {
-        match pair {
-            (address, ILInstruction::Branch(br)) => {
-                branch_targets[br.target as usize] = Some(address)
-            }
-            _ => {}
+        if let (address, ILInstruction::Branch(br)) = pair {
+            branch_targets[br.target as usize] = Some(address)
         }
     }
     let list: Vec<(usize, ILInstruction<ILOperand>, Option<usize>)> = il
@@ -86,7 +83,7 @@ fn scope(
             insns.push(insn);
             continue;
         }
-        if insns.len() > 0 {
+        if !insns.is_empty() {
             result.push(Block::SequentialBlock(SequentialBlock {
                 instructions: insns,
             }));
@@ -98,7 +95,7 @@ fn scope(
             panic!("impossible");
         }
     }
-    if insns.len() > 0 {
+    if !insns.is_empty() {
         result.push(Block::SequentialBlock(SequentialBlock {
             instructions: insns,
         }));
@@ -149,7 +146,7 @@ fn sequence(
            END:
            ...
          */
-        [(start, Compare(_), Some(end)), (_, Branch(br), _), _..] => {
+        [(start, Compare(_), Some(end)), (_, Branch(br), _), ..] => {
             assert_eq!(end + 1, br.target as usize);
             let (_, test) = list.split_at(end - start);
             assert!(match test[0] {
@@ -175,7 +172,7 @@ fn sequence(
            br START
            ...
          */
-        [(start, _, Some(end)), _..] if end > start => {
+        [(start, _, Some(end)), ..] if end > start => {
             let loop_ = LoopBounds {
                 condition: end - 1,
                 past_loop: end + 1,
@@ -197,13 +194,13 @@ fn sequence(
            END:                             |    ...
            ...
          */
-        [(start, Compare(_), _), (_, Branch(false_branch), _), _..]
+        [(start, Compare(_), _), (_, Branch(false_branch), _), ..]
             if false_branch.type_ != BranchType::Unconditional =>
         {
             let false_branch = false_branch.target as usize;
             let (_, false_branch_test) = list.split_at(false_branch - start - 1);
             let end = match false_branch_test {
-                [(_, Branch(br), _), _..]
+                [(_, Branch(br), _), ..]
                     if br.type_ == BranchType::Unconditional
                         && br.target != loop_bounds.condition as u64
                         && br.target != loop_bounds.past_loop as u64 =>

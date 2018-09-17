@@ -37,7 +37,7 @@ pub struct Function {
 }
 
 impl<'a> AstBuilder<'a> {
-    pub fn build_ast(name: String, blocks: &Vec<ResolvedBlock>, types: &Result) -> Function {
+    pub fn build_ast(name: String, blocks: &[ResolvedBlock], types: &Result) -> Function {
         let mut builder = AstBuilder {
             variable_types: &types.variable_types,
             variable_names: BTreeMap::new(),
@@ -72,7 +72,7 @@ impl<'a> AstBuilder<'a> {
             Box::new(transformer_fixup_pointer_arithmetics::T::new(
                 &builder.types,
             )),
-            Box::new(transformer_fixup_zero_assignment::T::new()),
+            Box::new(transformer_fixup_zero_assignment::T::default()),
         ];
 
         body = transformers.into_iter().fold(body, |b, mut t| {
@@ -80,33 +80,33 @@ impl<'a> AstBuilder<'a> {
         });
 
         Function {
-            name: name,
+            name,
             parameters: builder
                 .parameter_names
                 .values()
                 .map(|v| Variable {
                     name: v.clone(),
-                    type_: builder.types.get(v).unwrap().clone(),
+                    type_: builder.types[v].clone(),
                 }).collect(),
             locals: builder
                 .local_names
                 .values()
                 .map(|v| Variable {
                     name: v.clone(),
-                    type_: builder.types.get(v).unwrap().clone(),
+                    type_: builder.types[v].clone(),
                 }).collect(),
             variables: builder
                 .variable_names
                 .values()
                 .map(|v| Variable {
                     name: v.clone(),
-                    type_: builder.types.get(v).unwrap().clone(),
+                    type_: builder.types[v].clone(),
                 }).collect(),
-            body: body,
+            body,
         }
     }
 
-    fn build_scope(&mut self, blocks: &Vec<ResolvedBlock>) -> Vec<Statement> {
+    fn build_scope(&mut self, blocks: &[ResolvedBlock]) -> Vec<Statement> {
         let mut statements = vec![];
         for block in blocks.iter() {
             match block {
@@ -139,32 +139,24 @@ impl<'a> AstBuilder<'a> {
         statements
     }
 
-    fn build_while(
-        &mut self,
-        condition: &Vec<Instruction>,
-        body: &Vec<ResolvedBlock>,
-    ) -> Statement {
+    fn build_while(&mut self, condition: &[Instruction], body: &[ResolvedBlock]) -> Statement {
         Statement::While(self.build_condition(condition), self.build_scope(body))
     }
 
-    fn build_do_while(
-        &mut self,
-        condition: &Vec<Instruction>,
-        body: &Vec<ResolvedBlock>,
-    ) -> Statement {
+    fn build_do_while(&mut self, condition: &[Instruction], body: &[ResolvedBlock]) -> Statement {
         Statement::DoWhile(self.build_scope(body), self.build_condition(condition))
     }
 
     fn build_for(
         &mut self,
-        condition: &Vec<Instruction>,
-        modifier: &Vec<Instruction>,
-        body: &Vec<ResolvedBlock>,
+        condition: &[Instruction],
+        modifier: &[Instruction],
+        body: &[ResolvedBlock],
     ) -> Statement {
         Statement::For(
             self.build_condition(condition),
-            self.build_scope(&vec![Block::SequentialBlock(SequentialBlock {
-                instructions: modifier.clone(),
+            self.build_scope(&[Block::SequentialBlock(SequentialBlock {
+                instructions: modifier.to_vec(),
             })]),
             self.build_scope(body),
         )
@@ -172,9 +164,9 @@ impl<'a> AstBuilder<'a> {
 
     fn build_if_then_else(
         &mut self,
-        condition: &Vec<Instruction>,
-        true_branch: &Vec<ResolvedBlock>,
-        false_branch: &Vec<ResolvedBlock>,
+        condition: &[Instruction],
+        true_branch: &[ResolvedBlock],
+        false_branch: &[ResolvedBlock],
     ) -> Statement {
         Statement::IfThenElse(
             self.build_condition(condition),
@@ -183,7 +175,7 @@ impl<'a> AstBuilder<'a> {
         )
     }
 
-    fn build_condition(&mut self, condition: &Vec<Instruction>) -> Expression {
+    fn build_condition(&mut self, condition: &[Instruction]) -> Expression {
         match &condition[..] {
             [ILInstruction::Compare(compare), ILInstruction::Branch(branch)] => {
                 self.build_binary_operator(AstBuilder::get_binary_operator(&branch.type_), &compare)
@@ -286,10 +278,10 @@ impl<'a> AstBuilder<'a> {
         use ast::Expression::*;
         use il::ILOperand::*;
         match op {
-            Pointer(_, _) => Dereference(Box::new(VarRef(Var::Var(self.get_var_name(id))))),
-            Register(_) => VarRef(Var::Var(self.get_var_name(id))),
-            Argument(offset) => VarRef(Var::Var(self.parameter_names.get(offset).unwrap().clone())),
-            Local(offset) => VarRef(Var::Var(self.local_names.get(offset).unwrap().clone())),
+            Pointer(_, _) => Dereference(Box::new(VarRef(Var::Var(self.get_var_name(*id))))),
+            Register(_) => VarRef(Var::Var(self.get_var_name(*id))),
+            Argument(offset) => VarRef(Var::Var(self.parameter_names[offset].clone())),
+            Local(offset) => VarRef(Var::Var(self.local_names[offset].clone())),
             ILOperand::Value(value) => Expression::Value(*value),
         }
     }
@@ -298,14 +290,14 @@ impl<'a> AstBuilder<'a> {
         let (op, id) = op;
         use il::ILOperand::*;
         match op {
-            Register(_) => Var::Var(self.get_var_name(id)),
-            Argument(offset) => Var::Var(self.parameter_names.get(offset).unwrap().clone()),
-            Local(offset) => Var::Var(self.local_names.get(offset).unwrap().clone()),
+            Register(_) => Var::Var(self.get_var_name(*id)),
+            Argument(offset) => Var::Var(self.parameter_names[offset].clone()),
+            Local(offset) => Var::Var(self.local_names[offset].clone()),
             _ => panic!("Not supported"),
         }
     }
 
-    fn get_var_name(&mut self, id: &Option<i32>) -> String {
+    fn get_var_name(&mut self, id: Option<i32>) -> String {
         match id {
             Some(id) => {
                 let name = self.variable_names.get(&id);
@@ -315,9 +307,9 @@ impl<'a> AstBuilder<'a> {
                         let mut name = String::from("var");
                         name += &self.next_var_name_idx.to_string();
                         self.next_var_name_idx += 1;
-                        self.variable_names.insert(*id, name.clone());
+                        self.variable_names.insert(id, name.clone());
                         self.types
-                            .insert(name.clone(), self.variable_types[*id as usize].clone());
+                            .insert(name.clone(), self.variable_types[id as usize].clone());
                         name
                     }
                 }
