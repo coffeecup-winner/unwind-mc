@@ -46,7 +46,7 @@ struct TempDirectory {
 
 impl Drop for TempDirectory {
     fn drop(&mut self) {
-        remove_dir_all(&self.path);
+        remove_dir_all(&self.path).expect("Failed to remove temp directory");
     }
 }
 
@@ -55,7 +55,7 @@ impl TempDirectory {
         let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
         let mut temp_dir_name = temp_dir();
         temp_dir_name.push(format!("unwind_mc_tmp_{}", time.subsec_nanos()));
-        create_dir(temp_dir_name.clone());
+        create_dir(temp_dir_name.clone()).expect("Failed to create temp directory");
         TempDirectory {
             path: temp_dir_name,
         }

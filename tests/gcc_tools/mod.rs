@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-pub fn compile(mut path: PathBuf) -> PathBuf {
+pub fn compile(path: PathBuf) -> PathBuf {
     let filename = path.file_name().unwrap();
     let mut working_dir = path.clone();
     working_dir.pop();
