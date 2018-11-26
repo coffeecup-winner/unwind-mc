@@ -5,7 +5,12 @@ use unwind_mc::analyzer::Analyzer;
 pub fn analyze<'a>(func: &'a str) -> Analyzer {
     let normal_line_regex = Regex::new(
         r"^(?P<address>[0-9a-fA-F]{8}): (?P<bytes>((([0-9a-fA-F]{2})|  ) ){6}) (?P<asm>.+)$",
-    ).unwrap();
+    )
+    .unwrap();
+    let normal_line_regex_gcc = Regex::new(
+        r"^(?P<address>[0-9a-fA-F]+):\t(?P<bytes>((([0-9a-fA-F]{2})|  ) ){7})\t(?P<asm>.+)$",
+    )
+    .unwrap();
     let bytes_regex = Regex::new(r"(?P<byte>[0-9a-fA-F]{2}) ?").unwrap();
 
     let lines: Vec<&str> = func
@@ -13,21 +18,30 @@ pub fn analyze<'a>(func: &'a str) -> Analyzer {
         .filter(|l| match *l {
             "" => false,
             _ => true,
-        }).map(|l| l.trim())
+        })
+        .map(|l| l.trim())
         .collect();
 
     let mut bytes: Vec<u8> = vec![];
 
-    let groups = normal_line_regex.captures(lines[0]).unwrap();
-    let address = u64::from_str_radix(&groups["address"], 16).unwrap();
+    let mut groups = normal_line_regex.captures(lines[0]);
+    let line_regex = match groups {
+        Some(_) => normal_line_regex,
+        None => {
+            groups = normal_line_regex_gcc.captures(lines[0]);
+            normal_line_regex_gcc
+        }
+    };
+    let address = u64::from_str_radix(&groups.unwrap()["address"], 16).unwrap();
     let mut canon_lines = String::new();
     for line in lines.iter() {
-        match normal_line_regex.captures(line) {
+        match line_regex.captures(line) {
             Some(capture) => {
                 if canon_lines != "" {
                     canon_lines.push('\n');
                 }
-                canon_lines.push_str(&format!("{} ", &capture["address"]));
+                let address = u64::from_str_radix(&capture["address"], 16).unwrap();
+                canon_lines.push_str(&format!("{:08x} ", address));
                 for byte in bytes_regex.captures_iter(&capture["bytes"]) {
                     let b = u8::from_str_radix(&byte["byte"], 16).unwrap();
                     bytes.push(b);
@@ -75,5 +89,5 @@ pub fn strip_indent(text: &str) -> String {
         result += trimmed_line;
         result += "\n";
     }
-    result
+    String::from(result.trim()) + "\n"
 }
