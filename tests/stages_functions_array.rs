@@ -80,17 +80,17 @@ fn stage_test_functions_array() {
     use unwind_mc::il::ILOperand::*;
 
     let expected = vec![
-        Nop,
         Assign(binary(Register(UD_R_ESI), Argument(0))),
-        Compare(binary(Register(UD_R_ESI), Argument(4))),
-        Branch(branch(GreaterOrEqual, 10)),
+        Branch(branch(
+            GreaterOrEqual,
+            Some(binary(Register(UD_R_ESI), Argument(4))),
+            7,
+        )),
         Assign(binary(Register(UD_R_EAX), Pointer(UD_R_ESI, 0))),
-        Compare(binary(Register(UD_R_EAX), Value(0))),
-        Branch(branch(Equal, 8)),
+        Branch(branch(Equal, Some(binary(Register(UD_R_EAX), Value(0))), 5)),
         Call(unary(Register(UD_R_EAX))),
         Binary(Add, binary(Register(UD_R_ESI), Value(4))),
-        Branch(branch(Unconditional, 2)),
-        Nop,
+        Branch(branch(Unconditional, None, 1)),
         Return(unary(Register(UD_R_EAX))),
     ];
 
@@ -100,22 +100,24 @@ fn stage_test_functions_array() {
 
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Nop, Assign(binary(Register(UD_R_ESI), Argument(0)))],
+            instructions: vec![Assign(binary(Register(UD_R_ESI), Argument(0)))],
         }),
         Block::WhileBlock(WhileBlock {
-            condition: invert_condition(vec![
-                Compare(binary(Register(UD_R_ESI), Argument(4))),
-                Branch(branch(GreaterOrEqual, 10)),
-            ]),
+            condition: invert_condition(vec![Branch(branch(
+                GreaterOrEqual,
+                Some(binary(Register(UD_R_ESI), Argument(4))),
+                7,
+            ))]),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![Assign(binary(Register(UD_R_EAX), Pointer(UD_R_ESI, 0)))],
                 }),
                 Block::ConditionalBlock(ConditionalBlock {
-                    condition: invert_condition(vec![
-                        Compare(binary(Register(UD_R_EAX), Value(0))),
-                        Branch(branch(Equal, 8)),
-                    ]),
+                    condition: invert_condition(vec![Branch(branch(
+                        Equal,
+                        Some(binary(Register(UD_R_EAX), Value(0))),
+                        5,
+                    ))]),
                     true_branch: vec![Block::SequentialBlock(SequentialBlock {
                         instructions: vec![Call(unary(Register(UD_R_EAX)))],
                     })],
@@ -127,7 +129,7 @@ fn stage_test_functions_array() {
             ],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Nop, Return(unary(Register(UD_R_EAX)))],
+            instructions: vec![Return(unary(Register(UD_R_EAX)))],
         }),
     ];
 
@@ -159,16 +161,17 @@ fn stage_test_functions_array() {
 
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![
-                Nop,
-                Assign(binary((Register(UD_R_ESI), Some(0)), (Argument(0), None))),
-            ],
+            instructions: vec![Assign(binary(
+                (Register(UD_R_ESI), Some(0)),
+                (Argument(0), None),
+            ))],
         }),
         Block::WhileBlock(WhileBlock {
-            condition: invert_condition(vec![
-                Compare(binary((Register(UD_R_ESI), Some(0)), (Argument(4), None))),
-                Branch(branch(GreaterOrEqual, 10)),
-            ]),
+            condition: invert_condition(vec![Branch(branch(
+                GreaterOrEqual,
+                Some(binary((Register(UD_R_ESI), Some(0)), (Argument(4), None))),
+                7,
+            ))]),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![Assign(binary(
@@ -177,10 +180,11 @@ fn stage_test_functions_array() {
                     ))],
                 }),
                 Block::ConditionalBlock(ConditionalBlock {
-                    condition: invert_condition(vec![
-                        Compare(binary((Register(UD_R_EAX), Some(1)), (Value(0), None))),
-                        Branch(branch(Equal, 8)),
-                    ]),
+                    condition: invert_condition(vec![Branch(branch(
+                        Equal,
+                        Some(binary((Register(UD_R_EAX), Some(1)), (Value(0), None))),
+                        5,
+                    ))]),
                     true_branch: vec![Block::SequentialBlock(SequentialBlock {
                         instructions: vec![Call(unary((Register(UD_R_EAX), Some(1))))],
                     })],
@@ -195,7 +199,7 @@ fn stage_test_functions_array() {
             ],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Nop, Return(unary((Register(UD_R_EAX), None)))],
+            instructions: vec![Return(unary((Register(UD_R_EAX), None)))],
         }),
     ];
 

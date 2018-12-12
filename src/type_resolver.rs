@@ -170,11 +170,10 @@ impl TypeResolver {
                 Unary(op, unary) => Unary(op, self.coalesce_unary(id_from, id_to, unary)),
                 Call(unary) => Call(self.coalesce_unary(id_from, id_to, unary)),
                 Return(unary) => Return(self.coalesce_unary(id_from, id_to, unary)),
-                Compare(binary) => Compare(self.coalesce_binary(id_from, id_to, &binary)),
                 Assign(binary) => Assign(self.coalesce_binary(id_from, id_to, &binary)),
                 Continue => Continue,
                 Break => Break,
-                Branch(branch) => Branch(branch),
+                Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.coalesce_binary(id_from, id_to, &b)), br.target)),
                 Nop => Nop,
             }).collect()
     }
@@ -331,13 +330,12 @@ impl TypeResolver {
             .map(|i| match i {
                 Binary(op, binary) => Binary(op, self.convert_binary(&binary)),
                 Unary(op, unary) => Unary(op, self.convert_unary(&unary)),
-                Compare(binary) => Compare(self.convert_binary(&binary)),
                 Assign(binary) => Assign(self.convert_assign(&binary)),
                 Call(unary) => Call(self.convert_call(&unary)),
                 Return(unary) => Return(self.convert_return(&unary, returns_value)),
                 Continue => Continue,
                 Break => Break,
-                Branch(branch) => Branch(branch),
+                Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.convert_binary(&b)), br.target)),
                 Nop => Nop,
             }).collect()
     }

@@ -95,22 +95,29 @@ fn stage_test_find_max() {
     use unwind_mc::il::ILOperand::*;
 
     let expected = vec![
-        Nop,
         Assign(binary(Register(UD_R_ECX), Argument(4))),
         Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
-        Compare(binary(Register(UD_R_ECX), Value(0))),
-        Branch(branch(Equal, 15)),
+        Branch(branch(
+            Equal,
+            Some(binary(Register(UD_R_ECX), Value(0))),
+            11,
+        )),
         Assign(binary(Register(UD_R_EDX), Argument(0))),
         Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
         Assign(binary(Register(UD_R_ESI), Pointer(UD_R_EDX, 0))),
-        Compare(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
-        Branch(branch(GreaterOrEqual, 11)),
+        Branch(branch(
+            GreaterOrEqual,
+            Some(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
+            8,
+        )),
         Assign(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
         Binary(Add, binary(Register(UD_R_EDX), Value(4))),
         Binary(Subtract, binary(Register(UD_R_ECX), Value(1))),
-        Compare(binary(Register(UD_R_ECX), Value(0))),
-        Branch(branch(NotEqual, 7)),
-        Nop,
+        Branch(branch(
+            NotEqual,
+            Some(binary(Register(UD_R_ECX), Value(0))),
+            5,
+        )),
         Return(unary(Register(UD_R_EAX))),
     ];
 
@@ -121,16 +128,16 @@ fn stage_test_find_max() {
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
             instructions: vec![
-                Nop,
                 Assign(binary(Register(UD_R_ECX), Argument(4))),
                 Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
             ],
         }),
         Block::ConditionalBlock(ConditionalBlock {
-            condition: invert_condition(vec![
-                Compare(binary(Register(UD_R_ECX), Value(0))),
-                Branch(branch(Equal, 15)),
-            ]),
+            condition: invert_condition(vec![Branch(branch(
+                Equal,
+                Some(binary(Register(UD_R_ECX), Value(0))),
+                11,
+            ))]),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
@@ -139,10 +146,11 @@ fn stage_test_find_max() {
                     ],
                 }),
                 Block::DoWhileBlock(DoWhileBlock {
-                    condition: vec![
-                        Compare(binary(Register(UD_R_ECX), Value(0))),
-                        Branch(branch(NotEqual, 7)),
-                    ],
+                    condition: vec![Branch(branch(
+                        NotEqual,
+                        Some(binary(Register(UD_R_ECX), Value(0))),
+                        5,
+                    ))],
                     body: vec![
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
@@ -151,10 +159,11 @@ fn stage_test_find_max() {
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
-                            condition: invert_condition(vec![
-                                Compare(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
-                                Branch(branch(GreaterOrEqual, 11)),
-                            ]),
+                            condition: invert_condition(vec![Branch(branch(
+                                GreaterOrEqual,
+                                Some(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
+                                8,
+                            ))]),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
                                     Register(UD_R_EAX),
@@ -175,7 +184,7 @@ fn stage_test_find_max() {
             false_branch: vec![],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Nop, Return(unary(Register(UD_R_EAX)))],
+            instructions: vec![Return(unary(Register(UD_R_EAX)))],
         }),
     ];
 
@@ -208,7 +217,6 @@ fn stage_test_find_max() {
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
             instructions: vec![
-                Nop,
                 Assign(binary((Register(UD_R_ECX), Some(0)), (Argument(4), None))),
                 Assign(binary(
                     (Register(UD_R_EAX), Some(1)),
@@ -217,10 +225,11 @@ fn stage_test_find_max() {
             ],
         }),
         Block::ConditionalBlock(ConditionalBlock {
-            condition: invert_condition(vec![
-                Compare(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
-                Branch(branch(Equal, 15)),
-            ]),
+            condition: invert_condition(vec![Branch(branch(
+                Equal,
+                Some(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
+                11,
+            ))]),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
@@ -232,10 +241,11 @@ fn stage_test_find_max() {
                     ],
                 }),
                 Block::DoWhileBlock(DoWhileBlock {
-                    condition: vec![
-                        Compare(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
-                        Branch(branch(NotEqual, 7)),
-                    ],
+                    condition: vec![Branch(branch(
+                        NotEqual,
+                        Some(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
+                        5,
+                    ))],
                     body: vec![
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
@@ -244,13 +254,14 @@ fn stage_test_find_max() {
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
-                            condition: invert_condition(vec![
-                                Compare(binary(
+                            condition: invert_condition(vec![Branch(branch(
+                                GreaterOrEqual,
+                                Some(binary(
                                     (Register(UD_R_EAX), Some(1)),
                                     (Register(UD_R_ESI), Some(4)),
                                 )),
-                                Branch(branch(GreaterOrEqual, 11)),
-                            ]),
+                                8,
+                            ))]),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
                                     (Register(UD_R_EAX), Some(1)),
@@ -277,7 +288,7 @@ fn stage_test_find_max() {
             false_branch: vec![],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Nop, Return(unary((Register(UD_R_EAX), Some(1))))],
+            instructions: vec![Return(unary((Register(UD_R_EAX), Some(1))))],
         }),
     ];
 

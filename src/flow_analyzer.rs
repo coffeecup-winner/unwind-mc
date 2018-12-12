@@ -3,38 +3,38 @@ use either::*;
 use il::*;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ConditionalBlock<Op> {
+pub struct ConditionalBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub true_branch: Vec<Block<Op>>,
     pub false_branch: Vec<Block<Op>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct DoWhileBlock<Op> {
+pub struct DoWhileBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ForBlock<Op> {
+pub struct ForBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub modifier: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SequentialBlock<Op> {
+pub struct SequentialBlock<Op: Clone> {
     pub instructions: Vec<ILInstruction<Op>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct WhileBlock<Op> {
+pub struct WhileBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Block<Op> {
+pub enum Block<Op: Clone> {
     ConditionalBlock(ConditionalBlock<Op>),
     DoWhileBlock(DoWhileBlock<Op>),
     ForBlock(ForBlock<Op>),
@@ -122,7 +122,7 @@ fn sequence(
            jmp START
            END:
            ...
-         */
+        */
         [(start, Branch(br), _), (_, _, Some(end)), rest..]
             if br.type_ == BranchType::Unconditional =>
         {
@@ -139,14 +139,13 @@ fn sequence(
         /* while loop *
            ...
            START:
-           <neg-cond>
            br END
            <body>
            jmp START
            END:
            ...
-         */
-        [(start, Compare(_), Some(end)), (_, Branch(br), _), ..] => {
+        */
+        [(start, Branch(br), Some(end)), ..] => {
             assert_eq!(end + 1, br.target as usize);
             let (_, test) = list.split_at(end - start);
             assert!(match test[0] {
@@ -171,21 +170,20 @@ fn sequence(
            <condition>
            br START
            ...
-         */
+        */
         [(start, _, Some(end)), ..] if end > start => {
             let loop_ = LoopBounds {
                 condition: end - 1,
                 past_loop: end + 1,
             };
             let (body, rest) = list.split_at(loop_.past_loop - start);
-            let block = do_while_loop(&loop_, loop_.past_loop - start - 2, body);
+            let block = do_while_loop(&loop_, loop_.past_loop - start - 1, body);
             result.push(Right(block));
             sequence(loop_bounds, rest, result);
         }
         /* conditional *
          * if-then-else *  |  * if then *   |  * if else *
            ...             |    ...         |    ...
-           <neg-cond>      |    <neg-cond>  |    <neg-cond>
            br FALSE        |    br END      |    br FALSE
            <true>          |    <true>      |    jmp END
            jmp END         |    END:        |    FALSE:
@@ -193,8 +191,8 @@ fn sequence(
            <false>                          |    END:
            END:                             |    ...
            ...
-         */
-        [(start, Compare(_), _), (_, Branch(false_branch), _), ..]
+        */
+        [(start, Branch(false_branch), _), ..]
             if false_branch.type_ != BranchType::Unconditional =>
         {
             let false_branch = false_branch.target as usize;
@@ -221,7 +219,7 @@ fn sequence(
            ...            |  ...            |  ...
            jmp LOOP_COND  |  LOOP_COND:     |  LOOP_END:
            ...            |  ...            |  ...
-         */
+        */
         [(_, Branch(br), _), rest..]
             if br.type_ == BranchType::Unconditional
                 && br.target == loop_bounds.condition as u64 =>
@@ -238,13 +236,12 @@ fn sequence(
         }
         /* sequential flow *
            ...
-         */
+        */
         [(_, insn, _), rest..] => {
             result.push(Left(insn.clone()));
             sequence(loop_bounds, rest, result);
         }
-        /* end of scope *
-         */
+        /* end of scope */
         [] => {}
     }
 }
@@ -256,14 +253,14 @@ fn conditional(
 ) -> Block<ILOperand> {
     if false_branch_idx == list.len() {
         // no else case
-        let (condition, list) = list.split_at(2);
+        let (condition, list) = list.split_at(1);
         Block::ConditionalBlock(ConditionalBlock {
             condition: invert_condition(get_instructions(condition)),
             true_branch: scope(loop_bounds, list),
             false_branch: vec![],
         })
     } else {
-        let (condition, list) = list.split_at(2);
+        let (condition, list) = list.split_at(1);
         let (true_branch, list) = list.split_at(false_branch_idx - 3);
         let (_, list) = list.split_at(1);
         Block::ConditionalBlock(ConditionalBlock {
@@ -290,7 +287,8 @@ fn for_loop(
                 true
             }
             _ => false,
-        }).unwrap();
+        })
+        .unwrap();
     let (condition, list) = list.split_at(body_start + 1);
     Block::ForBlock(ForBlock {
         condition: invert_condition(get_instructions(condition)),
@@ -317,7 +315,7 @@ fn while_loop(
     loop_bounds: &LoopBounds,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
 ) -> Block<ILOperand> {
-    let (condition, list) = list.split_at(2);
+    let (condition, list) = list.split_at(1);
     let mut list = list.to_vec();
     list[0].2 = None;
     Block::WhileBlock(WhileBlock {
@@ -332,11 +330,13 @@ fn get_instructions(
     list.to_vec().into_iter().map(|(_, i, _)| i).collect()
 }
 
-pub fn invert_condition<Op>(mut condition: Vec<ILInstruction<Op>>) -> Vec<ILInstruction<Op>> {
+pub fn invert_condition<Op: Clone + std::fmt::Debug>(
+    mut condition: Vec<ILInstruction<Op>>,
+) -> Vec<ILInstruction<Op>> {
     use il::ILInstruction::*;
     let branch = match &condition[condition.len() - 1] {
-        Branch(br) => Branch(branch(invert(&br.type_), br.target)),
-        _ => panic!("not supported"),
+        Branch(br) => Branch(branch(invert(&br.type_), br.condition.clone(), br.target)),
+        x => panic!(format!("not supported: {:?}", x)),
     };
     let last_idx = condition.len() - 1;
     condition[last_idx] = branch;

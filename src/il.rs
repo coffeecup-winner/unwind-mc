@@ -12,7 +12,7 @@ pub enum ILOperand {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct BinaryInstruction<Op> {
+pub struct BinaryInstruction<Op : Clone> {
     pub left: Op,
     pub right: Op,
 }
@@ -34,8 +34,9 @@ pub enum BranchType {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct BranchInstruction {
+pub struct BranchInstruction<Op : Clone> {
     pub type_: BranchType,
+    pub condition: Option<BinaryInstruction<Op>>,
     pub target: u64,
 }
 
@@ -59,13 +60,12 @@ pub enum ILUnaryOperator {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ILInstruction<Op> {
+pub enum ILInstruction<Op : Clone> {
     Binary(ILBinaryOperator, BinaryInstruction<Op>),
     Unary(ILUnaryOperator, UnaryInstruction<Op>),
     Assign(BinaryInstruction<Op>),
-    Branch(BranchInstruction),
+    Branch(BranchInstruction<Op>),
     Call(UnaryInstruction<Op>),
-    Compare(BinaryInstruction<Op>),
     Return(UnaryInstruction<Op>), // TODO: remove data
     Nop,                          // TODO: remove this
     Continue,
@@ -76,10 +76,10 @@ pub fn unary<Op>(operand: Op) -> UnaryInstruction<Op> {
     UnaryInstruction { operand }
 }
 
-pub fn binary<Op>(left: Op, right: Op) -> BinaryInstruction<Op> {
+pub fn binary<Op : Clone>(left: Op, right: Op) -> BinaryInstruction<Op> {
     BinaryInstruction { left, right }
 }
 
-pub fn branch(type_: BranchType, target: u64) -> BranchInstruction {
-    BranchInstruction { type_, target }
+pub fn branch<Op : Clone>(type_: BranchType, condition: Option<BinaryInstruction<Op>>, target: u64) -> BranchInstruction<Op> {
+    BranchInstruction { type_, condition, target }
 }
