@@ -1,0 +1,19 @@
+{
+  "name": "unwind-mc",
+  "version": "0.1.0",
+  "description": "x86 decompiler project, very early stage",
+  "repository": "https://github.com/coffeecup-winner/unwind-mc",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "lint": "tslint -c tslint.json -p tsconfig.json",
+    "start": "npm run build && electron ./dist/main.js"
+  },
+  "author": "Dmitry Polyanitsa",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^4.0.1",
+    "tslint": "^5.12.1",
+    "typescript": "^3.2.4"
+  }
+}
