@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use unwind_mc::analyzer::Analyzer;
+use unwindmc::analyzer::Analyzer;
 
 pub fn analyze<'a>(func: &'a str) -> Analyzer {
     let normal_line_regex = Regex::new(

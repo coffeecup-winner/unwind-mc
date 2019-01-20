@@ -1,7 +1,7 @@
 extern crate libudis86_sys;
 extern crate regex;
 
-extern crate unwind_mc;
+extern crate unwindmc;
 
 mod analysis_helper;
 mod gcc_tools;

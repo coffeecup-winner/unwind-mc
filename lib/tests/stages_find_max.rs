@@ -1,20 +1,20 @@
 extern crate libudis86_sys;
 extern crate regex;
 
-extern crate unwind_mc;
+extern crate unwindmc;
 
 mod analysis_helper;
 
 use libudis86_sys::ud_type::*;
 
-use unwind_mc::ast::*;
-use unwind_mc::ast_builder::*;
-use unwind_mc::cpp_emitter::*;
-use unwind_mc::decompiler;
-use unwind_mc::flow_analyzer::*;
-use unwind_mc::il::*;
-use unwind_mc::il_decompiler;
-use unwind_mc::type_resolver::*;
+use unwindmc::ast::*;
+use unwindmc::ast_builder::*;
+use unwindmc::cpp_emitter::*;
+use unwindmc::decompiler;
+use unwindmc::flow_analyzer::*;
+use unwindmc::il::*;
+use unwindmc::il_decompiler;
+use unwindmc::type_resolver::*;
 
 #[test]
 fn end_to_end_find_max() {
@@ -89,10 +89,10 @@ fn stage_test_find_max() {
     );
     let il = il_decompiler::decompile(analyzer.graph(), 0x8048400);
 
-    use unwind_mc::il::BranchType::*;
-    use unwind_mc::il::ILBinaryOperator::*;
-    use unwind_mc::il::ILInstruction::*;
-    use unwind_mc::il::ILOperand::*;
+    use unwindmc::il::BranchType::*;
+    use unwindmc::il::ILBinaryOperator::*;
+    use unwindmc::il::ILInstruction::*;
+    use unwindmc::il::ILOperand::*;
 
     let expected = vec![
         Assign(binary(Register(UD_R_ECX), Argument(4))),
@@ -296,8 +296,8 @@ fn stage_test_find_max() {
 
     let func = AstBuilder::build_ast(String::from("find_max"), &blocks, &types);
 
-    use unwind_mc::ast::Expression::{Dereference, VarRef};
-    use unwind_mc::ast::Statement::{Assignment, DoWhile, IfThenElse};
+    use unwindmc::ast::Expression::{Dereference, VarRef};
+    use unwindmc::ast::Statement::{Assignment, DoWhile, IfThenElse};
     let expected = vec![
         Assignment(
             Var::Var(String::from("var0")),

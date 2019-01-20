@@ -1,6 +1,6 @@
 extern crate regex;
 
-extern crate unwind_mc;
+extern crate unwindmc;
 
 mod analysis_helper;
 

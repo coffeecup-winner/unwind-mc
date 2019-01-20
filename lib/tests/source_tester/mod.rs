@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use analysis_helper;
 use gcc_tools;
-use unwind_mc::decompiler;
+use unwindmc::decompiler;
 
 pub fn test_decompiler(code: &str, expected: &str) {
     println!("===================================== CODE =====================================");
