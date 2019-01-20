@@ -1,0 +1,9 @@
+dist: xenial
+language: rust
+rust:
+  - nightly
+cache: cargo
+script:
+  - cd lib
+  - cargo build --verbose --all
+  - cargo test --verbose --all
