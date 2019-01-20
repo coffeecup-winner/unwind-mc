@@ -7,6 +7,7 @@ extern crate libudis86_sys;
 pub type TODO = i32;
 
 pub mod analyzer;
+pub mod api;
 pub mod asm;
 pub mod assignment_tracker;
 pub mod ast;
