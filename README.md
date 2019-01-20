@@ -1,10 +1,10 @@
 # What is unwind-mc
 
-unwind-mc is a x86 decompiler project for Windows. It's in a very early stage.
+unwind-mc is a x86 decompiler project. It's in a very early stage.
 
-The goal of this project is to be able to decompile an executable file into C++ code that can be built with Visual Studio to produce a functionally identical .exe file.
+The goal of this project is to be able to decompile an executable file into C++ code that can be built to produce a functionally identical .exe file.
 
-unwind-mc uses udis86 via PInvoke for linear disassembly and PeNet for PE file parsing.
+unwind-mc uses udis86 for linear disassembly.
 
 ## Current status
 
@@ -18,7 +18,7 @@ Implemented decompiler phases:
  7. Abstract syntax tree building
  8. C++ code generation
 
-Phases 1-3 work reasonably well, with up to 98% instructions decompiled into resolved functions in some medium-sized (~250k instuctions) .exe files.
+Phases 1-3 work reasonably well, with up to 98% instructions decompiled into resolved functions in some medium-sized (~250k instuctions) binary files.
 
 Features and supported instructions are progressively added to phases 4-8 on an as-needed basis for each new function.
 
