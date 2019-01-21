@@ -1,21 +1,36 @@
-import { app, BrowserWindow } from "electron";
-import * as ffi from "ffi";
-import * as path from "path";
-import * as ref from "ref";
+import { app, BrowserWindow } from 'electron'
+import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+import { enableLiveReload } from 'electron-compile'
+import * as ffi from 'ffi'
 
-const libunwindmc = ffi.Library("libunwindmc", {
-    version: ["string", []],
-});
-
-let window: Electron.BrowserWindow;
-
-function createWindow() {
-    window = new BrowserWindow({ width: 800, height: 600 });
-    window.loadFile(path.join(__dirname, "../index.html"));
-    window.setTitle("Unwind MC v" + libunwindmc.version());
-    window.on("closed", () => {
-        window = null;
-    });
+const isDevMode = process.execPath.match(/[\\/]electron/)
+if (isDevMode) {
+    enableLiveReload()
 }
 
-app.on("ready", createWindow);
+const libunwindmc = ffi.Library('libunwindmc', {
+    version: ['string', []],
+})
+
+let window: Electron.BrowserWindow | null
+
+const createWindow = async () => {
+    window = new BrowserWindow({
+        title: `Unwind MC v${libunwindmc.version()}`,
+        width: 1024,
+        height: 768,
+        webPreferences: {
+            nodeIntegration: true,
+        },
+    })
+    window.loadURL(`file://${__dirname}/index.jade`)
+    if (isDevMode) {
+        await installExtension(VUEJS_DEVTOOLS)
+        window.webContents.openDevTools({mode: 'bottom'})
+    }
+    window.on('closed', () => {
+        window = null
+    })
+}
+
+app.on('ready', createWindow)

@@ -1,24 +1,35 @@
 {
-  "name": "unwind-mc",
+  "name": "unwindmc",
   "version": "0.1.0",
   "description": "x86 decompiler project, very early stage",
   "repository": "https://github.com/coffeecup-winner/unwind-mc",
-  "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
-    "lint": "tslint -c tslint.json -p tsconfig.json",
-    "start": "npm run build && electron ./dist/main.js"
-  },
   "author": "Dmitry Polyanitsa",
   "license": "MIT",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "node_modules/.bin/electron .",
+    "lint": "node_modules/.bin/tslint --project tsconfig.json --force",
+    "make": "node_modules/.bin/electron-forge make"
+  },
+  "config": {
+    "forge": "./forge.config.js"
+  },
   "devDependencies": {
+    "@types/electron-devtools-installer": "^2.2.0",
     "electron": "^4.0.1",
+    "electron-forge": "^5.2.4",
+    "electron-prebuilt-compile": "^4.0.0",
     "electron-rebuild": "^1.8.2",
     "tslint": "^5.12.1",
     "typescript": "^3.2.4"
   },
   "dependencies": {
     "@types/ffi": "^0.2.1",
-    "ffi": "^2.3.0"
+    "electron-compile": "^6.4.4",
+    "electron-devtools-installer": "^2.2.4",
+    "electron-squirrel-startup": "^1.0.0",
+    "ffi": "^2.3.0",
+    "vue": "^2.5.22",
+    "vueify": "^9.4.1"
   }
 }
