@@ -4,8 +4,14 @@
 </template>
 
 <script lang="ts">
+import { unwindmc } from '../unwindmc'
 export default {
-    
+    data: {
+        
+    },
+    created: () => {
+        unwindmc.init()
+    }
 }
 </script>
 

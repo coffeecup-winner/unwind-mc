@@ -1,22 +1,18 @@
 import { app, BrowserWindow } from 'electron'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 import { enableLiveReload } from 'electron-compile'
-import * as ffi from 'ffi'
+import { unwindmc } from './unwindmc'
 
 const isDevMode = process.execPath.match(/[\\/]electron/)
 if (isDevMode) {
     enableLiveReload()
 }
 
-const libunwindmc = ffi.Library('libunwindmc', {
-    version: ['string', []],
-})
-
 let window: Electron.BrowserWindow | null
 
 const createWindow = async () => {
     window = new BrowserWindow({
-        title: `Unwind MC v${libunwindmc.version()}`,
+        title: `Unwind MC v${unwindmc.version()}`,
         width: 1024,
         height: 768,
         webPreferences: {

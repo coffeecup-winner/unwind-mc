@@ -2,6 +2,7 @@
 #![feature(nll)]
 #![feature(slice_patterns)]
 extern crate either;
+extern crate elf;
 extern crate libudis86_sys;
 
 pub type TODO = i32;
