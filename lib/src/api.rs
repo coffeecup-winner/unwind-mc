@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
@@ -58,6 +58,21 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         handle
     });
     return handle;
+}
+
+#[no_mangle]
+pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
+    OPEN_HANDLES.with(|handles_cell| {
+        let handles = handles_cell.borrow();
+        let analyzer = &handles.as_ref().unwrap()[&handle];
+        let insns = format!("{:#?}", analyzer.graph().instructions_iter()).into_bytes();
+        let count = std::cmp::min(insns.len(), size);
+        unsafe {
+            let data = CString::from_vec_unchecked(insns);
+            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, count);
+            std::slice::from_raw_parts_mut(ptr, count)[count - 1] = 0;
+        }
+    });
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
