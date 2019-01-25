@@ -359,7 +359,7 @@ impl Disassembler {
             32 => op.lvalue.sdword as u64,
             _ => panic!("Invalid relative offset size")
         }};
-        let address = (ud.pc + offset) & trunc_mask;
+        let address = ud.pc.wrapping_add(offset) & trunc_mask;
         format!("0x{:x}", address)
     }
 
