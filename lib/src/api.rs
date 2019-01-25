@@ -65,11 +65,16 @@ pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
-        let insns = format!("{:#?}", analyzer.graph().instructions_iter()).into_bytes();
-        let count = std::cmp::min(insns.len(), size);
+        let mut s = String::from("[");
+        for (_, insn) in analyzer.graph().instructions_iter() {
+            s += &format!("\"{}\",", insn.assembly);
+        }
+        s.truncate(s.len() - 1);
+        s += "]";
+        let count = std::cmp::min(s.len() + 1, size);
         unsafe {
-            let data = CString::from_vec_unchecked(insns);
-            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, count);
+            let data = CString::from_vec_unchecked(s.into_bytes());
+            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, count - 1);
             std::slice::from_raw_parts_mut(ptr, count)[count - 1] = 0;
         }
     });

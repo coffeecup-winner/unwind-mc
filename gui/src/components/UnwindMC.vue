@@ -1,7 +1,9 @@
 <template lang="jade">
     div
         button(v-on:click='openClicked') Open File
-        p {{ instructions }}
+        table
+            tr(v-for='insn in instructions')
+                {{ insn }}
 </template>
 
 <style lang="scss" scoped>
@@ -22,11 +24,11 @@ export default {
     computed: {
         instructions: function () {
             if (this.handle == null) {
-                return null
+                return []
             }
             let buffer = Buffer.alloc(4096)
             unwindmc.print_instructions(this.handle, buffer, 4096)
-            return ref.readCString(buffer, 0)
+            return JSON.parse(ref.readCString(buffer, 0))
         },
     },
     methods: {
