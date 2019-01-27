@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use elf;
 use serde_json as json;
+use serde_json::json;
 
 use analyzer::Analyzer;
 
@@ -68,7 +69,11 @@ pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
         let analyzer = &handles.as_ref().unwrap()[&handle];
         let mut asm = vec![];
         for (_, insn) in analyzer.graph().instructions_iter() {
-            asm.push(json::Value::String(insn.assembly.clone()));
+            asm.push(json!({
+                "address": insn.address,
+                "hex": insn.hex.clone(),
+                "assembly": insn.assembly.clone(),
+            }));
         }
         let s = json::Value::Array(asm).to_string();
         let count = std::cmp::min(s.len() + 1, size);
