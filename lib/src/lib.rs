@@ -4,6 +4,7 @@
 extern crate either;
 extern crate elf;
 extern crate libudis86_sys;
+extern crate serde_json;
 
 pub type TODO = i32;
 

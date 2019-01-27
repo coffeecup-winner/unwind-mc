@@ -5,6 +5,7 @@ use std::os::raw::c_char;
 use std::path::PathBuf;
 
 use elf;
+use serde_json as json;
 
 use analyzer::Analyzer;
 
@@ -65,12 +66,11 @@ pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
-        let mut s = String::from("[");
+        let mut asm = vec![];
         for (_, insn) in analyzer.graph().instructions_iter() {
-            s += &format!("\"{}\",", insn.assembly);
+            asm.push(json::Value::String(insn.assembly.clone()));
         }
-        s.truncate(s.len() - 1);
-        s += "]";
+        let s = json::Value::Array(asm).to_string();
         let count = std::cmp::min(s.len() + 1, size);
         unsafe {
             let data = CString::from_vec_unchecked(s.into_bytes());
