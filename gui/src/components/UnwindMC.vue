@@ -23,7 +23,7 @@ export default {
         unwindmc.init()
     },
     data: {
-        handle: null,
+        handle: null as (number | null),
     },
     computed: {
         instructions: function () {

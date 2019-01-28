@@ -27,7 +27,7 @@ export default {
         return _unwindmc.open_binary_file(file)
     },
 
-    getInstructions(handle: number): [Instruction] {
+    getInstructions(handle: number): Instruction[] {
         let buffer = Buffer.alloc(4096)
         _unwindmc.print_instructions(handle, buffer, 4096)
         return JSON.parse(ref.readCString(buffer, 0))
