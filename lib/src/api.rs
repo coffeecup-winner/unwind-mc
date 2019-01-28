@@ -61,7 +61,20 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
                 }
             }
         }
-        Object::PE(pe) => return INVALID_HANDLE,
+        Object::PE(pe) => {
+            for section in pe.sections {
+                match section.name() {
+                    Ok(name) if name == ".text" => {
+                        let range = section.pointer_to_raw_data as usize ..
+                            (section.pointer_to_raw_data as usize + section.size_of_raw_data as usize);
+                        let text = Vec::from(&buf[range]);
+                        analyzer = Some(Analyzer::create(text, pe.image_base as u64 + section.virtual_address as u64)
+                            .expect("Failed to create the analyze"));
+                    }
+                    _ => {}
+                }
+            }
+        }
         _ => return INVALID_HANDLE,
     }
     return match analyzer {
