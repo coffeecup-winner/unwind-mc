@@ -15,8 +15,7 @@
 </style>
 
 <script lang="ts">
-import { unwindmc } from '../unwindmc'
-import * as ref from 'ref'
+import unwindmc from '../unwindmc'
 import { remote as e } from 'electron'
 
 export default {
@@ -31,9 +30,7 @@ export default {
             if (this.handle == null) {
                 return []
             }
-            let buffer = Buffer.alloc(4096)
-            unwindmc.print_instructions(this.handle, buffer, 4096)
-            return JSON.parse(ref.readCString(buffer, 0))
+            return unwindmc.getInstructions(this.handle)
         },
     },
     methods: {
@@ -42,7 +39,7 @@ export default {
                 title: 'Open a binary file',
             }, f => {
                 if (f.length > 0) {
-                    this.handle = unwindmc.open_binary_file(f[0])
+                    this.handle = unwindmc.openBinaryFile(f[0])
                 } else {
                     this.handle = null
                 }

@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 import { enableLiveReload } from 'electron-compile'
-import { unwindmc } from './unwindmc'
+import unwindmc from './unwindmc'
 
 const isDevMode = process.execPath.match(/[\\/]electron/)
 if (isDevMode) {
