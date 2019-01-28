@@ -8,6 +8,8 @@ const _unwindmc = ffi.Library('libunwindmc', {
     print_instructions: ['void', ['int', 'string', 'int']],
 })
 
+const _buffer = Buffer.alloc(16 * 1024 * 1024)
+
 export interface Instruction {
     readonly address: number,
     readonly hex: string,
@@ -28,8 +30,7 @@ export default {
     },
 
     getInstructions(handle: number): Instruction[] {
-        let buffer = Buffer.alloc(4096)
-        _unwindmc.print_instructions(handle, buffer, 4096)
-        return JSON.parse(ref.readCString(buffer, 0))
+        _unwindmc.print_instructions(handle, _buffer, _buffer.byteLength)
+        return JSON.parse(ref.readCString(_buffer))
     }
 }
