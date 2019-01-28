@@ -158,8 +158,9 @@ impl Disassembler {
         let mut result = String::new();
         
         if ud.pfx_seg != 0 &&
+            operands.len() > 1 &&
             operands[0].type_ != ud_type::UD_OP_MEM &&
-            operands[0].type_ != ud_type::UD_OP_MEM {
+            operands[1].type_ != ud_type::UD_OP_MEM {
             result += &Self::print_reg(
                 unsafe { std::mem::transmute(ud.pfx_seg as u32) }
             );
