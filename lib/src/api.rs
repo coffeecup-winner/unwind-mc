@@ -1,10 +1,12 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
+use std::fs::File;
+use std::io::Read;
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
-use elf;
+use goblin::Object;
 use serde_json as json;
 use serde_json::json;
 
@@ -40,26 +42,41 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         Some(p) => p,
         None => return INVALID_HANDLE,
     };
-    let file = match elf::File::open_path(&path) {
+    let mut file = match File::open(&path) {
         Ok(f) => f,
         Err(_) => return INVALID_HANDLE,
     };
-    let text = match file.get_section(".text") {
-        Some(s) => s,
-        None => return INVALID_HANDLE,
-    };
-    let analyzer = match Analyzer::create(text.data.clone(), 0) {
-        Ok(a) => a,
-        Err(_) => return INVALID_HANDLE,
-    };
-    let handle = NEXT_HANDLE.with(|next_cell| {
-        let handle = *next_cell;
-        OPEN_HANDLES.with(|handles_cell|
-            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
-        );
-        handle
-    });
-    return handle;
+    let mut buf = vec![];
+    file.read_to_end(&mut buf).expect("Failed to read file");
+    let mut analyzer = None;
+    match Object::parse(&buf).expect("Failed to parse the file contents") {
+        Object::Elf(elf) => {
+            for section in elf.section_headers {
+                if section.is_executable() {
+                    let range = section.file_range();
+                    let vm_range = section.vm_range();
+                    let text = Vec::from(&buf[range]);
+                    analyzer = Some(Analyzer::create(text, vm_range.start as u64)
+                        .expect("Failed to create the analyze"));
+                }
+            }
+        }
+        Object::PE(pe) => return INVALID_HANDLE,
+        _ => return INVALID_HANDLE,
+    }
+    return match analyzer {
+        Some(analyzer) => {
+            let handle = NEXT_HANDLE.with(|next_cell| {
+                let handle = *next_cell;
+                OPEN_HANDLES.with(|handles_cell|
+                    handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+                );
+                handle
+            });
+            handle
+        }
+        None => INVALID_HANDLE
+    }
 }
 
 #[no_mangle]

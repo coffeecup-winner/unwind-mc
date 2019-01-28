@@ -2,7 +2,7 @@
 #![feature(nll)]
 #![feature(slice_patterns)]
 extern crate either;
-extern crate elf;
+extern crate goblin;
 extern crate libudis86_sys;
 extern crate serde_json;
 
