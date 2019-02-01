@@ -310,7 +310,7 @@ impl ILDecompiler {
                     panic!("Not supported")
                 }
             }
-            OperandType::Const | OperandType::Immediate => Value(operand.lvalue.get_i64() as i32),
+            OperandType::Const | OperandType::Immediate => Value(operand.lvalue.get_imm_i64() as i32),
             _ => panic!("Not supported"),
         }
     }

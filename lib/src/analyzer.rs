@@ -200,7 +200,6 @@ impl Analyzer {
             return;
         }
 
-        // TODO: move unsafe into udis86 module
         let address = insn.operands[0].lvalue._get_u64();
         if !self.jump_tables.contains_key(&address) {
             let mut table = JumpTable::new(insn.address, address);

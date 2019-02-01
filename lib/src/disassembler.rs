@@ -35,7 +35,7 @@ impl ToString for Insn {
 impl Insn {
     pub fn get_target_address(&self) -> u64 {
         let target_address = self.address + u64::from(self.length);
-        (target_address as i64 + self.operands[0].lvalue.get_i64()) as u64
+        (target_address as i64 + self.operands[0].lvalue.get_imm_i64()) as u64
     }
 }
 
@@ -67,25 +67,25 @@ impl LValue {
         }
     }
 
-    pub fn get_i64(&self) -> i64 {
-        unsafe {
-            match self.size {
-                8 => i64::from(self.lvalue.sbyte),
-                16 => i64::from(self.lvalue.sword),
-                32 => i64::from(self.lvalue.sdword),
-                64 => self.lvalue.sqword as i64,
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    pub fn get_u64(&self) -> u64 {
+    pub fn get_imm_u64(&self) -> u64 {
         unsafe {
             match self.size {
                 8 => u64::from(self.lvalue.ubyte),
                 16 => u64::from(self.lvalue.uword),
                 32 => u64::from(self.lvalue.udword),
-                64 => self.lvalue.uqword as u64,
+                64 => self.lvalue.uqword,
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    pub fn get_imm_i64(&self) -> i64 {
+        unsafe {
+            match self.size {
+                8 => i64::from(self.lvalue.sbyte),
+                16 => i64::from(self.lvalue.sword),
+                32 => i64::from(self.lvalue.sdword),
+                64 => self.lvalue.sqword,
                 _ => unreachable!(),
             }
         }
@@ -99,7 +99,7 @@ impl LValue {
                 16 => u64::from(self.lvalue.uword),
                 32 => u64::from(self.lvalue.udword),
                 64 => self.lvalue.uqword,
-                _ => panic!("Impossible"),
+                _ => unreachable!(),
             }
         }
     }
@@ -112,7 +112,7 @@ impl LValue {
                 16 => i64::from(self.lvalue.sword),
                 32 => i64::from(self.lvalue.sdword),
                 64 => self.lvalue.sqword,
-                _ => panic!("Impossible"),
+                _ => unreachable!(),
             }
         }
     }
@@ -1473,7 +1473,7 @@ impl Disassembler {
 
     fn print_relative_address(ud: &ud, op: &Operand) -> String {
         let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
-        let offset = op.lvalue.get_i64() as u64;
+        let offset = op.lvalue.get_imm_i64() as u64;
         let address = ud.pc.wrapping_add(offset) & trunc_mask;
         format!("0x{:x}", address)
     }
@@ -1484,12 +1484,12 @@ impl Disassembler {
             if op.size != 8 {
                 assert!(op.size == 32);
             }
-            v = op.lvalue.get_i64() as u64;
+            v = op.lvalue.get_imm_i64() as u64;
             if ud.opr_mode < 64 {
                 v = v & ((1 << ud.opr_mode) - 1);
             }
         } else {
-            v = op.lvalue.get_u64();
+            v = op.lvalue.get_imm_u64();
         }
         format!("0x{:x}", v)
     }
