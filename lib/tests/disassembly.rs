@@ -32,6 +32,18 @@ fn test_immediate_syntax_printing() {
 }
 
 #[test]
+fn test_memory_address_printing() {
+    let analyzer = analysis_helper::analyze(
+        "
+        00000000: 8b 7e 84           mov edi, [esi-0x7c]
+        00000003: c3                 ret",
+    );
+
+    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    assert_eq!(insn.assembly, "mov edi, [esi-0x7c]");
+}
+
+#[test]
 fn test_jump_table_resolving() {
     analysis_helper::analyze(
         "

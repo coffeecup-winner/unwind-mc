@@ -291,26 +291,26 @@ impl ILDecompiler {
             OperandType::Register => Register(operand.base),
             OperandType::Memory => {
                 if operand.base == Reg::ESP {
-                    let offset = self.stack_offset + operand.lvalue.get_off_i64() as i32;
+                    let offset = self.stack_offset + operand.lvalue.off_i64 as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
                 } else if operand.base == Reg::EBP {
-                    let offset = self.frame_pointer_offset + operand.lvalue.get_off_i64() as i32;
+                    let offset = self.frame_pointer_offset + operand.lvalue.off_i64 as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
                 } else if operand.index == Reg::NONE {
-                    Pointer(operand.base, operand.lvalue.get_off_i64() as i32)
+                    Pointer(operand.base, operand.lvalue.off_i64 as i32)
                 } else {
                     panic!("Not supported")
                 }
             }
-            OperandType::Const | OperandType::Immediate => Value(operand.lvalue.get_imm_i64() as i32),
+            OperandType::Const | OperandType::Immediate => Value(operand.lvalue.imm_i64 as i32),
             _ => panic!("Not supported"),
         }
     }
