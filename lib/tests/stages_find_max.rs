@@ -1,3 +1,5 @@
+#![allow(overflowing_literals)]
+
 extern crate libudis86_sys;
 extern crate regex;
 
