@@ -2,12 +2,11 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
-use libudis86_sys::ud_type;
-
 use common::REGISTER_SIZE;
 use flow_analyzer::*;
 use il;
 use il::*;
+use udis86::Reg;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DataType {
@@ -434,7 +433,7 @@ impl TypeResolver {
         blocks.iter().any(|b| match b {
             Block::SequentialBlock(ref b) => b.instructions.iter().any(|i| match i {
                 ILInstruction::Assign(ref i)
-                    if i.left == ILOperand::Register(ud_type::UD_R_EAX) =>
+                    if i.left == ILOperand::Register(Reg::EAX) =>
                 {
                     true
                 }

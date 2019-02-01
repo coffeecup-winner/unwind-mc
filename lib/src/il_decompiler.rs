@@ -1,4 +1,3 @@
-use libudis86_sys::{ud_type::*};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use asm::{InstructionGraph, LinkType};
@@ -162,7 +161,7 @@ impl ILDecompiler {
             }
             Mnemonic::Iidiv => {
                 let operand = self.get_unary_operand(&insn.operands);
-                vec![Binary(Divide, binary(Register(UD_R_EAX), operand))]
+                vec![Binary(Divide, binary(Register(Reg::EAX), operand))]
             }
             Mnemonic::Iimul => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
@@ -210,15 +209,15 @@ impl ILDecompiler {
             Mnemonic::Imov => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
                 match (&left, &right) {
-                    (Register(UD_R_EBP), Register(UD_R_ESP)) => {
+                    (Register(Reg::EBP), Register(Reg::ESP)) => {
                         self.frame_pointer_offset = self.stack_offset;
                         vec![]
                     }
-                    (Register(UD_R_ESP), Register(UD_R_EBP)) => {
+                    (Register(Reg::ESP), Register(Reg::EBP)) => {
                         self.stack_offset = self.frame_pointer_offset;
                         vec![]
                     }
-                    (Register(UD_R_EBP), _) | (Register(UD_R_ESP), _) => panic!("Not supported"),
+                    (Register(Reg::EBP), _) | (Register(Reg::ESP), _) => panic!("Not supported"),
                     _ => vec![Assign(binary(left, right))],
                 }
             }
@@ -247,7 +246,7 @@ impl ILDecompiler {
                 if self.stack_offset != 0 {
                     panic!("Stack imbalance");
                 }
-                vec![Return(unary(Register(UD_R_EAX)))]
+                vec![Return(unary(Register(Reg::EAX)))]
             }
             Mnemonic::Ishl => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
@@ -289,29 +288,29 @@ impl ILDecompiler {
     fn convert_operand(&self, operand: &Operand) -> ILOperand {
         use il::ILOperand::*;
         match operand.type_ {
-            UD_OP_REG => Register(operand.base),
-            UD_OP_MEM => {
-                if operand.base == UD_R_ESP {
+            OperandType::Register => Register(operand.base),
+            OperandType::Memory => {
+                if operand.base == Reg::ESP {
                     let offset = self.stack_offset + operand.get_memory_offset() as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
-                } else if operand.base == UD_R_EBP {
+                } else if operand.base == Reg::EBP {
                     let offset = self.frame_pointer_offset + operand.get_memory_offset() as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
-                } else if operand.index == UD_NONE {
+                } else if operand.index == Reg::NONE {
                     Pointer(operand.base, operand.get_memory_offset() as i32)
                 } else {
                     panic!("Not supported")
                 }
             }
-            UD_OP_CONST | UD_OP_IMM => Value(operand.get_i64() as i32),
+            OperandType::Const | OperandType::Immediate => Value(operand.get_i64() as i32),
             _ => panic!("Not supported"),
         }
     }

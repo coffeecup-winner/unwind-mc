@@ -1,14 +1,12 @@
-use libudis86_sys::ud_type;
-
-pub type OperandType = ud_type;
+use udis86::Reg;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ILOperand {
     Value(i32),
-    Register(OperandType),
+    Register(Reg),
     Argument(i32),
     Local(i32),
-    Pointer(OperandType, i32),
+    Pointer(Reg, i32),
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]

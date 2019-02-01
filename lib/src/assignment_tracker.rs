@@ -1,4 +1,4 @@
-use libudis86_sys::{ud_lval, ud_type};
+use libudis86_sys::{ud_lval};
 
 use asm::*;
 use common::*;
@@ -10,8 +10,8 @@ impl AssignmentTracker {
     pub fn find(
         graph: &InstructionGraph,
         address: u64,
-        register: ud_type,
-        try_match: &mut FnMut(&Insn, ud_type) -> bool,
+        register: Reg,
+        try_match: &mut FnMut(&Insn, Reg) -> bool,
     ) -> Option<ud_lval> {
         let mut skipped_initial_instruction = false;
         let mut stack = vec![address];
@@ -35,20 +35,20 @@ impl AssignmentTracker {
 
             let insn = graph.get_vertex(&address);
             if try_match(insn, register) {
-                if insn.operands[1].type_ == ud_type::UD_OP_REG {
+                if insn.operands[1].type_ == OperandType::Register {
                     return AssignmentTracker::find(
                         graph,
                         insn.address,
                         insn.operands[1].base,
                         &mut |i, reg| {
                             i.code == Mnemonic::Imov
-                                && i.operands[0].type_ == ud_type::UD_OP_REG
+                                && i.operands[0].type_ == OperandType::Register
                                 && i.operands[0].base == reg
                         },
                     );
                 }
 
-                if insn.operands[1].type_ == ud_type::UD_OP_IMM {
+                if insn.operands[1].type_ == OperandType::Immediate {
                     return Some(insn.operands[1].lvalue);
                 }
 
@@ -62,8 +62,8 @@ impl AssignmentTracker {
             }
 
             if let Mnemonic::Imov = insn.code {
-                if insn.operands[0].type_ == ud_type::UD_OP_REG
-                    && insn.operands[1].type_ == ud_type::UD_OP_REG
+                if insn.operands[0].type_ == OperandType::Register
+                    && insn.operands[1].type_ == OperandType::Register
                     && insn.operands[0].base == register
                 {
                     return AssignmentTracker::find(

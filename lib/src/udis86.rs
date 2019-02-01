@@ -16,7 +16,7 @@ pub struct Insn {
     pub assembly: String,
     pub operands: Vec<Operand>,
     pub prefix_rex: u8,
-    pub prefix_segment: ud_type,
+    pub prefix_segment: Reg,
     pub prefix_operand_size: bool,
     pub prefix_address_size: bool,
     pub prefix_lock: u8,
@@ -41,10 +41,10 @@ impl Insn {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Operand {
-    pub type_: ud_type,
+    pub type_: OperandType,
     pub size: u16,
-    pub base: ud_type,
-    pub index: ud_type,
+    pub base: Reg,
+    pub index: Reg,
     pub scale: u8,
     pub offset: u8,
     pub lvalue: ud_lval,
@@ -76,6 +76,176 @@ impl Operand {
             }
         }
     }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum OperandType {
+    Register,
+    Memory,
+    Pointer,
+    Immediate,
+    ImmediateJump,
+    Const,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub enum Reg {
+    NONE,
+    AL,
+    CL,
+    DL,
+    BL,
+    AH,
+    CH,
+    DH,
+    BH,
+    SPL,
+    BPL,
+    SIL,
+    DIL,
+    R8B,
+    R9B,
+    R10B,
+    R11B,
+    R12B,
+    R13B,
+    R14B,
+    R15B,
+    AX,
+    CX,
+    DX,
+    BX,
+    SP,
+    BP,
+    SI,
+    DI,
+    R8W,
+    R9W,
+    R10W,
+    R11W,
+    R12W,
+    R13W,
+    R14W,
+    R15W,
+    EAX,
+    ECX,
+    EDX,
+    EBX,
+    ESP,
+    EBP,
+    ESI,
+    EDI,
+    R8D,
+    R9D,
+    R10D,
+    R11D,
+    R12D,
+    R13D,
+    R14D,
+    R15D,
+    RAX,
+    RCX,
+    RDX,
+    RBX,
+    RSP,
+    RBP,
+    RSI,
+    RDI,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    ES,
+    CS,
+    SS,
+    DS,
+    FS,
+    GS,
+    CR0,
+    CR1,
+    CR2,
+    CR3,
+    CR4,
+    CR5,
+    CR6,
+    CR7,
+    CR8,
+    CR9,
+    CR10,
+    CR11,
+    CR12,
+    CR13,
+    CR14,
+    CR15,
+    DR0,
+    DR1,
+    DR2,
+    DR3,
+    DR4,
+    DR5,
+    DR6,
+    DR7,
+    DR8,
+    DR9,
+    DR10,
+    DR11,
+    DR12,
+    DR13,
+    DR14,
+    DR15,
+    MM0,
+    MM1,
+    MM2,
+    MM3,
+    MM4,
+    MM5,
+    MM6,
+    MM7,
+    ST0,
+    ST1,
+    ST2,
+    ST3,
+    ST4,
+    ST5,
+    ST6,
+    ST7,
+    XMM0,
+    XMM1,
+    XMM2,
+    XMM3,
+    XMM4,
+    XMM5,
+    XMM6,
+    XMM7,
+    XMM8,
+    XMM9,
+    XMM10,
+    XMM11,
+    XMM12,
+    XMM13,
+    XMM14,
+    XMM15,
+    YMM0,
+    YMM1,
+    YMM2,
+    YMM3,
+    YMM4,
+    YMM5,
+    YMM6,
+    YMM7,
+    YMM8,
+    YMM9,
+    YMM10,
+    YMM11,
+    YMM12,
+    YMM13,
+    YMM14,
+    YMM15,
+    RIP,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -1026,7 +1196,7 @@ impl Disassembler {
                     assembly: Self::print_intel(&self.ud, &operands),
                     operands: operands,
                     prefix_rex: self.ud.pfx_rex,
-                    prefix_segment: mem::transmute(u32::from(self.ud.pfx_seg)),
+                    prefix_segment: Reg::from_ud_type(mem::transmute(u32::from(self.ud.pfx_seg))),
                     prefix_operand_size: self.ud.pfx_opr == 0x66,
                     prefix_address_size: self.ud.pfx_adr == 0x67,
                     prefix_lock: self.ud.pfx_lock,
@@ -1048,10 +1218,10 @@ impl Disassembler {
 
             while !op.is_null() {
                 result.push(Operand {
-                    type_: (*op).otype,
+                    type_: OperandType::from_ud_type((*op).otype),
                     size: (*op).size,
-                    base: (*op).base,
-                    index: (*op).index,
+                    base: Reg::from_ud_type((*op).base),
+                    index: Reg::from_ud_type((*op).index),
                     scale: (*op).scale,
                     offset: (*op).offset,
                     lvalue: (*op).lval,
@@ -1068,20 +1238,20 @@ impl Disassembler {
     // The ported version is abridged, rare or non-x86 bits are removed
     fn print_intel(ud: &ud, operands: &Vec<Operand>) -> String {
         let mut result = String::new();
-        
+
         if ud.pfx_seg != 0 &&
             operands.len() > 1 &&
-            operands[0].type_ != ud_type::UD_OP_MEM &&
-            operands[1].type_ != ud_type::UD_OP_MEM {
-            result += &Self::print_reg(
-                unsafe { std::mem::transmute(ud.pfx_seg as u32) }
-            );
+            operands[0].type_ != OperandType::Memory &&
+            operands[1].type_ != OperandType::Memory {
+            result += &Reg::from_ud_type(
+                    unsafe { std::mem::transmute(ud.pfx_seg as u32) })
+                .to_string();
         }
 
         if ud.pfx_lock != 0 {
             result += "lock ";
         }
-        
+
         if ud.pfx_rep != 0 {
             result += "rep ";
         } else if ud.pfx_repe != 0 {
@@ -1092,19 +1262,18 @@ impl Disassembler {
 
         result += &Self::print_mnemonic(ud.mnemonic);
 
-        if operands.len() > 0 && operands[0].type_ != ud_type::UD_NONE {
+        if operands.len() > 0 {
             let mut cast = false;
             result += " ";
-            if operands[0].type_ == ud_type::UD_OP_MEM {
+            if operands[0].type_ == OperandType::Memory {
                 if operands.len() <= 1 ||
-                    operands[1].type_ == ud_type::UD_NONE ||
-                    operands[1].type_ == ud_type::UD_OP_IMM ||
-                    operands[1].type_ == ud_type::UD_OP_CONST ||                    
+                    operands[1].type_ == OperandType::Immediate ||
+                    operands[1].type_ == OperandType::Const ||
                     operands[0].size != operands[1].size {
                     cast = true;
                 } else if operands.len() > 1 &&
-                    operands[1].type_ == ud_type::UD_OP_REG &&
-                    operands[1].base == ud_type::UD_R_CL {
+                    operands[1].type_ == OperandType::Register &&
+                    operands[1].base == Reg::CL {
                     match ud.mnemonic {
                         ud_mnemonic_code::UD_Ircl |
                         ud_mnemonic_code::UD_Irol |
@@ -1122,27 +1291,27 @@ impl Disassembler {
             result += &Self::print_operand(ud, &operands[0], cast);
         }
 
-        if operands.len() > 1 && operands[1].type_ != ud_type::UD_NONE {
+        if operands.len() > 1 {
             let mut cast = false;
             result += ", ";
-            if operands[1].type_ == ud_type::UD_OP_MEM &&
+            if operands[1].type_ == OperandType::Memory &&
                 operands[1].size != operands[0].size {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[1], cast);
         }
 
-        if operands.len() > 2 && operands[2].type_ != ud_type::UD_NONE {
+        if operands.len() > 2 {
             let mut cast = false;
             result += ", ";
-            if operands[2].type_ == ud_type::UD_OP_MEM &&
+            if operands[2].type_ == OperandType::Memory &&
                 operands[2].size != operands[1].size {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[2], cast);
         }
 
-        if operands.len() > 3 && operands[3].type_ != ud_type::UD_NONE {
+        if operands.len() > 3 {
             result += ", ";
             result += &Self::print_operand(ud, &operands[3], false);
         }
@@ -1154,28 +1323,28 @@ impl Disassembler {
         let mut s = String::new();
 
         match op.type_ {
-            ud_type::UD_OP_REG => {
-                s += &Self::print_reg(op.base);
+            OperandType::Register => {
+                s += &op.base.to_string();
             },
-            ud_type::UD_OP_MEM => {
+            OperandType::Memory => {
                 if cast {
                     s += &Self::print_cast(ud, op);
                 }
                 s += "[";
                 if ud.pfx_seg != 0 {
-                    s += &Self::print_reg(
-                        unsafe { std::mem::transmute(ud.pfx_seg as u32) }
-                    );
+                    s += &Reg::from_ud_type(
+                            unsafe { std::mem::transmute(ud.pfx_seg as u32) })
+                        .to_string();
                     s += ":";
                 }
-                if op.base != ud_type::UD_NONE {
-                    s += &Self::print_reg(op.base);
+                if op.base != Reg::NONE {
+                    s += &op.base.to_string();
                 }
-                if op.index != ud_type::UD_NONE {
-                    if op.base != ud_type::UD_NONE {
+                if op.index != Reg::NONE {
+                    if op.base != Reg::NONE {
                         s += "+";
                     }
-                    s += &Self::print_reg(op.index);
+                    s += &op.index.to_string();
                     if op.scale != 0 {
                         s += &format!("*{}", op.scale);
                     }
@@ -1185,13 +1354,13 @@ impl Disassembler {
                 }
                 s += "]";
             },
-            ud_type::UD_OP_IMM => {
+            OperandType::Immediate => {
                 s += &Self::print_immediate(ud, op);
             },
-            ud_type::UD_OP_JIMM => {
+            OperandType::ImmediateJump => {
                 s += &Self::print_relative_address(ud, op);
             },
-            ud_type::UD_OP_PTR => {
+            OperandType::Pointer => {
                 match op.size {
                     32 => {
                         s += unsafe {
@@ -1206,13 +1375,12 @@ impl Disassembler {
                     _ => {}
                 }
             },
-            ud_type::UD_OP_CONST => {
+            OperandType::Const => {
                 if cast {
                     s += &Self::print_cast(ud, op);
                 }
                 s += unsafe { &format!("{}", op.lvalue.udword) }
             },
-            _ => {}
         }
 
         return s;
@@ -1220,7 +1388,7 @@ impl Disassembler {
 
     fn print_cast(ud: &ud, op: &Operand) -> String {
         let mut s = String::new();
-        
+
         if ud.br_far != 0 {
             s += "far ";
         }
@@ -1234,13 +1402,13 @@ impl Disassembler {
             256 => { s += "yword "; },
             _ => {}
         }
-        
+
         return s;
     }
 
     fn print_mem(op: &Operand) -> String {
         assert!(op.offset != 0);
-        if op.base == ud_type::UD_NONE && op.index == ud_type::UD_NONE {
+        if op.base == Reg::NONE && op.index == Reg::NONE {
             assert!(op.scale == 0 && op.offset != 8);
             format!("0x{:x}", unsafe { match op.offset {
                 16 => op.lvalue.uword as u64,
@@ -1298,167 +1466,6 @@ impl Disassembler {
             }};
         }
         format!("0x{:x}", v)
-    }
-
-    fn print_reg(reg: ud_type) -> String {
-        String::from(match reg {
-            ud_type::UD_R_AL => "al",
-            ud_type::UD_R_CL => "cl",
-            ud_type::UD_R_DL => "dl",
-            ud_type::UD_R_BL => "bl",
-            ud_type::UD_R_AH => "ah",
-            ud_type::UD_R_CH => "ch",
-            ud_type::UD_R_DH => "dh",
-            ud_type::UD_R_BH => "bh",
-            ud_type::UD_R_SPL => "spl",
-            ud_type::UD_R_BPL => "bpl",
-            ud_type::UD_R_SIL => "sil",                
-            ud_type::UD_R_DIL => "dil",                
-            ud_type::UD_R_R8B => "r8b",                
-            ud_type::UD_R_R9B => "r9b",                
-            ud_type::UD_R_R10B => "r10b",                
-            ud_type::UD_R_R11B => "r11b",                
-            ud_type::UD_R_R12B => "r12b",                
-            ud_type::UD_R_R13B => "r13b",                
-            ud_type::UD_R_R14B => "r14b",                
-            ud_type::UD_R_R15B => "r15b",                
-            ud_type::UD_R_AX => "ax",                
-            ud_type::UD_R_CX => "cx",                
-            ud_type::UD_R_DX => "dx",                
-            ud_type::UD_R_BX => "bx",                
-            ud_type::UD_R_SP => "sp",                
-            ud_type::UD_R_BP => "bp",                
-            ud_type::UD_R_SI => "si",                
-            ud_type::UD_R_DI => "di",                
-            ud_type::UD_R_R8W => "r8w",                
-            ud_type::UD_R_R9W => "r9w",                
-            ud_type::UD_R_R10W => "r10w",                
-            ud_type::UD_R_R11W => "r11w",                
-            ud_type::UD_R_R12W => "r12w",                
-            ud_type::UD_R_R13W => "r13w",                
-            ud_type::UD_R_R14W => "r14w",                
-            ud_type::UD_R_R15W => "r15w",                
-            ud_type::UD_R_EAX => "eax",                
-            ud_type::UD_R_ECX => "ecx",                
-            ud_type::UD_R_EDX => "edx",                
-            ud_type::UD_R_EBX => "ebx",                
-            ud_type::UD_R_ESP => "esp",                
-            ud_type::UD_R_EBP => "ebp",                
-            ud_type::UD_R_ESI => "esi",                
-            ud_type::UD_R_EDI => "edi",                
-            ud_type::UD_R_R8D => "r8d",                
-            ud_type::UD_R_R9D => "r9d",                
-            ud_type::UD_R_R10D => "r10d",                
-            ud_type::UD_R_R11D => "r11d",                
-            ud_type::UD_R_R12D => "r12d",                
-            ud_type::UD_R_R13D => "r13d",                
-            ud_type::UD_R_R14D => "r14d",                
-            ud_type::UD_R_R15D => "r15d",                
-            ud_type::UD_R_RAX => "rax",                
-            ud_type::UD_R_RCX => "rcx",                
-            ud_type::UD_R_RDX => "rdx",                
-            ud_type::UD_R_RBX => "rbx",                
-            ud_type::UD_R_RSP => "rsp",                
-            ud_type::UD_R_RBP => "rbp",                
-            ud_type::UD_R_RSI => "rsi",                
-            ud_type::UD_R_RDI => "rdi",                
-            ud_type::UD_R_R8 => "r8",                
-            ud_type::UD_R_R9 => "r9",                
-            ud_type::UD_R_R10 => "r10",                
-            ud_type::UD_R_R11 => "r11",                
-            ud_type::UD_R_R12 => "r12",                
-            ud_type::UD_R_R13 => "r13",                
-            ud_type::UD_R_R14 => "r14",                
-            ud_type::UD_R_R15 => "r15",                
-            ud_type::UD_R_ES => "es",                
-            ud_type::UD_R_CS => "cs",                
-            ud_type::UD_R_SS => "ss",                
-            ud_type::UD_R_DS => "ds",                
-            ud_type::UD_R_FS => "fs",                
-            ud_type::UD_R_GS => "gs",                
-            ud_type::UD_R_CR0 => "cr0",                
-            ud_type::UD_R_CR1 => "cr1",                
-            ud_type::UD_R_CR2 => "cr2",                
-            ud_type::UD_R_CR3 => "cr3",                
-            ud_type::UD_R_CR4 => "cr4",                
-            ud_type::UD_R_CR5 => "cr5",                
-            ud_type::UD_R_CR6 => "cr6",                
-            ud_type::UD_R_CR7 => "cr7",                
-            ud_type::UD_R_CR8 => "cr8",                
-            ud_type::UD_R_CR9 => "cr9",                
-            ud_type::UD_R_CR10 => "cr10",                
-            ud_type::UD_R_CR11 => "cr11",                
-            ud_type::UD_R_CR12 => "cr12",                
-            ud_type::UD_R_CR13 => "cr13",                
-            ud_type::UD_R_CR14 => "cr14",                
-            ud_type::UD_R_CR15 => "cr15",                
-            ud_type::UD_R_DR0 => "dr0",                
-            ud_type::UD_R_DR1 => "dr1",                
-            ud_type::UD_R_DR2 => "dr2",                
-            ud_type::UD_R_DR3 => "dr3",                
-            ud_type::UD_R_DR4 => "dr4",                
-            ud_type::UD_R_DR5 => "dr5",                
-            ud_type::UD_R_DR6 => "dr6",                
-            ud_type::UD_R_DR7 => "dr7",                
-            ud_type::UD_R_DR8 => "dr8",                
-            ud_type::UD_R_DR9 => "dr9",
-            ud_type::UD_R_DR10 => "dr10",
-            ud_type::UD_R_DR11 => "dr11",
-            ud_type::UD_R_DR12 => "dr12",
-            ud_type::UD_R_DR13 => "dr13",
-            ud_type::UD_R_DR14 => "dr14",
-            ud_type::UD_R_DR15 => "dr15",
-            ud_type::UD_R_MM0 => "mm0",
-            ud_type::UD_R_MM1 => "mm1",
-            ud_type::UD_R_MM2 => "mm2",
-            ud_type::UD_R_MM3 => "mm3",
-            ud_type::UD_R_MM4 => "mm4",
-            ud_type::UD_R_MM5 => "mm5",
-            ud_type::UD_R_MM6 => "mm6",
-            ud_type::UD_R_MM7 => "mm7",
-            ud_type::UD_R_ST0 => "st0",
-            ud_type::UD_R_ST1 => "st1",
-            ud_type::UD_R_ST2 => "st2",
-            ud_type::UD_R_ST3 => "st3",
-            ud_type::UD_R_ST4 => "st4",
-            ud_type::UD_R_ST5 => "st5",
-            ud_type::UD_R_ST6 => "st6",
-            ud_type::UD_R_ST7 => "st7",
-            ud_type::UD_R_XMM0 => "xmm0",
-            ud_type::UD_R_XMM1 => "xmm1",
-            ud_type::UD_R_XMM2 => "xmm2",
-            ud_type::UD_R_XMM3 => "xmm3",
-            ud_type::UD_R_XMM4 => "xmm4",
-            ud_type::UD_R_XMM5 => "xmm5",
-            ud_type::UD_R_XMM6 => "xmm6",
-            ud_type::UD_R_XMM7 => "xmm7",
-            ud_type::UD_R_XMM8 => "xmm8",
-            ud_type::UD_R_XMM9 => "xmm9",
-            ud_type::UD_R_XMM10 => "xmm10",
-            ud_type::UD_R_XMM11 => "xmm11",
-            ud_type::UD_R_XMM12 => "xmm12",
-            ud_type::UD_R_XMM13 => "xmm13",
-            ud_type::UD_R_XMM14 => "xmm14",
-            ud_type::UD_R_XMM15 => "xmm15",
-            ud_type::UD_R_YMM0 => "ymm0",
-            ud_type::UD_R_YMM1 => "ymm1",
-            ud_type::UD_R_YMM2 => "ymm2",
-            ud_type::UD_R_YMM3 => "ymm3",
-            ud_type::UD_R_YMM4 => "ymm4",
-            ud_type::UD_R_YMM5 => "ymm5",
-            ud_type::UD_R_YMM6 => "ymm6",
-            ud_type::UD_R_YMM7 => "ymm7",
-            ud_type::UD_R_YMM8 => "ymm8",
-            ud_type::UD_R_YMM9 => "ymm9",
-            ud_type::UD_R_YMM10 => "ymm10",
-            ud_type::UD_R_YMM11 => "ymm11",
-            ud_type::UD_R_YMM12 => "ymm12",
-            ud_type::UD_R_YMM13 => "ymm13",
-            ud_type::UD_R_YMM14 => "ymm14",
-            ud_type::UD_R_YMM15 => "ymm15",
-            ud_type::UD_R_RIP => "rip",
-            _ => panic!("Invalid register")
-        })
     }
 
     fn print_mnemonic(mnemonic: ud_mnemonic_code) -> String {
@@ -2372,6 +2379,347 @@ impl Disassembler {
             ud_mnemonic_code::UD_Idb => "db",
             ud_mnemonic_code::UD_Ipause => "pause",
             ud_mnemonic_code::UD_MAX_MNEMONIC_CODE => panic!("Invalid mnemonic code")
+        })
+    }
+}
+
+impl OperandType {
+    pub fn from_ud_type(_type: ud_type) -> OperandType {
+        use self::OperandType::*;
+        match _type {
+            ud_type::UD_OP_REG => Register,
+            ud_type::UD_OP_MEM => Memory,
+            ud_type::UD_OP_PTR => Pointer,
+            ud_type::UD_OP_IMM => Immediate,
+            ud_type::UD_OP_JIMM => ImmediateJump,
+            ud_type::UD_OP_CONST => Const,
+            _ => panic!("Register used as operand type"),
+        }
+    }
+}
+
+impl Reg {
+    pub fn from_ud_type(_type: ud_type) -> Reg {
+        use self::Reg::*;
+        match _type {
+            ud_type::UD_NONE => NONE,
+            ud_type::UD_R_AL => AL,
+            ud_type::UD_R_CL => CL,
+            ud_type::UD_R_DL => DL,
+            ud_type::UD_R_BL => BL,
+            ud_type::UD_R_AH => AH,
+            ud_type::UD_R_CH => CH,
+            ud_type::UD_R_DH => DH,
+            ud_type::UD_R_BH => BH,
+            ud_type::UD_R_SPL => SPL,
+            ud_type::UD_R_BPL => BPL,
+            ud_type::UD_R_SIL => SIL,
+            ud_type::UD_R_DIL => DIL,
+            ud_type::UD_R_R8B => R8B,
+            ud_type::UD_R_R9B => R9B,
+            ud_type::UD_R_R10B => R10B,
+            ud_type::UD_R_R11B => R11B,
+            ud_type::UD_R_R12B => R12B,
+            ud_type::UD_R_R13B => R13B,
+            ud_type::UD_R_R14B => R14B,
+            ud_type::UD_R_R15B => R15B,
+            ud_type::UD_R_AX => AX,
+            ud_type::UD_R_CX => CX,
+            ud_type::UD_R_DX => DX,
+            ud_type::UD_R_BX => BX,
+            ud_type::UD_R_SP => SP,
+            ud_type::UD_R_BP => BP,
+            ud_type::UD_R_SI => SI,
+            ud_type::UD_R_DI => DI,
+            ud_type::UD_R_R8W => R8W,
+            ud_type::UD_R_R9W => R9W,
+            ud_type::UD_R_R10W => R10W,
+            ud_type::UD_R_R11W => R11W,
+            ud_type::UD_R_R12W => R12W,
+            ud_type::UD_R_R13W => R13W,
+            ud_type::UD_R_R14W => R14W,
+            ud_type::UD_R_R15W => R15W,
+            ud_type::UD_R_EAX => EAX,
+            ud_type::UD_R_ECX => ECX,
+            ud_type::UD_R_EDX => EDX,
+            ud_type::UD_R_EBX => EBX,
+            ud_type::UD_R_ESP => ESP,
+            ud_type::UD_R_EBP => EBP,
+            ud_type::UD_R_ESI => ESI,
+            ud_type::UD_R_EDI => EDI,
+            ud_type::UD_R_R8D => R8D,
+            ud_type::UD_R_R9D => R9D,
+            ud_type::UD_R_R10D => R10D,
+            ud_type::UD_R_R11D => R11D,
+            ud_type::UD_R_R12D => R12D,
+            ud_type::UD_R_R13D => R13D,
+            ud_type::UD_R_R14D => R14D,
+            ud_type::UD_R_R15D => R15D,
+            ud_type::UD_R_RAX => RAX,
+            ud_type::UD_R_RCX => RCX,
+            ud_type::UD_R_RDX => RDX,
+            ud_type::UD_R_RBX => RBX,
+            ud_type::UD_R_RSP => RSP,
+            ud_type::UD_R_RBP => RBP,
+            ud_type::UD_R_RSI => RSI,
+            ud_type::UD_R_RDI => RDI,
+            ud_type::UD_R_R8 => R8,
+            ud_type::UD_R_R9 => R9,
+            ud_type::UD_R_R10 => R10,
+            ud_type::UD_R_R11 => R11,
+            ud_type::UD_R_R12 => R12,
+            ud_type::UD_R_R13 => R13,
+            ud_type::UD_R_R14 => R14,
+            ud_type::UD_R_R15 => R15,
+            ud_type::UD_R_ES => ES,
+            ud_type::UD_R_CS => CS,
+            ud_type::UD_R_SS => SS,
+            ud_type::UD_R_DS => DS,
+            ud_type::UD_R_FS => FS,
+            ud_type::UD_R_GS => GS,
+            ud_type::UD_R_CR0 => CR0,
+            ud_type::UD_R_CR1 => CR1,
+            ud_type::UD_R_CR2 => CR2,
+            ud_type::UD_R_CR3 => CR3,
+            ud_type::UD_R_CR4 => CR4,
+            ud_type::UD_R_CR5 => CR5,
+            ud_type::UD_R_CR6 => CR6,
+            ud_type::UD_R_CR7 => CR7,
+            ud_type::UD_R_CR8 => CR8,
+            ud_type::UD_R_CR9 => CR9,
+            ud_type::UD_R_CR10 => CR10,
+            ud_type::UD_R_CR11 => CR11,
+            ud_type::UD_R_CR12 => CR12,
+            ud_type::UD_R_CR13 => CR13,
+            ud_type::UD_R_CR14 => CR14,
+            ud_type::UD_R_CR15 => CR15,
+            ud_type::UD_R_DR0 => DR0,
+            ud_type::UD_R_DR1 => DR1,
+            ud_type::UD_R_DR2 => DR2,
+            ud_type::UD_R_DR3 => DR3,
+            ud_type::UD_R_DR4 => DR4,
+            ud_type::UD_R_DR5 => DR5,
+            ud_type::UD_R_DR6 => DR6,
+            ud_type::UD_R_DR7 => DR7,
+            ud_type::UD_R_DR8 => DR8,
+            ud_type::UD_R_DR9 => DR9,
+            ud_type::UD_R_DR10 => DR10,
+            ud_type::UD_R_DR11 => DR11,
+            ud_type::UD_R_DR12 => DR12,
+            ud_type::UD_R_DR13 => DR13,
+            ud_type::UD_R_DR14 => DR14,
+            ud_type::UD_R_DR15 => DR15,
+            ud_type::UD_R_MM0 => MM0,
+            ud_type::UD_R_MM1 => MM1,
+            ud_type::UD_R_MM2 => MM2,
+            ud_type::UD_R_MM3 => MM3,
+            ud_type::UD_R_MM4 => MM4,
+            ud_type::UD_R_MM5 => MM5,
+            ud_type::UD_R_MM6 => MM6,
+            ud_type::UD_R_MM7 => MM7,
+            ud_type::UD_R_ST0 => ST0,
+            ud_type::UD_R_ST1 => ST1,
+            ud_type::UD_R_ST2 => ST2,
+            ud_type::UD_R_ST3 => ST3,
+            ud_type::UD_R_ST4 => ST4,
+            ud_type::UD_R_ST5 => ST5,
+            ud_type::UD_R_ST6 => ST6,
+            ud_type::UD_R_ST7 => ST7,
+            ud_type::UD_R_XMM0 => XMM0,
+            ud_type::UD_R_XMM1 => XMM1,
+            ud_type::UD_R_XMM2 => XMM2,
+            ud_type::UD_R_XMM3 => XMM3,
+            ud_type::UD_R_XMM4 => XMM4,
+            ud_type::UD_R_XMM5 => XMM5,
+            ud_type::UD_R_XMM6 => XMM6,
+            ud_type::UD_R_XMM7 => XMM7,
+            ud_type::UD_R_XMM8 => XMM8,
+            ud_type::UD_R_XMM9 => XMM9,
+            ud_type::UD_R_XMM10 => XMM10,
+            ud_type::UD_R_XMM11 => XMM11,
+            ud_type::UD_R_XMM12 => XMM12,
+            ud_type::UD_R_XMM13 => XMM13,
+            ud_type::UD_R_XMM14 => XMM14,
+            ud_type::UD_R_XMM15 => XMM15,
+            ud_type::UD_R_YMM0 => YMM0,
+            ud_type::UD_R_YMM1 => YMM1,
+            ud_type::UD_R_YMM2 => YMM2,
+            ud_type::UD_R_YMM3 => YMM3,
+            ud_type::UD_R_YMM4 => YMM4,
+            ud_type::UD_R_YMM5 => YMM5,
+            ud_type::UD_R_YMM6 => YMM6,
+            ud_type::UD_R_YMM7 => YMM7,
+            ud_type::UD_R_YMM8 => YMM8,
+            ud_type::UD_R_YMM9 => YMM9,
+            ud_type::UD_R_YMM10 => YMM10,
+            ud_type::UD_R_YMM11 => YMM11,
+            ud_type::UD_R_YMM12 => YMM12,
+            ud_type::UD_R_YMM13 => YMM13,
+            ud_type::UD_R_YMM14 => YMM14,
+            ud_type::UD_R_YMM15 => YMM15,
+            ud_type::UD_R_RIP => RIP,
+            _ => panic!("Operand type used as register"),
+        }
+    }
+
+    fn to_string(&self) -> String {
+        String::from(match self {
+            Reg::AL => "al",
+            Reg::CL => "cl",
+            Reg::DL => "dl",
+            Reg::BL => "bl",
+            Reg::AH => "ah",
+            Reg::CH => "ch",
+            Reg::DH => "dh",
+            Reg::BH => "bh",
+            Reg::SPL => "spl",
+            Reg::BPL => "bpl",
+            Reg::SIL => "sil",
+            Reg::DIL => "dil",
+            Reg::R8B => "r8b",
+            Reg::R9B => "r9b",
+            Reg::R10B => "r10b",
+            Reg::R11B => "r11b",
+            Reg::R12B => "r12b",
+            Reg::R13B => "r13b",
+            Reg::R14B => "r14b",
+            Reg::R15B => "r15b",
+            Reg::AX => "ax",
+            Reg::CX => "cx",
+            Reg::DX => "dx",
+            Reg::BX => "bx",
+            Reg::SP => "sp",
+            Reg::BP => "bp",
+            Reg::SI => "si",
+            Reg::DI => "di",
+            Reg::R8W => "r8w",
+            Reg::R9W => "r9w",
+            Reg::R10W => "r10w",
+            Reg::R11W => "r11w",
+            Reg::R12W => "r12w",
+            Reg::R13W => "r13w",
+            Reg::R14W => "r14w",
+            Reg::R15W => "r15w",
+            Reg::EAX => "eax",
+            Reg::ECX => "ecx",
+            Reg::EDX => "edx",
+            Reg::EBX => "ebx",
+            Reg::ESP => "esp",
+            Reg::EBP => "ebp",
+            Reg::ESI => "esi",
+            Reg::EDI => "edi",
+            Reg::R8D => "r8d",
+            Reg::R9D => "r9d",
+            Reg::R10D => "r10d",
+            Reg::R11D => "r11d",
+            Reg::R12D => "r12d",
+            Reg::R13D => "r13d",
+            Reg::R14D => "r14d",
+            Reg::R15D => "r15d",
+            Reg::RAX => "rax",
+            Reg::RCX => "rcx",
+            Reg::RDX => "rdx",
+            Reg::RBX => "rbx",
+            Reg::RSP => "rsp",
+            Reg::RBP => "rbp",
+            Reg::RSI => "rsi",
+            Reg::RDI => "rdi",
+            Reg::R8 => "r8",
+            Reg::R9 => "r9",
+            Reg::R10 => "r10",
+            Reg::R11 => "r11",
+            Reg::R12 => "r12",
+            Reg::R13 => "r13",
+            Reg::R14 => "r14",
+            Reg::R15 => "r15",
+            Reg::ES => "es",
+            Reg::CS => "cs",
+            Reg::SS => "ss",
+            Reg::DS => "ds",
+            Reg::FS => "fs",
+            Reg::GS => "gs",
+            Reg::CR0 => "cr0",
+            Reg::CR1 => "cr1",
+            Reg::CR2 => "cr2",
+            Reg::CR3 => "cr3",
+            Reg::CR4 => "cr4",
+            Reg::CR5 => "cr5",
+            Reg::CR6 => "cr6",
+            Reg::CR7 => "cr7",
+            Reg::CR8 => "cr8",
+            Reg::CR9 => "cr9",
+            Reg::CR10 => "cr10",
+            Reg::CR11 => "cr11",
+            Reg::CR12 => "cr12",
+            Reg::CR13 => "cr13",
+            Reg::CR14 => "cr14",
+            Reg::CR15 => "cr15",
+            Reg::DR0 => "dr0",
+            Reg::DR1 => "dr1",
+            Reg::DR2 => "dr2",
+            Reg::DR3 => "dr3",
+            Reg::DR4 => "dr4",
+            Reg::DR5 => "dr5",
+            Reg::DR6 => "dr6",
+            Reg::DR7 => "dr7",
+            Reg::DR8 => "dr8",
+            Reg::DR9 => "dr9",
+            Reg::DR10 => "dr10",
+            Reg::DR11 => "dr11",
+            Reg::DR12 => "dr12",
+            Reg::DR13 => "dr13",
+            Reg::DR14 => "dr14",
+            Reg::DR15 => "dr15",
+            Reg::MM0 => "mm0",
+            Reg::MM1 => "mm1",
+            Reg::MM2 => "mm2",
+            Reg::MM3 => "mm3",
+            Reg::MM4 => "mm4",
+            Reg::MM5 => "mm5",
+            Reg::MM6 => "mm6",
+            Reg::MM7 => "mm7",
+            Reg::ST0 => "st0",
+            Reg::ST1 => "st1",
+            Reg::ST2 => "st2",
+            Reg::ST3 => "st3",
+            Reg::ST4 => "st4",
+            Reg::ST5 => "st5",
+            Reg::ST6 => "st6",
+            Reg::ST7 => "st7",
+            Reg::XMM0 => "xmm0",
+            Reg::XMM1 => "xmm1",
+            Reg::XMM2 => "xmm2",
+            Reg::XMM3 => "xmm3",
+            Reg::XMM4 => "xmm4",
+            Reg::XMM5 => "xmm5",
+            Reg::XMM6 => "xmm6",
+            Reg::XMM7 => "xmm7",
+            Reg::XMM8 => "xmm8",
+            Reg::XMM9 => "xmm9",
+            Reg::XMM10 => "xmm10",
+            Reg::XMM11 => "xmm11",
+            Reg::XMM12 => "xmm12",
+            Reg::XMM13 => "xmm13",
+            Reg::XMM14 => "xmm14",
+            Reg::XMM15 => "xmm15",
+            Reg::YMM0 => "ymm0",
+            Reg::YMM1 => "ymm1",
+            Reg::YMM2 => "ymm2",
+            Reg::YMM3 => "ymm3",
+            Reg::YMM4 => "ymm4",
+            Reg::YMM5 => "ymm5",
+            Reg::YMM6 => "ymm6",
+            Reg::YMM7 => "ymm7",
+            Reg::YMM8 => "ymm8",
+            Reg::YMM9 => "ymm9",
+            Reg::YMM10 => "ymm10",
+            Reg::YMM11 => "ymm11",
+            Reg::YMM12 => "ymm12",
+            Reg::YMM13 => "ymm13",
+            Reg::YMM14 => "ymm14",
+            Reg::YMM15 => "ymm15",
+            Reg::RIP => "rip",
+            _ => panic!("Invalid register")
         })
     }
 }

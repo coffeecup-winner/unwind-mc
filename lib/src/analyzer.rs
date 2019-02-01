@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
 
-use libudis86_sys::{ud_type};
-
 use asm::*;
 use assignment_tracker::*;
 use common::*;
@@ -81,7 +79,7 @@ impl Analyzer {
         let mut calls = vec![];
         for (_, insn) in self.graph.instructions_iter() {
             if insn.code == Mnemonic::Icall
-                && insn.operands[0].type_ == ud_type::UD_OP_JIMM
+                && insn.operands[0].type_ == OperandType::ImmediateJump
             {
                 calls.push(insn.clone());
             }
@@ -188,7 +186,7 @@ impl Analyzer {
             | Mnemonic::Ijrcxz
             | Mnemonic::Ijs
             | Mnemonic::Ijz => {
-                if insn.operands[0].type_ == ud_type::UD_OP_JIMM {
+                if insn.operands[0].type_ == OperandType::ImmediateJump {
                     self.graph
                         .add_link(insn.address, insn.get_target_address(), LinkType::Branch);
                 }
@@ -198,7 +196,7 @@ impl Analyzer {
     }
 
     fn add_switch_cases(&mut self, insn: &Insn) -> () {
-        if insn.code != Mnemonic::Ijmp || insn.operands[0].type_ != ud_type::UD_OP_MEM {
+        if insn.code != Mnemonic::Ijmp || insn.operands[0].type_ != OperandType::Memory {
             return;
         }
 
@@ -228,8 +226,8 @@ impl Analyzer {
             return;
         }
 
-        let mut idx = ud_type::UD_NONE;
-        let mut low_byte_idx = ud_type::UD_NONE;
+        let mut idx = Reg::NONE;
+        let mut low_byte_idx = Reg::NONE;
         let mut indirect_access = 0;
 
         let cases_count_option = {
@@ -240,7 +238,7 @@ impl Analyzer {
                 })).reverse_edges();
             self.graph.dfs_pick(&table.reference, &mut |insn, _| {
                 // find out the jump index register
-                if idx == ud_type::UD_NONE {
+                if idx == Reg::NONE {
                     idx = insn.operands[0].index;
                     low_byte_idx = Analyzer::get_low_byte_register_from_dword(idx);
                     return Pick::Continue;
@@ -258,7 +256,7 @@ impl Analyzer {
 
                 // search for the jump to the default case
                 if insn.code != Mnemonic::Ija
-                    || insn.operands[0].type_ != ud_type::UD_OP_JIMM
+                    || insn.operands[0].type_ != OperandType::ImmediateJump
                 {
                     return Pick::Continue;
                 }
@@ -266,7 +264,7 @@ impl Analyzer {
                 // search for cases count, can find it from code like cmp ecx, 0xb
                 // the jump register is irrelevant since it must be the closest one to ja
                 let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {
-                    i.code == Mnemonic::Icmp && i.operands[0].type_ == ud_type::UD_OP_REG
+                    i.code == Mnemonic::Icmp && i.operands[0].type_ == OperandType::Register
                 });
                 Pick::Return(value.map(|v| unsafe { v.ubyte } + 1))
             })
@@ -320,13 +318,13 @@ impl Analyzer {
         self.graph.redisassemble(table.address + offset);
     }
 
-    fn get_low_byte_register_from_dword(reg: ud_type) -> ud_type {
+    fn get_low_byte_register_from_dword(reg: Reg) -> Reg {
         match reg {
-            ud_type::UD_R_EAX => ud_type::UD_R_AL,
-            ud_type::UD_R_EBX => ud_type::UD_R_BL,
-            ud_type::UD_R_ECX => ud_type::UD_R_CL,
-            ud_type::UD_R_EDX => ud_type::UD_R_DL,
-            _ => ud_type::UD_NONE,
+            Reg::EAX => Reg::AL,
+            Reg::EBX => Reg::BL,
+            Reg::ECX => Reg::CL,
+            Reg::EDX => Reg::DL,
+            _ => Reg::NONE,
         }
     }
 

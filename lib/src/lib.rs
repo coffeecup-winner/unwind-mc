@@ -6,8 +6,6 @@ extern crate goblin;
 extern crate libudis86_sys;
 extern crate serde_json;
 
-pub type TODO = i32;
-
 pub mod analyzer;
 pub mod api;
 pub mod asm;

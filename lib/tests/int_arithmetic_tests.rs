@@ -104,8 +104,8 @@ fn divide() {
     test_decompiler(code, expected);
 }
 
-// #[test]
-// TODO: support multiple-output instructions
+#[ignore = "TODO: support multiple-output instructions"]
+#[test]
 fn modulo() {
     let code = "
         int divide(int a, int b) {
@@ -200,8 +200,8 @@ fn xor() {
     test_decompiler(code, expected);
 }
 
-// #[test]
-// TODO: support word registers
+#[ignore = "TODO: support word registers"]
+#[test]
 fn left_shift() {
     let code = "
         int xor(int a, int b) {
@@ -220,8 +220,8 @@ fn left_shift() {
     test_decompiler(code, expected);
 }
 
-// #[test]
-// TODO: support word registers
+#[ignore = "TODO: support word registers"]
+#[test]
 fn right_shift() {
     let code = "
         int xor(int a, int b) {

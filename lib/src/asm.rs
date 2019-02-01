@@ -4,8 +4,6 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use libudis86_sys::{ud_type};
-
 use common::Graph;
 use udis86::*;
 
@@ -247,7 +245,7 @@ impl InstructionGraph {
                 assembly: data_display_text,
                 operands: vec![],
                 prefix_rex: 0,
-                prefix_segment: ud_type::UD_NONE,
+                prefix_segment: Reg::NONE,
                 prefix_operand_size: false,
                 prefix_address_size: false,
                 prefix_lock: 0,

@@ -5,8 +5,6 @@ extern crate unwindmc;
 
 mod analysis_helper;
 
-use libudis86_sys::ud_type::*;
-
 use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
@@ -15,6 +13,7 @@ use unwindmc::flow_analyzer::*;
 use unwindmc::il::*;
 use unwindmc::il_decompiler;
 use unwindmc::type_resolver::*;
+use unwindmc::udis86::Reg;
 
 #[test]
 fn end_to_end_find_max() {
@@ -95,30 +94,30 @@ fn stage_test_find_max() {
     use unwindmc::il::ILOperand::*;
 
     let expected = vec![
-        Assign(binary(Register(UD_R_ECX), Argument(4))),
-        Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
+        Assign(binary(Register(Reg::ECX), Argument(4))),
+        Assign(binary(Register(Reg::EAX), Value(0x80000000))),
         Branch(branch(
             Equal,
-            Some(binary(Register(UD_R_ECX), Value(0))),
+            Some(binary(Register(Reg::ECX), Value(0))),
             11,
         )),
-        Assign(binary(Register(UD_R_EDX), Argument(0))),
-        Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
-        Assign(binary(Register(UD_R_ESI), Pointer(UD_R_EDX, 0))),
+        Assign(binary(Register(Reg::EDX), Argument(0))),
+        Assign(binary(Register(Reg::EAX), Value(0x80000000))),
+        Assign(binary(Register(Reg::ESI), Pointer(Reg::EDX, 0))),
         Branch(branch(
             GreaterOrEqual,
-            Some(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
+            Some(binary(Register(Reg::EAX), Register(Reg::ESI))),
             8,
         )),
-        Assign(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
-        Binary(Add, binary(Register(UD_R_EDX), Value(4))),
-        Binary(Subtract, binary(Register(UD_R_ECX), Value(1))),
+        Assign(binary(Register(Reg::EAX), Register(Reg::ESI))),
+        Binary(Add, binary(Register(Reg::EDX), Value(4))),
+        Binary(Subtract, binary(Register(Reg::ECX), Value(1))),
         Branch(branch(
             NotEqual,
-            Some(binary(Register(UD_R_ECX), Value(0))),
+            Some(binary(Register(Reg::ECX), Value(0))),
             5,
         )),
-        Return(unary(Register(UD_R_EAX))),
+        Return(unary(Register(Reg::EAX))),
     ];
 
     assert_eq!(il, expected);
@@ -128,54 +127,54 @@ fn stage_test_find_max() {
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
             instructions: vec![
-                Assign(binary(Register(UD_R_ECX), Argument(4))),
-                Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
+                Assign(binary(Register(Reg::ECX), Argument(4))),
+                Assign(binary(Register(Reg::EAX), Value(0x80000000))),
             ],
         }),
         Block::ConditionalBlock(ConditionalBlock {
             condition: invert_condition(vec![Branch(branch(
                 Equal,
-                Some(binary(Register(UD_R_ECX), Value(0))),
+                Some(binary(Register(Reg::ECX), Value(0))),
                 11,
             ))]),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
-                        Assign(binary(Register(UD_R_EDX), Argument(0))),
-                        Assign(binary(Register(UD_R_EAX), Value(0x80000000))),
+                        Assign(binary(Register(Reg::EDX), Argument(0))),
+                        Assign(binary(Register(Reg::EAX), Value(0x80000000))),
                     ],
                 }),
                 Block::DoWhileBlock(DoWhileBlock {
                     condition: vec![Branch(branch(
                         NotEqual,
-                        Some(binary(Register(UD_R_ECX), Value(0))),
+                        Some(binary(Register(Reg::ECX), Value(0))),
                         5,
                     ))],
                     body: vec![
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
-                                Register(UD_R_ESI),
-                                Pointer(UD_R_EDX, 0),
+                                Register(Reg::ESI),
+                                Pointer(Reg::EDX, 0),
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
                             condition: invert_condition(vec![Branch(branch(
                                 GreaterOrEqual,
-                                Some(binary(Register(UD_R_EAX), Register(UD_R_ESI))),
+                                Some(binary(Register(Reg::EAX), Register(Reg::ESI))),
                                 8,
                             ))]),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
-                                    Register(UD_R_EAX),
-                                    Register(UD_R_ESI),
+                                    Register(Reg::EAX),
+                                    Register(Reg::ESI),
                                 ))],
                             })],
                             false_branch: vec![],
                         }),
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![
-                                Binary(Add, binary(Register(UD_R_EDX), Value(4))),
-                                Binary(Subtract, binary(Register(UD_R_ECX), Value(1))),
+                                Binary(Add, binary(Register(Reg::EDX), Value(4))),
+                                Binary(Subtract, binary(Register(Reg::ECX), Value(1))),
                             ],
                         }),
                     ],
@@ -184,7 +183,7 @@ fn stage_test_find_max() {
             false_branch: vec![],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Return(unary(Register(UD_R_EAX)))],
+            instructions: vec![Return(unary(Register(Reg::EAX)))],
         }),
     ];
 
@@ -217,9 +216,9 @@ fn stage_test_find_max() {
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
             instructions: vec![
-                Assign(binary((Register(UD_R_ECX), Some(0)), (Argument(4), None))),
+                Assign(binary((Register(Reg::ECX), Some(0)), (Argument(4), None))),
                 Assign(binary(
-                    (Register(UD_R_EAX), Some(1)),
+                    (Register(Reg::EAX), Some(1)),
                     (Value(0x80000000), None),
                 )),
             ],
@@ -227,15 +226,15 @@ fn stage_test_find_max() {
         Block::ConditionalBlock(ConditionalBlock {
             condition: invert_condition(vec![Branch(branch(
                 Equal,
-                Some(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
+                Some(binary((Register(Reg::ECX), Some(0)), (Value(0), None))),
                 11,
             ))]),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
-                        Assign(binary((Register(UD_R_EDX), Some(2)), (Argument(0), None))),
+                        Assign(binary((Register(Reg::EDX), Some(2)), (Argument(0), None))),
                         Assign(binary(
-                            (Register(UD_R_EAX), Some(1)),
+                            (Register(Reg::EAX), Some(1)),
                             (Value(0x80000000), None),
                         )),
                     ],
@@ -243,29 +242,29 @@ fn stage_test_find_max() {
                 Block::DoWhileBlock(DoWhileBlock {
                     condition: vec![Branch(branch(
                         NotEqual,
-                        Some(binary((Register(UD_R_ECX), Some(0)), (Value(0), None))),
+                        Some(binary((Register(Reg::ECX), Some(0)), (Value(0), None))),
                         5,
                     ))],
                     body: vec![
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
-                                (Register(UD_R_ESI), Some(4)),
-                                (Pointer(UD_R_EDX, 0), Some(2)),
+                                (Register(Reg::ESI), Some(4)),
+                                (Pointer(Reg::EDX, 0), Some(2)),
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
                             condition: invert_condition(vec![Branch(branch(
                                 GreaterOrEqual,
                                 Some(binary(
-                                    (Register(UD_R_EAX), Some(1)),
-                                    (Register(UD_R_ESI), Some(4)),
+                                    (Register(Reg::EAX), Some(1)),
+                                    (Register(Reg::ESI), Some(4)),
                                 )),
                                 8,
                             ))]),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
-                                    (Register(UD_R_EAX), Some(1)),
-                                    (Register(UD_R_ESI), Some(4)),
+                                    (Register(Reg::EAX), Some(1)),
+                                    (Register(Reg::ESI), Some(4)),
                                 ))],
                             })],
                             false_branch: vec![],
@@ -274,11 +273,11 @@ fn stage_test_find_max() {
                             instructions: vec![
                                 Binary(
                                     Add,
-                                    binary((Register(UD_R_EDX), Some(2)), (Value(4), None)),
+                                    binary((Register(Reg::EDX), Some(2)), (Value(4), None)),
                                 ),
                                 Binary(
                                     Subtract,
-                                    binary((Register(UD_R_ECX), Some(0)), (Value(1), None)),
+                                    binary((Register(Reg::ECX), Some(0)), (Value(1), None)),
                                 ),
                             ],
                         }),
@@ -288,7 +287,7 @@ fn stage_test_find_max() {
             false_branch: vec![],
         }),
         Block::SequentialBlock(SequentialBlock {
-            instructions: vec![Return(unary((Register(UD_R_EAX), Some(1))))],
+            instructions: vec![Return(unary((Register(Reg::EAX), Some(1))))],
         }),
     ];
 
