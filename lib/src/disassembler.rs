@@ -1484,7 +1484,7 @@ impl Disassembler {
             if op.size != 8 {
                 assert!(op.size == 32);
             }
-            v = op.lvalue.get_u64();
+            v = op.lvalue.get_i64() as u64;
             if ud.opr_mode < 64 {
                 v = v & ((1 << ud.opr_mode) - 1);
             }

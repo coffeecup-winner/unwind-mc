@@ -20,6 +20,18 @@ fn test_jump_target_address() {
 }
 
 #[test]
+fn test_immediate_syntax_printing() {
+    let analyzer = analysis_helper::analyze(
+        "
+        00000000: 6a ff              push 0xffffffff
+        00000002: c3                 ret",
+    );
+
+    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    assert_eq!(insn.assembly, "push 0xffffffff");
+}
+
+#[test]
 fn test_jump_table_resolving() {
     analysis_helper::analyze(
         "
