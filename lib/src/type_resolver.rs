@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use common::REGISTER_SIZE;
+use disassembler::Reg;
 use flow_analyzer::*;
 use il;
 use il::*;
-use udis86::Reg;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DataType {

@@ -1,4 +1,4 @@
-use udis86::Reg;
+use disassembler::Reg;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ILOperand {

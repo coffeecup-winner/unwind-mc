@@ -15,6 +15,7 @@ pub mod ast_builder;
 pub mod common;
 pub mod cpp_emitter;
 pub mod decompiler;
+pub mod disassembler;
 pub mod flow_analyzer;
 pub mod il;
 pub mod il_decompiler;
@@ -23,7 +24,6 @@ pub mod transformer;
 pub mod transformer_fixup_pointer_arithmetics;
 pub mod transformer_fixup_zero_assignment;
 pub mod type_resolver;
-pub mod udis86;
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use asm::*;
 use assignment_tracker::*;
 use common::*;
-use udis86::*;
+use disassembler::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum FunctionStatus {

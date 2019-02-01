@@ -1,6 +1,6 @@
 use asm::*;
 use common::*;
-use udis86::*;
+use disassembler::*;
 
 pub struct AssignmentTracker;
 impl AssignmentTracker {

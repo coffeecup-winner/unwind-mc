@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use common::Graph;
-use udis86::*;
+use disassembler::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum LinkType {

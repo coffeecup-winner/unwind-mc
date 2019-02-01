@@ -9,11 +9,11 @@ use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
 use unwindmc::decompiler;
+use unwindmc::disassembler::Reg;
 use unwindmc::flow_analyzer::*;
 use unwindmc::il::*;
 use unwindmc::il_decompiler;
 use unwindmc::type_resolver::*;
-use unwindmc::udis86::Reg;
 
 #[test]
 fn end_to_end_functions_array() {

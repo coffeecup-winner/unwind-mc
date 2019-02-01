@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use asm::{InstructionGraph, LinkType};
 use common::*;
+use disassembler::*;
 use il::*;
-use udis86::*;
 
 struct ILDecompiler {
     pub stack_offset: i32,
