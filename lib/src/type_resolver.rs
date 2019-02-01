@@ -41,7 +41,6 @@ pub struct Result {
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum TypeBuilder {
     Fresh,
-    Int32,
     Function,
     Pointer(Rc<RefCell<TypeBuilder>>),
 }
@@ -49,7 +48,7 @@ enum TypeBuilder {
 impl TypeBuilder {
     pub fn build(&self) -> DataType {
         match self {
-            TypeBuilder::Fresh | TypeBuilder::Int32 => DataType::Int32,
+            TypeBuilder::Fresh => DataType::Int32,
             TypeBuilder::Function => DataType::Function,
             TypeBuilder::Pointer(tb) => DataType::Pointer(Box::new(tb.borrow().build())),
         }
