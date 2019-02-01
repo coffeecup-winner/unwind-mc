@@ -35,7 +35,7 @@ impl ToString for Insn {
 impl Insn {
     pub fn get_target_address(&self) -> u64 {
         let target_address = self.address + u64::from(self.length);
-        (target_address as i64 + self.operands[0].lvalue.imm_i64) as u64
+        (target_address as i64 + self.operands[0].imm_i64) as u64
     }
 }
 
@@ -45,12 +45,9 @@ pub struct Operand {
     pub base: Reg,
     pub index: Reg,
     pub scale: u8,
-    pub lvalue: LValue,
     pub oprcode: u8,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct LValue {
+    
+    // values
     pub size: u16,
     pub offset: u8,
     pub abs_u64: u64,
@@ -62,18 +59,24 @@ pub struct LValue {
     pub ptr_off: u32,
 }
 
-impl LValue {
-    pub fn from_ud_lval(size: u16, offset: u8, lvalue: ud_lval) -> LValue {
-        LValue {
-            size: size,
-            offset: offset,
-            abs_u64: unsafe { lvalue.uqword },
-            imm_u64: Self::get_imm_u64(size, lvalue),
-            imm_i64: Self::get_imm_i64(size, lvalue),
-            off_u64: Self::get_off_u64(offset, lvalue),
-            off_i64: Self::get_off_i64(offset, lvalue),
-            ptr_seg: unsafe { lvalue.ptr.seg },
-            ptr_off: unsafe { lvalue.ptr.off },
+impl Operand {
+    pub fn from_ud_operand(operand: ud_operand) -> Operand {
+        Operand {
+            type_: OperandType::from_ud_type(operand.otype),
+            base: Reg::from_ud_type(operand.base),
+            index: Reg::from_ud_type(operand.index),
+            scale: operand.scale,
+            oprcode: operand._oprcode,
+
+            size: operand.size,
+            offset: operand.offset,
+            abs_u64: unsafe { operand.lval.uqword },
+            imm_u64: Self::get_imm_u64(operand.size, operand.lval),
+            imm_i64: Self::get_imm_i64(operand.size, operand.lval),
+            off_u64: Self::get_off_u64(operand.offset, operand.lval),
+            off_i64: Self::get_off_i64(operand.offset, operand.lval),
+            ptr_seg: unsafe { operand.lval.ptr.seg },
+            ptr_off: unsafe { operand.lval.ptr.off },
         }
     }
 
@@ -1268,14 +1271,7 @@ impl Disassembler {
             let mut op = ud_insn_opr(ud, index);
 
             while !op.is_null() {
-                result.push(Operand {
-                    type_: OperandType::from_ud_type((*op).otype),
-                    base: Reg::from_ud_type((*op).base),
-                    index: Reg::from_ud_type((*op).index),
-                    scale: (*op).scale,
-                    lvalue: LValue::from_ud_lval((*op).size, (*op).offset, (*op).lval),
-                    oprcode: (*op)._oprcode,
-                });
+                result.push(Operand::from_ud_operand(*op));
                 index += 1;
                 op = ud_insn_opr(ud, index);
             }
@@ -1318,7 +1314,7 @@ impl Disassembler {
                 if operands.len() <= 1 ||
                     operands[1].type_ == OperandType::Immediate ||
                     operands[1].type_ == OperandType::Const ||
-                    operands[0].lvalue.size != operands[1].lvalue.size {
+                    operands[0].size != operands[1].size {
                     cast = true;
                 } else if operands.len() > 1 &&
                     operands[1].type_ == OperandType::Register &&
@@ -1344,7 +1340,7 @@ impl Disassembler {
             let mut cast = false;
             result += ", ";
             if operands[1].type_ == OperandType::Memory &&
-                operands[1].lvalue.size != operands[0].lvalue.size {
+                operands[1].size != operands[0].size {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[1], cast);
@@ -1354,7 +1350,7 @@ impl Disassembler {
             let mut cast = false;
             result += ", ";
             if operands[2].type_ == OperandType::Memory &&
-                operands[2].lvalue.size != operands[1].lvalue.size {
+                operands[2].size != operands[1].size {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[2], cast);
@@ -1398,7 +1394,7 @@ impl Disassembler {
                         s += &format!("*{}", op.scale);
                     }
                 }
-                if op.lvalue.offset != 0 {
+                if op.offset != 0 {
                     s += &Self::print_mem(op);
                 }
                 s += "]";
@@ -1410,12 +1406,12 @@ impl Disassembler {
                 s += &Self::print_relative_address(ud, op);
             },
             OperandType::Pointer => {
-                match op.lvalue.size {
+                match op.size {
                     32 => {
-                        s += &format!("word 0x{:x}0x{:x}", op.lvalue.ptr_seg, op.lvalue.ptr_off & 0xffff)
+                        s += &format!("word 0x{:x}0x{:x}", op.ptr_seg, op.ptr_off & 0xffff)
                     },
                     48 => {
-                        s += &format!("dword 0x{:x}0x{:x}", op.lvalue.ptr_seg, op.lvalue.ptr_off)
+                        s += &format!("dword 0x{:x}0x{:x}", op.ptr_seg, op.ptr_off)
                     },
                     _ => {}
                 }
@@ -1424,7 +1420,7 @@ impl Disassembler {
                 if cast {
                     s += &Self::print_cast(ud, op);
                 }
-                s += &format!("{}", op.lvalue.abs_u64)
+                s += &format!("{}", op.abs_u64)
             },
         }
 
@@ -1437,7 +1433,7 @@ impl Disassembler {
         if ud.br_far != 0 {
             s += "far ";
         }
-        match op.lvalue.size {
+        match op.size {
             8 => { s += "byte "; },
             16 => { s += "word "; },
             32 => { s += "dword "; },
@@ -1452,13 +1448,13 @@ impl Disassembler {
     }
 
     fn print_mem(op: &Operand) -> String {
-        assert!(op.lvalue.offset != 0);
+        assert!(op.offset != 0);
         if op.base == Reg::NONE && op.index == Reg::NONE {
-            assert!(op.scale == 0 && op.lvalue.offset != 8);
-            format!("0x{:x}", op.lvalue.off_u64)
+            assert!(op.scale == 0 && op.offset != 8);
+            format!("0x{:x}", op.off_u64)
         } else {
-            assert!(op.lvalue.offset != 64);
-            let v = op.lvalue.off_i64;
+            assert!(op.offset != 64);
+            let v = op.off_i64;
             if v < 0 {
                 format!("-0x{0:x}", -v)
             } else {
@@ -1469,23 +1465,23 @@ impl Disassembler {
 
     fn print_relative_address(ud: &ud, op: &Operand) -> String {
         let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
-        let offset = op.lvalue.imm_i64 as u64;
+        let offset = op.imm_i64 as u64;
         let address = ud.pc.wrapping_add(offset) & trunc_mask;
         format!("0x{:x}", address)
     }
 
     fn print_immediate(ud: &ud, op: &Operand) -> String {
         let mut v: u64;
-        if op.oprcode == 46 /* OP_sI */ && op.lvalue.size != ud.opr_mode as u16 {
-            if op.lvalue.size != 8 {
-                assert!(op.lvalue.size == 32);
+        if op.oprcode == 46 /* OP_sI */ && op.size != ud.opr_mode as u16 {
+            if op.size != 8 {
+                assert!(op.size == 32);
             }
-            v = op.lvalue.imm_i64 as u64;
+            v = op.imm_i64 as u64;
             if ud.opr_mode < 64 {
-                v = v & ((1 << ud.opr_mode) - 1);
+                v = v & (0xffffffffffffffff >> (64 - ud.opr_mode));
             }
         } else {
-            v = op.lvalue.imm_u64;
+            v = op.imm_u64;
         }
         format!("0x{:x}", v)
     }

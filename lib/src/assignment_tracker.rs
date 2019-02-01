@@ -10,7 +10,7 @@ impl AssignmentTracker {
         address: u64,
         register: Reg,
         try_match: &mut FnMut(&Insn, Reg) -> bool,
-    ) -> Option<LValue> {
+    ) -> Option<Operand> {
         let mut skipped_initial_instruction = false;
         let mut stack = vec![address];
         while !stack.is_empty() {
@@ -47,7 +47,7 @@ impl AssignmentTracker {
                 }
 
                 if insn.operands[1].type_ == OperandType::Immediate {
-                    return Some(insn.operands[1].lvalue);
+                    return Some(insn.operands[1]);
                 }
 
                 // TODO: logger.Warn("Cannot track assignments from 0x{0:x8} operand type {1}", instr.Offset, instr.Operands.[1].Type)

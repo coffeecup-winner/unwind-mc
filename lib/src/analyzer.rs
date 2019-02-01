@@ -200,7 +200,7 @@ impl Analyzer {
             return;
         }
 
-        let address = insn.operands[0].lvalue.abs_u64;
+        let address = insn.operands[0].abs_u64;
         if !self.jump_tables.contains_key(&address) {
             let mut table = JumpTable::new(insn.address, address);
             self.resolve_jump_table(&mut table);
@@ -249,7 +249,7 @@ impl Analyzer {
                     && insn.operands[0].base == low_byte_idx
                 {
                     idx = insn.operands[1].base;
-                    indirect_access = insn.operands[1].lvalue.abs_u64;
+                    indirect_access = insn.operands[1].abs_u64;
                     return Pick::Continue;
                 }
 
