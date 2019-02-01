@@ -1,4 +1,4 @@
-use libudis86_sys::{ud_lval, ud_mnemonic_code, ud_type};
+use libudis86_sys::{ud_lval, ud_type};
 
 use asm::*;
 use common::*;
@@ -41,7 +41,7 @@ impl AssignmentTracker {
                         insn.address,
                         insn.operands[1].base,
                         &mut |i, reg| {
-                            i.code == ud_mnemonic_code::UD_Imov
+                            i.code == Mnemonic::Imov
                                 && i.operands[0].type_ == ud_type::UD_OP_REG
                                 && i.operands[0].base == reg
                         },
@@ -61,7 +61,7 @@ impl AssignmentTracker {
                 return None;
             }
 
-            if let ud_mnemonic_code::UD_Imov = insn.code {
+            if let Mnemonic::Imov = insn.code {
                 if insn.operands[0].type_ == ud_type::UD_OP_REG
                     && insn.operands[1].type_ == ud_type::UD_OP_REG
                     && insn.operands[0].base == register

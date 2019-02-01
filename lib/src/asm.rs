@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use libudis86_sys::{ud_mnemonic_code, ud_type};
+use libudis86_sys::{ud_type};
 
 use common::Graph;
 use udis86::*;
@@ -241,7 +241,7 @@ impl InstructionGraph {
             address,
             Insn {
                 address,
-                code: ud_mnemonic_code::UD_Inone,
+                code: Mnemonic::Inone,
                 length,
                 hex,
                 assembly: data_display_text,

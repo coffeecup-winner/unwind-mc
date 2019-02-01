@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use libudis86_sys::{ud_mnemonic_code, ud_type};
+use libudis86_sys::{ud_type};
 
 use asm::*;
 use assignment_tracker::*;
@@ -80,7 +80,7 @@ impl Analyzer {
     fn add_explicit_calls(&mut self) -> () {
         let mut calls = vec![];
         for (_, insn) in self.graph.instructions_iter() {
-            if insn.code == ud_mnemonic_code::UD_Icall
+            if insn.code == Mnemonic::Icall
                 && insn.operands[0].type_ == ud_type::UD_OP_JIMM
             {
                 calls.push(insn.clone());
@@ -118,7 +118,7 @@ impl Analyzer {
                 let address = stack.pop().unwrap();
                 self.graph.get_extra_data(address).function_address = func.address;
                 let insn = self.graph.get_vertex(&address).clone();
-                if insn.code == ud_mnemonic_code::UD_Iret {
+                if insn.code == Mnemonic::Iret {
                     continue;
                 }
 
@@ -154,7 +154,7 @@ impl Analyzer {
 
     fn add_next_links(&mut self, insn: &Insn) -> () {
         match insn.code {
-            ud_mnemonic_code::UD_Iret | ud_mnemonic_code::UD_Ijmp | ud_mnemonic_code::UD_Iint3 => {
+            Mnemonic::Iret | Mnemonic::Ijmp | Mnemonic::Iint3 => {
                 ()
             }
             _ => {
@@ -168,26 +168,26 @@ impl Analyzer {
 
     fn add_explicit_branches(&mut self, insn: &Insn) -> () {
         match insn.code {
-            ud_mnemonic_code::UD_Ija
-            | ud_mnemonic_code::UD_Ijae
-            | ud_mnemonic_code::UD_Ijb
-            | ud_mnemonic_code::UD_Ijbe
-            | ud_mnemonic_code::UD_Ijcxz
-            | ud_mnemonic_code::UD_Ijecxz
-            | ud_mnemonic_code::UD_Ijg
-            | ud_mnemonic_code::UD_Ijge
-            | ud_mnemonic_code::UD_Ijl
-            | ud_mnemonic_code::UD_Ijle
-            | ud_mnemonic_code::UD_Ijmp
-            | ud_mnemonic_code::UD_Ijno
-            | ud_mnemonic_code::UD_Ijnp
-            | ud_mnemonic_code::UD_Ijns
-            | ud_mnemonic_code::UD_Ijnz
-            | ud_mnemonic_code::UD_Ijo
-            | ud_mnemonic_code::UD_Ijp
-            | ud_mnemonic_code::UD_Ijrcxz
-            | ud_mnemonic_code::UD_Ijs
-            | ud_mnemonic_code::UD_Ijz => {
+            Mnemonic::Ija
+            | Mnemonic::Ijae
+            | Mnemonic::Ijb
+            | Mnemonic::Ijbe
+            | Mnemonic::Ijcxz
+            | Mnemonic::Ijecxz
+            | Mnemonic::Ijg
+            | Mnemonic::Ijge
+            | Mnemonic::Ijl
+            | Mnemonic::Ijle
+            | Mnemonic::Ijmp
+            | Mnemonic::Ijno
+            | Mnemonic::Ijnp
+            | Mnemonic::Ijns
+            | Mnemonic::Ijnz
+            | Mnemonic::Ijo
+            | Mnemonic::Ijp
+            | Mnemonic::Ijrcxz
+            | Mnemonic::Ijs
+            | Mnemonic::Ijz => {
                 if insn.operands[0].type_ == ud_type::UD_OP_JIMM {
                     self.graph
                         .add_link(insn.address, insn.get_target_address(), LinkType::Branch);
@@ -198,7 +198,7 @@ impl Analyzer {
     }
 
     fn add_switch_cases(&mut self, insn: &Insn) -> () {
-        if insn.code != ud_mnemonic_code::UD_Ijmp || insn.operands[0].type_ != ud_type::UD_OP_MEM {
+        if insn.code != Mnemonic::Ijmp || insn.operands[0].type_ != ud_type::UD_OP_MEM {
             return;
         }
 
@@ -248,7 +248,7 @@ impl Analyzer {
 
                 // update the main jump register if the jump is indirect
                 if indirect_access == 0
-                    && insn.code == ud_mnemonic_code::UD_Imov
+                    && insn.code == Mnemonic::Imov
                     && insn.operands[0].base == low_byte_idx
                 {
                     idx = insn.operands[1].base;
@@ -257,7 +257,7 @@ impl Analyzer {
                 }
 
                 // search for the jump to the default case
-                if insn.code != ud_mnemonic_code::UD_Ija
+                if insn.code != Mnemonic::Ija
                     || insn.operands[0].type_ != ud_type::UD_OP_JIMM
                 {
                     return Pick::Continue;
@@ -266,7 +266,7 @@ impl Analyzer {
                 // search for cases count, can find it from code like cmp ecx, 0xb
                 // the jump register is irrelevant since it must be the closest one to ja
                 let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {
-                    i.code == ud_mnemonic_code::UD_Icmp && i.operands[0].type_ == ud_type::UD_OP_REG
+                    i.code == Mnemonic::Icmp && i.operands[0].type_ == ud_type::UD_OP_REG
                 });
                 Pick::Return(value.map(|v| unsafe { v.ubyte } + 1))
             })
