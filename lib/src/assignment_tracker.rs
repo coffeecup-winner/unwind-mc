@@ -1,5 +1,3 @@
-use libudis86_sys::{ud_lval};
-
 use asm::*;
 use common::*;
 use udis86::*;
@@ -12,7 +10,7 @@ impl AssignmentTracker {
         address: u64,
         register: Reg,
         try_match: &mut FnMut(&Insn, Reg) -> bool,
-    ) -> Option<ud_lval> {
+    ) -> Option<LValue> {
         let mut skipped_initial_instruction = false;
         let mut stack = vec![address];
         while !stack.is_empty() {

@@ -201,7 +201,7 @@ impl Analyzer {
         }
 
         // TODO: move unsafe into udis86 module
-        let address = u64::from(unsafe { insn.operands[0].lvalue.udword });
+        let address = insn.operands[0].lvalue._get_u64();
         if !self.jump_tables.contains_key(&address) {
             let mut table = JumpTable::new(insn.address, address);
             self.resolve_jump_table(&mut table);
@@ -250,7 +250,7 @@ impl Analyzer {
                     && insn.operands[0].base == low_byte_idx
                 {
                     idx = insn.operands[1].base;
-                    indirect_access = u64::from(unsafe { insn.operands[1].lvalue.udword });
+                    indirect_access = insn.operands[1].lvalue._get_u64();
                     return Pick::Continue;
                 }
 
@@ -266,7 +266,7 @@ impl Analyzer {
                 let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {
                     i.code == Mnemonic::Icmp && i.operands[0].type_ == OperandType::Register
                 });
-                Pick::Return(value.map(|v| unsafe { v.ubyte } + 1))
+                Pick::Return(value.map(|v| (v._get_u64() as u8) + 1))
             })
         };
         // TODO: remove the need for restoring the graph state
