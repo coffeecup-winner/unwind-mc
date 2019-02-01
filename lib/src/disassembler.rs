@@ -1473,7 +1473,7 @@ impl Disassembler {
 
     fn print_relative_address(ud: &ud, op: &Operand) -> String {
         let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
-        let offset = op.lvalue.get_u64();
+        let offset = op.lvalue.get_i64() as u64;
         let address = ud.pc.wrapping_add(offset) & trunc_mask;
         format!("0x{:x}", address)
     }

@@ -7,6 +7,19 @@ extern crate unwindmc;
 mod analysis_helper;
 
 #[test]
+fn test_jump_target_address() {
+    let analyzer = analysis_helper::analyze(
+        "
+        00000021: 75 f7              jnz 0x1a
+        00000023: c3                 ret",
+    );
+
+    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    assert_eq!(insn.get_target_address(), 0x1a);
+    assert_eq!(insn.assembly, "jnz 0x1a");
+}
+
+#[test]
 fn test_jump_table_resolving() {
     analysis_helper::analyze(
         "
