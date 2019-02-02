@@ -79,7 +79,7 @@ impl Analyzer {
         let mut calls = vec![];
         for (_, insn) in self.graph.instructions_iter() {
             if insn.code == Mnemonic::Icall
-                && insn.operands[0].is_jimm()
+                && insn.operands[0].is_reladdr()
             {
                 calls.push(insn.clone());
             }
@@ -186,7 +186,7 @@ impl Analyzer {
             | Mnemonic::Ijrcxz
             | Mnemonic::Ijs
             | Mnemonic::Ijz => {
-                if insn.operands[0].is_jimm() {
+                if insn.operands[0].is_reladdr() {
                     self.graph
                         .add_link(insn.address, insn.get_target_address(), LinkType::Branch);
                 }
@@ -263,7 +263,7 @@ impl Analyzer {
                         return Pick::Continue;
                     }
                     // search for the jump to the default case
-                    Operand::ImmediateJump(_) if insn.code == Mnemonic::Ija => {
+                    Operand::RelativeAddress(_) if insn.code == Mnemonic::Ija => {
                         // search for cases count, can find it from code like cmp ecx, 0xb
                         // the jump register is irrelevant since it must be the closest one to ja
                         let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {

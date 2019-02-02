@@ -35,7 +35,7 @@ impl ToString for Insn {
 impl Insn {
     pub fn get_target_address(&self) -> u64 {
         let target_address = self.address + u64::from(self.length);
-        if let Operand::ImmediateJump(v) = self.operands[0] {
+        if let Operand::RelativeAddress(v) = self.operands[0] {
             (target_address as i64 + v) as u64
         } else {
             unreachable!()
@@ -51,7 +51,7 @@ pub enum Operand {
     Pointer(u16, u16, u32),
     ImmediateUnsigned(u16, u64),
     ImmediateSigned(u16, i64),
-    ImmediateJump(i64),
+    RelativeAddress(i64),
     Const(u16, u64),
 }
 
@@ -93,7 +93,7 @@ impl Operand {
                         Self::get_imm_u64(operand.size, operand.lval))
                 }
             },
-            ud_type::UD_OP_JIMM => ImmediateJump(
+            ud_type::UD_OP_JIMM => RelativeAddress(
                 Self::get_imm_i64(operand.size, operand.lval)),
             ud_type::UD_OP_CONST => Const(operand.size, unsafe { operand.lval.uqword }),
             _ => panic!("Register used as operand type"),
@@ -116,9 +116,9 @@ impl Operand {
         }
     }
 
-    pub fn is_jimm(&self) -> bool {
+    pub fn is_reladdr(&self) -> bool {
         match self {
-            Operand::ImmediateJump(_) => true,
+            Operand::RelativeAddress(_) => true,
             _ => false,
         }
     }
@@ -138,7 +138,7 @@ impl Operand {
             &Operand::Pointer(s, _, _) => s,
             &Operand::ImmediateUnsigned(s, _) => s,
             &Operand::ImmediateSigned(s, _) => s,
-            Operand::ImmediateJump(_) => unreachable!(),
+            Operand::RelativeAddress(_) => unreachable!(),
             &Operand::Const(s, _) => s,
         }
     }
@@ -1475,7 +1475,7 @@ impl Disassembler {
             Operand::ImmediateUnsigned(_, v) => {
                 s += &format!("0x{:x}", v);
             },
-            Operand::ImmediateJump(v) => {
+            Operand::RelativeAddress(v) => {
                 let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
                 let address = ud.pc.wrapping_add(*v as u64) & trunc_mask;
                 s += &format!("0x{:x}", address);
