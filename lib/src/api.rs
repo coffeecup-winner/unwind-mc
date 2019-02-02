@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
+use bincode::{serialize, deserialize};
 use goblin::Object;
 use serde_json as json;
 use serde_json::json;
@@ -90,6 +91,53 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         }
         None => INVALID_HANDLE
     }
+}
+
+#[no_mangle]
+pub extern "C" fn open_db(path: *const c_char) -> u32 {
+    // TODO: Move out parts of this function
+    let path = match to_str(path).map(|p| PathBuf::from(p)) {
+        Some(p) => p,
+        None => return INVALID_HANDLE,
+    };
+    let mut file = match File::open(&path) {
+        Ok(f) => f,
+        Err(_) => return INVALID_HANDLE,
+    };
+    let mut buf = vec![];
+    file.read_to_end(&mut buf).expect("Failed to read file");
+    let analyzer = deserialize(&buf[..]);
+    
+    return match analyzer {
+        Ok(analyzer) => {
+            let handle = NEXT_HANDLE.with(|next_cell| {
+                let handle = *next_cell;
+                OPEN_HANDLES.with(|handles_cell|
+                    handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+                );
+                handle
+            });
+            handle
+        }
+        _ => INVALID_HANDLE
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn save_db(handle: u32, path: *const c_char) {
+    // TODO: Move out parts of this function
+    let path = match to_str(path).map(|p| PathBuf::from(p)) {
+        Some(p) => p,
+        None => return (),
+    };
+    let mut file = File::create(&path).expect("Failed to open file for writing");
+    OPEN_HANDLES.with(|handles_cell| {
+        let handles = handles_cell.borrow();
+        let analyzer = &handles.as_ref().unwrap()[&handle];
+
+        let buf = serialize(analyzer).expect("Failed to serialize the analyzer");
+        file.write_all(&buf[..]).expect("Failed to write file");
+    });
 }
 
 #[no_mangle]

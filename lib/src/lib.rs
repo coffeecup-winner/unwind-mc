@@ -1,9 +1,13 @@
 #![feature(box_patterns)]
 #![feature(nll)]
 #![feature(slice_patterns)]
+extern crate bincode;
 extern crate either;
 extern crate goblin;
 extern crate libudis86_sys;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 
 pub mod analyzer;

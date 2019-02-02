@@ -3,11 +3,14 @@ use std::mem;
 
 use libudis86_sys::*;
 
+#[derive(Serialize, Deserialize)]
+#[serde(default = "Disassembler::new")]
 pub struct Disassembler {
+    #[serde(skip)]
     ud: ud,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Insn {
     pub address: u64,
     pub code: Mnemonic,
@@ -43,7 +46,7 @@ impl Insn {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
 pub enum Operand {
     Register(u16, Reg),
     MemoryAbsolute(u16, u64),
@@ -194,7 +197,7 @@ impl Operand {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Reg {
     NONE,
     AL,
@@ -354,7 +357,7 @@ pub enum Reg {
     RIP,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Copy, Clone)]
 pub enum Mnemonic {
     Iaaa,
     Iaad,
@@ -1267,7 +1270,7 @@ pub enum Mnemonic {
 }
 
 impl Disassembler {
-    pub fn new(pc: u64) -> Self {
+    pub fn new() -> Self {
         unsafe {
             let mut ud: ud = mem::uninitialized();
             ud_init(&mut ud);
@@ -1275,20 +1278,14 @@ impl Disassembler {
             // Syntax generation in udis86 is bugged (incorrect vsnprintf calls)
             // Intel syntax translation is done manually below
             ud_set_syntax(&mut ud, None);
-            ud_set_pc(&mut ud, pc);
             Disassembler { ud }
         }
     }
 
-    pub fn set_pc(&mut self, pc: u64) -> () {
-        unsafe {
-            ud_set_pc(&mut self.ud, pc);
-        }
-    }
-
-    pub fn disassemble(&mut self, bytes: &[u8], offset: usize, length: usize) -> Vec<Insn> {
+    pub fn disassemble(&mut self, bytes: &[u8], pc: u64, offset: usize, length: usize) -> Vec<Insn> {
         let mut result = vec![];
         unsafe {
+            ud_set_pc(&mut self.ud, pc);
             ud_set_input_buffer(&mut self.ud, bytes.as_ptr().add(offset), length);
             while ud_disassemble(&mut self.ud) != 0 {
                 let hex_cstr = CStr::from_ptr(ud_insn_hex(&mut self.ud));

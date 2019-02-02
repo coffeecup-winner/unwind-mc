@@ -5,6 +5,8 @@ const _unwindmc = ffi.Library('libunwindmc', {
     version: ['string', []],
     init: ['bool', []],
     open_binary_file: ['int', ['string']],
+    open_db: ['int', ['string']],
+    save_db: ['void', ['int', 'string']],
     print_instructions: ['void', ['int', 'string', 'int']],
 })
 
@@ -27,6 +29,14 @@ export default {
 
     openBinaryFile(file: string): number {
         return _unwindmc.open_binary_file(file)
+    },
+
+    openDB(file: string): number {
+        return _unwindmc.open_db(file)
+    },
+
+    saveDB(handle: number, file: string) {
+        _unwindmc.save_db(handle, file)
     },
 
     getInstructions(handle: number): Instruction[] {

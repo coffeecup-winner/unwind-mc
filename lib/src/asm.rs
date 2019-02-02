@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use common::Graph;
 use disassembler::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum LinkType {
     Next,
     Branch,
@@ -15,20 +15,21 @@ pub enum LinkType {
     SwitchCaseJump,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Link {
     pub address: u64,
     pub target_address: u64,
     pub type_: LinkType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ExtraData {
     pub function_address: u64,
     pub import_name: String,
     pub is_protected: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct InstructionGraph {
     disassembler: Disassembler,
     bytes: Vec<u8>,
@@ -39,13 +40,18 @@ pub struct InstructionGraph {
     instruction_links: HashMap<u64, Vec<Link>>,
     reverse_links: HashMap<u64, Vec<Link>>,
     is_reversed: bool,
+    #[serde(skip, default = "empty_edge_predicate")]
     edge_predicate: Box<Fn(&Link) -> bool>,
 }
 
-pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> {
-    let mut disassembler = Disassembler::new(pc);
+fn empty_edge_predicate() -> Box<Fn(&Link) -> bool> {
+    Box::new(|_e| true)
+}
 
-    let instructions = disassembler.disassemble(&bytes[..], 0, bytes.len());
+pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> {
+    let mut disassembler = Disassembler::new();
+
+    let instructions = disassembler.disassemble(&bytes[..], pc, 0, bytes.len());
     let mut instruction_map = BTreeMap::new();
 
     for instr in instructions.into_iter() {
@@ -63,7 +69,7 @@ pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> 
         instruction_links: HashMap::new(),
         reverse_links: HashMap::new(),
         is_reversed: false,
-        edge_predicate: Box::new(|_e| true),
+        edge_predicate: empty_edge_predicate(),
     };
 
     Ok(graph)
@@ -266,9 +272,9 @@ impl InstructionGraph {
         }
         // if there are bytes left from the last removed instruction, re-disassemble them
         if size != length {
-            self.disassembler.set_pc(address + u64::from(length));
             let new_instructions = self.disassembler.disassemble(
                 &self.bytes[..],
+                address + u64::from(length),
                 self.to_byte_array_index(address) + (length as usize),
                 (size - length) as usize,
             );
@@ -286,9 +292,9 @@ impl InstructionGraph {
         let old_insn = &self.instructions[&insn_address].clone();
         // Split the old instruction and re-disassemble its first part
         let extra_length = (address - insn_address) as usize;
-        self.disassembler.set_pc(insn_address);
         let new_instructions = self.disassembler.disassemble(
             &self.bytes[..],
+            insn_address,
             self.to_byte_array_index(insn_address),
             extra_length,
         );
@@ -312,7 +318,6 @@ impl InstructionGraph {
         if !self.instructions.contains_key(&address) {
             self.split_instruction_at(address);
         }
-        self.disassembler.set_pc(address);
         let max_disasm_length = 0x100;
         let mut disasm_length =
             std::cmp::min(max_disasm_length, self.first_address_after_code - address);
@@ -324,6 +329,7 @@ impl InstructionGraph {
             }).unwrap_or(disasm_length);
         let mut new_instructions = self.disassembler.disassemble(
             &self.bytes[..],
+            address,
             self.to_byte_array_index(address),
             disasm_length as usize,
         );

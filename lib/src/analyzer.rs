@@ -5,7 +5,7 @@ use assignment_tracker::*;
 use common::*;
 use disassembler::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum FunctionStatus {
     Created,
     BoundsResolved,
@@ -13,13 +13,13 @@ pub enum FunctionStatus {
     BoundsNotResolvedIncompleteGraph,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Function {
     address: u64,
     status: FunctionStatus,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct JumpTable {
     reference: u64,
     address: u64,
@@ -38,6 +38,7 @@ impl JumpTable {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Analyzer {
     graph: InstructionGraph,
     // import_resolver: ...,
