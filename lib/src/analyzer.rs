@@ -79,7 +79,7 @@ impl Analyzer {
         let mut calls = vec![];
         for (_, insn) in self.graph.instructions_iter() {
             if insn.code == Mnemonic::Icall
-                && insn.operands[0].type_ == OperandType::ImmediateJump
+                && insn.operands[0].is_jimm()
             {
                 calls.push(insn.clone());
             }
@@ -186,7 +186,7 @@ impl Analyzer {
             | Mnemonic::Ijrcxz
             | Mnemonic::Ijs
             | Mnemonic::Ijz => {
-                if insn.operands[0].type_ == OperandType::ImmediateJump {
+                if insn.operands[0].is_jimm() {
                     self.graph
                         .add_link(insn.address, insn.get_target_address(), LinkType::Branch);
                 }
@@ -196,26 +196,27 @@ impl Analyzer {
     }
 
     fn add_switch_cases(&mut self, insn: &Insn) -> () {
-        if insn.code != Mnemonic::Ijmp || insn.operands[0].type_ != OperandType::Memory {
+        if insn.code != Mnemonic::Ijmp {
             return;
         }
-
-        let address = insn.operands[0].abs_u64;
-        if !self.jump_tables.contains_key(&address) {
-            let mut table = JumpTable::new(insn.address, address);
-            self.resolve_jump_table(&mut table);
-            self.jump_tables.insert(address, table);
-        }
-        let table = self.jump_tables[&address];
-        for i in table.first_index..table.count {
-            self.graph.add_link(
-                table.reference,
-                u64::from(
-                    self.graph
-                        .read_u32(table.address + u64::from(i * REGISTER_SIZE)),
-                ),
-                LinkType::SwitchCaseJump,
-            );
+        if let Operand::MemoryRelative(_, _, _, _, _, v) = insn.operands[0] {
+            let address = v as u64;
+            if !self.jump_tables.contains_key(&address) {
+                let mut table = JumpTable::new(insn.address, address);
+                self.resolve_jump_table(&mut table);
+                self.jump_tables.insert(address, table);
+            }
+            let table = self.jump_tables[&address];
+            for i in table.first_index..table.count {
+                self.graph.add_link(
+                    table.reference,
+                    u64::from(
+                        self.graph
+                            .read_u32(table.address + u64::from(i * REGISTER_SIZE)),
+                    ),
+                    LinkType::SwitchCaseJump,
+                );
+            }
         }
     }
 
@@ -236,36 +237,45 @@ impl Analyzer {
                     _ => false,
                 })).reverse_edges();
             self.graph.dfs_pick(&table.reference, &mut |insn, _| {
-                // find out the jump index register
-                if idx == Reg::NONE {
-                    idx = insn.operands[0].index;
-                    low_byte_idx = Analyzer::get_low_byte_register_from_dword(idx);
-                    return Pick::Continue;
-                }
+                match insn.operands[0] {
+                    Operand::MemoryRelative(_, _, base, index, _, _) => {
+                        // find out the jump index register
+                        if idx == Reg::NONE {
+                            idx = index;
+                            low_byte_idx = Analyzer::get_low_byte_register_from_dword(idx);
+                            return Pick::Continue;
+                        }
 
-                // update the main jump register if the jump is indirect
-                if indirect_access == 0
-                    && insn.code == Mnemonic::Imov
-                    && insn.operands[0].base == low_byte_idx
-                {
-                    idx = insn.operands[1].base;
-                    indirect_access = insn.operands[1].abs_u64;
-                    return Pick::Continue;
-                }
+                        // update the main jump register if the jump is indirect
+                        if indirect_access == 0
+                            && insn.code == Mnemonic::Imov
+                            && base == low_byte_idx
+                        {
+                            if let Operand::MemoryRelative(_, _, base, _, _, v) = insn.operands[1] {
+                                idx = base;
+                                indirect_access = v as u64;
+                            } else {
+                                panic!("This place should never be reached");
+                            }
+                            return Pick::Continue;
+                        }
 
-                // search for the jump to the default case
-                if insn.code != Mnemonic::Ija
-                    || insn.operands[0].type_ != OperandType::ImmediateJump
-                {
-                    return Pick::Continue;
+                        return Pick::Continue;
+                    }
+                    // search for the jump to the default case
+                    Operand::ImmediateJump(_) if insn.code == Mnemonic::Ija => {
+                        // search for cases count, can find it from code like cmp ecx, 0xb
+                        // the jump register is irrelevant since it must be the closest one to ja
+                        let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {
+                            if let Operand::Register(_, _) = i.operands[0] {
+                                return i.code == Mnemonic::Icmp;
+                            }
+                            return false;
+                        });
+                        return Pick::Return(value.map(|v| (v as u8) + 1));
+                    }
+                    _ => Pick::Continue,
                 }
-
-                // search for cases count, can find it from code like cmp ecx, 0xb
-                // the jump register is irrelevant since it must be the closest one to ja
-                let value = AssignmentTracker::find(&self.graph, insn.address, idx, &mut |i, _| {
-                    i.code == Mnemonic::Icmp && i.operands[0].type_ == OperandType::Register
-                });
-                Pick::Return(value.map(|v| (v.abs_u64 as u8) + 1))
             })
         };
         // TODO: remove the need for restoring the graph state

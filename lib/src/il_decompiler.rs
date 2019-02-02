@@ -287,30 +287,32 @@ impl ILDecompiler {
 
     fn convert_operand(&self, operand: &Operand) -> ILOperand {
         use il::ILOperand::*;
-        match operand.type_ {
-            OperandType::Register => Register(operand.base),
-            OperandType::Memory => {
-                if operand.base == Reg::ESP {
-                    let offset = self.stack_offset + operand.off_i64 as i32;
+        match operand {
+            &Operand::Register(_, r) => Register(r),
+            &Operand::MemoryRelative(_, _, base, index, _, offset) => {
+                if base == Reg::ESP {
+                    let offset = self.stack_offset + offset as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
-                } else if operand.base == Reg::EBP {
-                    let offset = self.frame_pointer_offset + operand.off_i64 as i32;
+                } else if base == Reg::EBP {
+                    let offset = self.frame_pointer_offset + offset as i32;
                     if offset >= 0 {
                         Argument(offset)
                     } else {
                         Local(offset)
                     }
-                } else if operand.index == Reg::NONE {
-                    Pointer(operand.base, operand.off_i64 as i32)
+                } else if index == Reg::NONE {
+                    Pointer(base, offset as i32)
                 } else {
                     panic!("Not supported")
                 }
             }
-            OperandType::Const | OperandType::Immediate => Value(operand.imm_i64 as i32),
+            &Operand::ImmediateSigned(_, v) => Value(v as i32),
+            &Operand::ImmediateUnsigned(_, v) => Value(v as i32),
+            &Operand::Const(_, v) => Value(v as i32),
             _ => panic!("Not supported"),
         }
     }

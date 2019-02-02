@@ -35,48 +35,111 @@ impl ToString for Insn {
 impl Insn {
     pub fn get_target_address(&self) -> u64 {
         let target_address = self.address + u64::from(self.length);
-        (target_address as i64 + self.operands[0].imm_i64) as u64
+        if let Operand::ImmediateJump(v) = self.operands[0] {
+            (target_address as i64 + v) as u64
+        } else {
+            unreachable!()
+        }
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct Operand {
-    pub type_: OperandType,
-    pub base: Reg,
-    pub index: Reg,
-    pub scale: u8,
-    pub oprcode: u8,
-    
-    // values
-    pub size: u16,
-    pub offset: u8,
-    pub abs_u64: u64,
-    pub imm_u64: u64,
-    pub imm_i64: i64,
-    pub off_u64: u64,
-    pub off_i64: i64,
-    pub ptr_seg: u16,
-    pub ptr_off: u32,
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum Operand {
+    Register(u16, Reg),
+    MemoryAbsolute(u16, u64),
+    MemoryRelative(u16, u8, Reg, Reg, u8, i64),
+    Pointer(u16, u16, u32),
+    ImmediateUnsigned(u16, u64),
+    ImmediateSigned(u16, i64),
+    ImmediateJump(i64),
+    Const(u16, u64),
 }
 
 impl Operand {
-    pub fn from_ud_operand(operand: ud_operand) -> Operand {
-        Operand {
-            type_: OperandType::from_ud_type(operand.otype),
-            base: Reg::from_ud_type(operand.base),
-            index: Reg::from_ud_type(operand.index),
-            scale: operand.scale,
-            oprcode: operand._oprcode,
+    pub fn from_ud_operand(mode: u16, operand: ud_operand) -> Operand {
+        use self::Operand::*;
+        match operand.otype {
+            ud_type::UD_OP_REG => Register(operand.size, Reg::from_ud_type(operand.base)),
+            ud_type::UD_OP_MEM => {
+                let base = Reg::from_ud_type(operand.base);
+                let index = Reg::from_ud_type(operand.index);
+                if base == Reg::NONE && index == Reg::NONE {
+                    assert!(operand.scale == 0 && operand.offset != 8);
+                    MemoryAbsolute(operand.size,
+                        Self::get_off_u64(operand.offset, operand.lval))
+                } else {
+                    assert!(operand.offset != 64);
+                    MemoryRelative(operand.size, operand.offset, base, index, operand.scale,
+                        Self::get_off_i64(operand.offset, operand.lval))
+                }
+            },
+            ud_type::UD_OP_PTR => Pointer(
+                operand.size,
+                unsafe { operand.lval.ptr.seg },
+                unsafe { operand.lval.ptr.off }),
+            ud_type::UD_OP_IMM => {
+                if operand._oprcode == 46 /* OP_sI */ && operand.size != mode {
+                    // Sign expand
+                    if operand.size != 8 {
+                        assert!(operand.size == 32);
+                    }
+                    let mut v = Self::get_imm_i64(operand.size, operand.lval) as u64;
+                    if mode < 64 {
+                        v = v & (0xffffffffffffffff >> (64 - mode));
+                    }
+                    ImmediateSigned(operand.size, v as i64)
+                } else {
+                    ImmediateUnsigned(operand.size,
+                        Self::get_imm_u64(operand.size, operand.lval))
+                }
+            },
+            ud_type::UD_OP_JIMM => ImmediateJump(
+                Self::get_imm_i64(operand.size, operand.lval)),
+            ud_type::UD_OP_CONST => Const(operand.size, unsafe { operand.lval.uqword }),
+            _ => panic!("Register used as operand type"),
+        }
+    }
 
-            size: operand.size,
-            offset: operand.offset,
-            abs_u64: unsafe { operand.lval.uqword },
-            imm_u64: Self::get_imm_u64(operand.size, operand.lval),
-            imm_i64: Self::get_imm_i64(operand.size, operand.lval),
-            off_u64: Self::get_off_u64(operand.offset, operand.lval),
-            off_i64: Self::get_off_i64(operand.offset, operand.lval),
-            ptr_seg: unsafe { operand.lval.ptr.seg },
-            ptr_off: unsafe { operand.lval.ptr.off },
+    pub fn is_mem(&self) -> bool {
+        match self {
+            Operand::MemoryAbsolute(_, _)
+            | Operand::MemoryRelative(_, _, _, _, _, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_imm(&self) -> bool {
+        match self {
+            Operand::ImmediateSigned(_, _)
+            | Operand::ImmediateUnsigned(_, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_jimm(&self) -> bool {
+        match self {
+            Operand::ImmediateJump(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_const(&self) -> bool {
+        match self {
+            Operand::Const(_, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn size(&self) -> u16 {
+        match self {
+            &Operand::Register(s, _) => s,
+            &Operand::MemoryAbsolute(s, _) => s,
+            &Operand::MemoryRelative(s, _, _, _, _, _) => s,
+            &Operand::Pointer(s, _, _) => s,
+            &Operand::ImmediateUnsigned(s, _) => s,
+            &Operand::ImmediateSigned(s, _) => s,
+            Operand::ImmediateJump(_) => unreachable!(),
+            &Operand::Const(s, _) => s,
         }
     }
 
@@ -129,16 +192,6 @@ impl Operand {
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum OperandType {
-    Register,
-    Memory,
-    Pointer,
-    Immediate,
-    ImmediateJump,
-    Const,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -1271,7 +1324,7 @@ impl Disassembler {
             let mut op = ud_insn_opr(ud, index);
 
             while !op.is_null() {
-                result.push(Operand::from_ud_operand(*op));
+                result.push(Operand::from_ud_operand(ud.opr_mode as u16, *op));
                 index += 1;
                 op = ud_insn_opr(ud, index);
             }
@@ -1286,8 +1339,8 @@ impl Disassembler {
 
         if ud.pfx_seg != 0 &&
             operands.len() > 1 &&
-            operands[0].type_ != OperandType::Memory &&
-            operands[1].type_ != OperandType::Memory {
+            !operands[0].is_mem() &&
+            !operands[1].is_mem() {
             result += Reg::from_ud_type(
                     unsafe { std::mem::transmute(ud.pfx_seg as u32) })
                 .to_str();
@@ -1310,26 +1363,26 @@ impl Disassembler {
         if operands.len() > 0 {
             let mut cast = false;
             result += " ";
-            if operands[0].type_ == OperandType::Memory {
+            if operands[0].is_mem() {
                 if operands.len() <= 1 ||
-                    operands[1].type_ == OperandType::Immediate ||
-                    operands[1].type_ == OperandType::Const ||
-                    operands[0].size != operands[1].size {
+                    operands[1].is_imm() ||
+                    operands[1].is_const() ||
+                    operands[0].size() != operands[1].size() {
                     cast = true;
-                } else if operands.len() > 1 &&
-                    operands[1].type_ == OperandType::Register &&
-                    operands[1].base == Reg::CL {
-                    match ud.mnemonic {
-                        ud_mnemonic_code::UD_Ircl |
-                        ud_mnemonic_code::UD_Irol |
-                        ud_mnemonic_code::UD_Iror |
-                        ud_mnemonic_code::UD_Ircr |
-                        ud_mnemonic_code::UD_Ishl |
-                        ud_mnemonic_code::UD_Ishr |
-                        ud_mnemonic_code::UD_Isar => {
-                            cast = true;
-                        },
-                        _ => {}
+                } else if operands.len() > 1 {
+                    if let Operand::Register(_, Reg::CL) = operands[1] {
+                        match mnemonic {
+                            Mnemonic::Ircl |
+                            Mnemonic::Irol |
+                            Mnemonic::Iror |
+                            Mnemonic::Ircr |
+                            Mnemonic::Ishl |
+                            Mnemonic::Ishr |
+                            Mnemonic::Isar => {
+                                cast = true;
+                            },
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -1339,8 +1392,8 @@ impl Disassembler {
         if operands.len() > 1 {
             let mut cast = false;
             result += ", ";
-            if operands[1].type_ == OperandType::Memory &&
-                operands[1].size != operands[0].size {
+            if operands[1].is_mem() &&
+                operands[1].size() != operands[0].size() {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[1], cast);
@@ -1349,8 +1402,8 @@ impl Disassembler {
         if operands.len() > 2 {
             let mut cast = false;
             result += ", ";
-            if operands[2].type_ == OperandType::Memory &&
-                operands[2].size != operands[1].size {
+            if operands[2].is_mem() &&
+                operands[2].size() != operands[1].size() {
                 cast = true;
             }
             result += &Self::print_operand(ud, &operands[2], cast);
@@ -1367,13 +1420,13 @@ impl Disassembler {
     fn print_operand(ud: &ud, op: &Operand, cast: bool) -> String {
         let mut s = String::new();
 
-        match op.type_ {
-            OperandType::Register => {
-                s += op.base.to_str();
+        match op {
+            Operand::Register(_, r) => {
+                s += r.to_str();
             },
-            OperandType::Memory => {
+            &Operand::MemoryAbsolute(size, v) => {
                 if cast {
-                    s += &Self::print_cast(ud, op);
+                    s += &Self::print_cast(ud, size);
                 }
                 s += "[";
                 if ud.pfx_seg != 0 {
@@ -1382,58 +1435,80 @@ impl Disassembler {
                         .to_str();
                     s += ":";
                 }
-                if op.base != Reg::NONE {
-                    s += op.base.to_str();
+                s += &format!("0x{:x}]", v);
+            }
+            &Operand::MemoryRelative(size, offset, base, index, scale, v) => {
+                if cast {
+                    s += &Self::print_cast(ud, size);
                 }
-                if op.index != Reg::NONE {
-                    if op.base != Reg::NONE {
+                s += "[";
+                if ud.pfx_seg != 0 {
+                    s += Reg::from_ud_type(
+                            unsafe { std::mem::transmute(ud.pfx_seg as u32) })
+                        .to_str();
+                    s += ":";
+                }
+                if base != Reg::NONE {
+                    s += base.to_str();
+                }
+                if index != Reg::NONE {
+                    if base != Reg::NONE {
                         s += "+";
                     }
-                    s += op.index.to_str();
-                    if op.scale != 0 {
-                        s += &format!("*{}", op.scale);
+                    s += index.to_str();
+                    if scale != 0 {
+                        s += &format!("*{}", scale);
                     }
                 }
-                if op.offset != 0 {
-                    s += &Self::print_mem(op);
+                if offset != 0 {
+                    if v < 0 {
+                        s += &format!("-0x{0:x}", -v);
+                    } else {
+                        s += &format!("+0x{0:x}", v);
+                    }
                 }
                 s += "]";
             },
-            OperandType::Immediate => {
-                s += &Self::print_immediate(ud, op);
+            Operand::ImmediateSigned(_, v) => {
+                s += &format!("0x{:x}", v);
+            }
+            Operand::ImmediateUnsigned(_, v) => {
+                s += &format!("0x{:x}", v);
             },
-            OperandType::ImmediateJump => {
-                s += &Self::print_relative_address(ud, op);
+            Operand::ImmediateJump(v) => {
+                let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
+                let address = ud.pc.wrapping_add(*v as u64) & trunc_mask;
+                s += &format!("0x{:x}", address);
             },
-            OperandType::Pointer => {
-                match op.size {
+            Operand::Pointer(size, seg, off) => {
+                match size {
                     32 => {
-                        s += &format!("word 0x{:x}0x{:x}", op.ptr_seg, op.ptr_off & 0xffff)
-                    },
+                        s += &format!("word 0x{:x}0x{:x}", seg, off & 0xffff);
+                    }
                     48 => {
-                        s += &format!("dword 0x{:x}0x{:x}", op.ptr_seg, op.ptr_off)
-                    },
-                    _ => {}
+                        s += &format!("dword 0x{:x}0x{:x}", seg, off);
+                    }
+                    _ => unreachable!(),
                 }
             },
-            OperandType::Const => {
+            &Operand::Const(size, v) => {
                 if cast {
-                    s += &Self::print_cast(ud, op);
+                    s += &Self::print_cast(ud, size);
                 }
-                s += &format!("{}", op.abs_u64)
+                s += &format!("{}", v);
             },
         }
 
         return s;
     }
 
-    fn print_cast(ud: &ud, op: &Operand) -> String {
+    fn print_cast(ud: &ud, size: u16) -> String {
         let mut s = String::new();
 
         if ud.br_far != 0 {
             s += "far ";
         }
-        match op.size {
+        match size {
             8 => { s += "byte "; },
             16 => { s += "word "; },
             32 => { s += "dword "; },
@@ -1445,60 +1520,6 @@ impl Disassembler {
         }
 
         return s;
-    }
-
-    fn print_mem(op: &Operand) -> String {
-        assert!(op.offset != 0);
-        if op.base == Reg::NONE && op.index == Reg::NONE {
-            assert!(op.scale == 0 && op.offset != 8);
-            format!("0x{:x}", op.off_u64)
-        } else {
-            assert!(op.offset != 64);
-            let v = op.off_i64;
-            if v < 0 {
-                format!("-0x{0:x}", -v)
-            } else {
-                format!("+0x{0:x}", v)
-            }
-        }
-    }
-
-    fn print_relative_address(ud: &ud, op: &Operand) -> String {
-        let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
-        let offset = op.imm_i64 as u64;
-        let address = ud.pc.wrapping_add(offset) & trunc_mask;
-        format!("0x{:x}", address)
-    }
-
-    fn print_immediate(ud: &ud, op: &Operand) -> String {
-        let mut v: u64;
-        if op.oprcode == 46 /* OP_sI */ && op.size != ud.opr_mode as u16 {
-            if op.size != 8 {
-                assert!(op.size == 32);
-            }
-            v = op.imm_i64 as u64;
-            if ud.opr_mode < 64 {
-                v = v & (0xffffffffffffffff >> (64 - ud.opr_mode));
-            }
-        } else {
-            v = op.imm_u64;
-        }
-        format!("0x{:x}", v)
-    }
-}
-
-impl OperandType {
-    pub fn from_ud_type(_type: ud_type) -> OperandType {
-        use self::OperandType::*;
-        match _type {
-            ud_type::UD_OP_REG => Register,
-            ud_type::UD_OP_MEM => Memory,
-            ud_type::UD_OP_PTR => Pointer,
-            ud_type::UD_OP_IMM => Immediate,
-            ud_type::UD_OP_JIMM => ImmediateJump,
-            ud_type::UD_OP_CONST => Const,
-            _ => panic!("Register used as operand type"),
-        }
     }
 }
 
