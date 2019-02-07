@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use bincode::{serialize, deserialize};
 use goblin::Object;
+use log::*;
 use serde_json as json;
 use serde_json::json;
 
@@ -21,6 +22,25 @@ thread_local!(
     static NEXT_HANDLE: u32 = 1);
 const INVALID_HANDLE: u32 = 0;
 
+struct CallbackLogger {
+    callback: extern "C" fn(line: *const c_char) -> (),
+}
+
+impl Log for CallbackLogger {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+
+    fn log(&self, record: &Record) {
+        let line = format!("{}: {}", record.level(), record.args());
+        unsafe {
+            (self.callback)(CString::from_vec_unchecked(line.into_bytes()).as_ptr());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
 #[no_mangle]
 pub extern "C" fn version() -> *const c_char {
     unsafe {
@@ -29,7 +49,11 @@ pub extern "C" fn version() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn init() -> bool {
+pub extern "C" fn init(log_callback: extern "C" fn(line: *const c_char) -> ()) -> bool {
+    log::set_boxed_logger(Box::new(CallbackLogger { callback: log_callback }))
+        .expect("Failed to set the logger");
+    log::set_max_level(LevelFilter::Trace);
+    trace!("Initialized logging");
     OPEN_HANDLES.with(|handles|
         *handles.borrow_mut() = Some(HashMap::new())
     );

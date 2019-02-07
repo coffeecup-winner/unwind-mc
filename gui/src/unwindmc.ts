@@ -3,7 +3,7 @@ import * as ref from 'ref'
 
 const _unwindmc = ffi.Library('libunwindmc', {
     version: ['string', []],
-    init: ['bool', []],
+    init: ['bool', ['pointer']],
     open_binary_file: ['int', ['string']],
     open_db: ['int', ['string']],
     save_db: ['void', ['int', 'string']],
@@ -11,6 +11,7 @@ const _unwindmc = ffi.Library('libunwindmc', {
 })
 
 const _buffer = Buffer.alloc(16 * 1024 * 1024)
+var _logCallback: Buffer;
 
 export interface Instruction {
     readonly address: number,
@@ -23,8 +24,9 @@ export default {
         return _unwindmc.version()
     },
 
-    init(): boolean {
-        return _unwindmc.init()
+    init(logCallback: (line: string) => void): boolean {
+        _logCallback = ffi.Callback('void', ['string'], logCallback)
+        return _unwindmc.init(_logCallback)
     },
 
     openBinaryFile(file: string): number {

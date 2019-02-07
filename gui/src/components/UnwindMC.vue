@@ -22,7 +22,7 @@ import { remote as e } from 'electron'
 
 export default {
     created: function () {
-        unwindmc.init()
+        unwindmc.init(line => console.log(line))
     },
     data: {
         handle: null as (number | null),

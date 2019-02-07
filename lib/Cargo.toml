@@ -12,6 +12,7 @@ bincode = "1.0.1"
 either = "1.5.0"
 goblin = "0.0.19"
 libudis86-sys = "0.2.0"
+log = { version = "0.4.6", features = ["std"] }
 regex = "1.1.0"
 serde = "1.0.87"
 serde_derive = "1.0.87"
