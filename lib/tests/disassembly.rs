@@ -16,7 +16,7 @@ fn test_jump_target_address() {
 
     let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
     assert_eq!(insn.get_target_address(), 0x1a);
-    assert_eq!(insn.assembly, "jnz 0x1a");
+    assert_eq!(insn.assembly(), "jnz 0x1a");
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_immediate_syntax_printing() {
     );
 
     let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
-    assert_eq!(insn.assembly, "push 0xffffffff");
+    assert_eq!(insn.assembly(), "push 0xffffffff");
 }
 
 #[test]
@@ -40,7 +40,7 @@ fn test_memory_address_printing() {
     );
 
     let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
-    assert_eq!(insn.assembly, "mov edi, [esi-0x7c]");
+    assert_eq!(insn.assembly(), "mov edi, [esi-0x7c]");
 }
 
 #[test]

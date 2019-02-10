@@ -125,7 +125,7 @@ impl Graph<u64, Insn, Link> for InstructionGraph {
             },
             None => result.push(Result::Err(format!(
                 "DFS: Couldn't find links for {}",
-                &self.instructions[vid].to_string()
+                &self.instructions[vid].assembly()
             ))),
         }
         result
@@ -254,7 +254,7 @@ impl InstructionGraph {
                 code: Mnemonic::Inone,
                 length,
                 hex,
-                assembly: data_display_text,
+                // assembly: data_display_text,
                 operands: vec![],
                 prefix_rex: 0,
                 prefix_segment: Reg::NONE,
@@ -265,6 +265,8 @@ impl InstructionGraph {
                 prefix_rep: 0,
                 prefix_repe: 0,
                 prefix_repne: 0,
+                br_far: false,
+                opr_mode: 0,
             },
         );
         self.get_extra_data_mut(address).is_protected = true;

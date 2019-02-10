@@ -10,13 +10,73 @@ pub struct Disassembler {
     ud: ud,
 }
 
+impl Disassembler {
+    pub fn new() -> Self {
+        unsafe {
+            let mut ud: ud = mem::uninitialized();
+            ud_init(&mut ud);
+            ud_set_mode(&mut ud, 32);
+            // Syntax generation in udis86 is bugged (incorrect vsnprintf calls)
+            // Intel syntax translation is done manually below
+            ud_set_syntax(&mut ud, None);
+            Disassembler { ud }
+        }
+    }
+
+    pub fn disassemble(&mut self, bytes: &[u8], pc: u64, offset: usize, length: usize) -> Vec<Insn> {
+        let mut result = vec![];
+        unsafe {
+            ud_set_pc(&mut self.ud, pc);
+            ud_set_input_buffer(&mut self.ud, bytes.as_ptr().add(offset), length);
+            while ud_disassemble(&mut self.ud) != 0 {
+                let hex_cstr = CStr::from_ptr(ud_insn_hex(&mut self.ud));
+
+                result.push(Insn {
+                    address: ud_insn_off(&self.ud),
+                    code: Mnemonic::from_ud_mnemonic_code(ud_insn_mnemonic(&self.ud)),
+                    length: ud_insn_len(&self.ud) as u8,
+                    hex: hex_cstr.to_str().unwrap().to_owned(),
+                    // assembly: Self::print_intel(&self.ud, mnemonic, &operands),
+                    operands: Self::get_operands(&mut self.ud),
+                    prefix_rex: self.ud.pfx_rex,
+                    prefix_segment: Reg::from_ud_type(mem::transmute(u32::from(self.ud.pfx_seg))),
+                    prefix_operand_size: self.ud.pfx_opr == 0x66,
+                    prefix_address_size: self.ud.pfx_adr == 0x67,
+                    prefix_lock: self.ud.pfx_lock,
+                    prefix_str: self.ud.pfx_str,
+                    prefix_rep: self.ud.pfx_rep,
+                    prefix_repe: self.ud.pfx_repe,
+                    prefix_repne: self.ud.pfx_repne,
+                    br_far: self.ud.br_far != 0,
+                    opr_mode: self.ud.opr_mode,
+                });
+            }
+        }
+        result
+    }
+
+    fn get_operands(ud: &mut ud) -> Vec<Operand> {
+        let mut result = vec![];
+        unsafe {
+            let mut index = 0;
+            let mut op = ud_insn_opr(ud, index);
+
+            while !op.is_null() {
+                result.push(Operand::from_ud_operand(ud.opr_mode as u16, *op));
+                index += 1;
+                op = ud_insn_opr(ud, index);
+            }
+        }
+        result
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Insn {
     pub address: u64,
     pub code: Mnemonic,
     pub length: u8,
     pub hex: String,
-    pub assembly: String,
     pub operands: Vec<Operand>,
     pub prefix_rex: u8,
     pub prefix_segment: Reg,
@@ -27,12 +87,8 @@ pub struct Insn {
     pub prefix_rep: u8,
     pub prefix_repe: u8,
     pub prefix_repne: u8,
-}
-
-impl ToString for Insn {
-    fn to_string(&self) -> String {
-        self.assembly.clone()
-    }
+    pub br_far: bool,
+    pub opr_mode: u8,
 }
 
 impl Insn {
@@ -43,6 +99,191 @@ impl Insn {
         } else {
             unreachable!()
         }
+    }
+
+    // The printing code is ported from udis86's syn-intel.c
+    // The ported version is abridged, rare or non-x86 bits are removed
+    pub fn assembly(&self) -> String {
+        let mut result = String::new();
+
+        if self.prefix_segment != Reg::NONE &&
+            self.operands.len() > 1 &&
+            !self.operands[0].is_mem() &&
+            !self.operands[1].is_mem() {
+            result += self.prefix_segment.to_str();
+        }
+
+        if self.prefix_lock != 0 {
+            result += "lock ";
+        }
+
+        if self.prefix_rep != 0 {
+            result += "rep ";
+        } else if self.prefix_repe != 0 {
+            result += "repe ";
+        } else if self.prefix_repne != 0 {
+            result += "repne ";
+        }
+
+        result += self.code.to_str();
+
+        if self.operands.len() > 0 {
+            let mut cast = false;
+            result += " ";
+            if self.operands[0].is_mem() {
+                if self.operands.len() <= 1 ||
+                    self.operands[1].is_imm() ||
+                    self.operands[1].is_const() ||
+                    self.operands[0].size() != self.operands[1].size() {
+                    cast = true;
+                } else if self.operands.len() > 1 {
+                    if let Operand::Register(_, Reg::CL) = self.operands[1] {
+                        match self.code {
+                            Mnemonic::Ircl |
+                            Mnemonic::Irol |
+                            Mnemonic::Iror |
+                            Mnemonic::Ircr |
+                            Mnemonic::Ishl |
+                            Mnemonic::Ishr |
+                            Mnemonic::Isar => {
+                                cast = true;
+                            },
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            result += &Self::print_operand(self, &self.operands[0], cast);
+        }
+
+        if self.operands.len() > 1 {
+            let mut cast = false;
+            result += ", ";
+            if self.operands[1].is_mem() &&
+                self.operands[1].size() != self.operands[0].size() {
+                cast = true;
+            }
+            result += &self.print_operand(&self.operands[1], cast);
+        }
+
+        if self.operands.len() > 2 {
+            let mut cast = false;
+            result += ", ";
+            if self.operands[2].is_mem() &&
+                self.operands[2].size() != self.operands[1].size() {
+                cast = true;
+            }
+            result += &self.print_operand(&self.operands[2], cast);
+        }
+
+        if self.operands.len() > 3 {
+            result += ", ";
+            result += &self.print_operand(&self.operands[3], false);
+        }
+
+        result
+    }
+
+    fn print_operand(&self, op: &Operand, cast: bool) -> String {
+        let mut s = String::new();
+
+        match op {
+            Operand::Register(_, r) => {
+                s += r.to_str();
+            },
+            &Operand::MemoryAbsolute(size, v) => {
+                if cast {
+                    s += &self.print_cast(size);
+                }
+                s += "[";
+                if self.prefix_segment != Reg::NONE {
+                    s += self.prefix_segment.to_str();
+                    s += ":";
+                }
+                s += &format!("0x{:x}]", v);
+            }
+            &Operand::MemoryRelative(size, offset, base, index, scale, v) => {
+                if cast {
+                    s += &self.print_cast(size);
+                }
+                s += "[";
+                if self.prefix_segment != Reg::NONE {
+                    s += self.prefix_segment.to_str();
+                    s += ":";
+                }
+                if base != Reg::NONE {
+                    s += base.to_str();
+                }
+                if index != Reg::NONE {
+                    if base != Reg::NONE {
+                        s += "+";
+                    }
+                    s += index.to_str();
+                    if scale != 0 {
+                        s += &format!("*{}", scale);
+                    }
+                }
+                if offset != 0 {
+                    if v < 0 {
+                        s += &format!("-0x{0:x}", -v);
+                    } else {
+                        s += &format!("+0x{0:x}", v);
+                    }
+                }
+                s += "]";
+            },
+            Operand::ImmediateSigned(_, v) => {
+                s += &format!("0x{:x}", v);
+            }
+            Operand::ImmediateUnsigned(_, v) => {
+                s += &format!("0x{:x}", v);
+            },
+            Operand::RelativeAddress(v) => {
+                let trunc_mask = 0xffffffffffffffff >> (64 - self.opr_mode);
+                let pc = self.address + u64::from(self.length);
+                let address = pc.wrapping_add(*v as u64) & trunc_mask;
+                s += &format!("0x{:x}", address);
+            },
+            Operand::Pointer(size, seg, off) => {
+                match size {
+                    32 => {
+                        s += &format!("word 0x{:x}0x{:x}", seg, off & 0xffff);
+                    }
+                    48 => {
+                        s += &format!("dword 0x{:x}0x{:x}", seg, off);
+                    }
+                    _ => unreachable!(),
+                }
+            },
+            &Operand::Const(size, v) => {
+                if cast {
+                    s += &self.print_cast(size);
+                }
+                s += &format!("{}", v);
+            },
+        }
+
+        return s;
+    }
+
+    fn print_cast(&self, size: u16) -> String {
+        let mut s = String::new();
+
+        if self.br_far {
+            s += "far ";
+        }
+        match size {
+            8 => { s += "byte "; },
+            16 => { s += "word "; },
+            32 => { s += "dword "; },
+            64 => { s += "qword "; },
+            80 => { s += "tword "; },
+            128 => { s += "oword "; },
+            256 => { s += "yword "; },
+            _ => {}
+        }
+
+        return s;
     }
 }
 
@@ -194,258 +435,6 @@ impl Operand {
                 _ => unreachable!(),
             }
         }
-    }
-}
-
-
-impl Disassembler {
-    pub fn new() -> Self {
-        unsafe {
-            let mut ud: ud = mem::uninitialized();
-            ud_init(&mut ud);
-            ud_set_mode(&mut ud, 32);
-            // Syntax generation in udis86 is bugged (incorrect vsnprintf calls)
-            // Intel syntax translation is done manually below
-            ud_set_syntax(&mut ud, None);
-            Disassembler { ud }
-        }
-    }
-
-    pub fn disassemble(&mut self, bytes: &[u8], pc: u64, offset: usize, length: usize) -> Vec<Insn> {
-        let mut result = vec![];
-        unsafe {
-            ud_set_pc(&mut self.ud, pc);
-            ud_set_input_buffer(&mut self.ud, bytes.as_ptr().add(offset), length);
-            while ud_disassemble(&mut self.ud) != 0 {
-                let hex_cstr = CStr::from_ptr(ud_insn_hex(&mut self.ud));
-                let mnemonic = Mnemonic::from_ud_mnemonic_code(ud_insn_mnemonic(&self.ud));
-                let operands = Self::get_operands(&mut self.ud);
-
-                result.push(Insn {
-                    address: ud_insn_off(&self.ud),
-                    code: mnemonic,
-                    length: ud_insn_len(&self.ud) as u8,
-                    hex: hex_cstr.to_str().unwrap().to_owned(),
-                    assembly: Self::print_intel(&self.ud, mnemonic, &operands),
-                    operands: operands,
-                    prefix_rex: self.ud.pfx_rex,
-                    prefix_segment: Reg::from_ud_type(mem::transmute(u32::from(self.ud.pfx_seg))),
-                    prefix_operand_size: self.ud.pfx_opr == 0x66,
-                    prefix_address_size: self.ud.pfx_adr == 0x67,
-                    prefix_lock: self.ud.pfx_lock,
-                    prefix_str: self.ud.pfx_str,
-                    prefix_rep: self.ud.pfx_rep,
-                    prefix_repe: self.ud.pfx_repe,
-                    prefix_repne: self.ud.pfx_repne,
-                });
-            }
-        }
-        result
-    }
-
-    fn get_operands(ud: &mut ud) -> Vec<Operand> {
-        let mut result = vec![];
-        unsafe {
-            let mut index = 0;
-            let mut op = ud_insn_opr(ud, index);
-
-            while !op.is_null() {
-                result.push(Operand::from_ud_operand(ud.opr_mode as u16, *op));
-                index += 1;
-                op = ud_insn_opr(ud, index);
-            }
-        }
-        result
-    }
-
-    // Here and below code ported from udis86's syn-intel.c
-    // The ported version is abridged, rare or non-x86 bits are removed
-    fn print_intel(ud: &ud, mnemonic: Mnemonic, operands: &Vec<Operand>) -> String {
-        let mut result = String::new();
-
-        if ud.pfx_seg != 0 &&
-            operands.len() > 1 &&
-            !operands[0].is_mem() &&
-            !operands[1].is_mem() {
-            result += Reg::from_ud_type(
-                    unsafe { std::mem::transmute(ud.pfx_seg as u32) })
-                .to_str();
-        }
-
-        if ud.pfx_lock != 0 {
-            result += "lock ";
-        }
-
-        if ud.pfx_rep != 0 {
-            result += "rep ";
-        } else if ud.pfx_repe != 0 {
-            result += "repe ";
-        } else if ud.pfx_repne != 0 {
-            result += "repne ";
-        }
-
-        result += mnemonic.to_str();
-
-        if operands.len() > 0 {
-            let mut cast = false;
-            result += " ";
-            if operands[0].is_mem() {
-                if operands.len() <= 1 ||
-                    operands[1].is_imm() ||
-                    operands[1].is_const() ||
-                    operands[0].size() != operands[1].size() {
-                    cast = true;
-                } else if operands.len() > 1 {
-                    if let Operand::Register(_, Reg::CL) = operands[1] {
-                        match mnemonic {
-                            Mnemonic::Ircl |
-                            Mnemonic::Irol |
-                            Mnemonic::Iror |
-                            Mnemonic::Ircr |
-                            Mnemonic::Ishl |
-                            Mnemonic::Ishr |
-                            Mnemonic::Isar => {
-                                cast = true;
-                            },
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            result += &Self::print_operand(ud, &operands[0], cast);
-        }
-
-        if operands.len() > 1 {
-            let mut cast = false;
-            result += ", ";
-            if operands[1].is_mem() &&
-                operands[1].size() != operands[0].size() {
-                cast = true;
-            }
-            result += &Self::print_operand(ud, &operands[1], cast);
-        }
-
-        if operands.len() > 2 {
-            let mut cast = false;
-            result += ", ";
-            if operands[2].is_mem() &&
-                operands[2].size() != operands[1].size() {
-                cast = true;
-            }
-            result += &Self::print_operand(ud, &operands[2], cast);
-        }
-
-        if operands.len() > 3 {
-            result += ", ";
-            result += &Self::print_operand(ud, &operands[3], false);
-        }
-
-        result
-    }
-
-    fn print_operand(ud: &ud, op: &Operand, cast: bool) -> String {
-        let mut s = String::new();
-
-        match op {
-            Operand::Register(_, r) => {
-                s += r.to_str();
-            },
-            &Operand::MemoryAbsolute(size, v) => {
-                if cast {
-                    s += &Self::print_cast(ud, size);
-                }
-                s += "[";
-                if ud.pfx_seg != 0 {
-                    s += Reg::from_ud_type(
-                            unsafe { std::mem::transmute(ud.pfx_seg as u32) })
-                        .to_str();
-                    s += ":";
-                }
-                s += &format!("0x{:x}]", v);
-            }
-            &Operand::MemoryRelative(size, offset, base, index, scale, v) => {
-                if cast {
-                    s += &Self::print_cast(ud, size);
-                }
-                s += "[";
-                if ud.pfx_seg != 0 {
-                    s += Reg::from_ud_type(
-                            unsafe { std::mem::transmute(ud.pfx_seg as u32) })
-                        .to_str();
-                    s += ":";
-                }
-                if base != Reg::NONE {
-                    s += base.to_str();
-                }
-                if index != Reg::NONE {
-                    if base != Reg::NONE {
-                        s += "+";
-                    }
-                    s += index.to_str();
-                    if scale != 0 {
-                        s += &format!("*{}", scale);
-                    }
-                }
-                if offset != 0 {
-                    if v < 0 {
-                        s += &format!("-0x{0:x}", -v);
-                    } else {
-                        s += &format!("+0x{0:x}", v);
-                    }
-                }
-                s += "]";
-            },
-            Operand::ImmediateSigned(_, v) => {
-                s += &format!("0x{:x}", v);
-            }
-            Operand::ImmediateUnsigned(_, v) => {
-                s += &format!("0x{:x}", v);
-            },
-            Operand::RelativeAddress(v) => {
-                let trunc_mask = 0xffffffffffffffff >> (64 - ud.opr_mode);
-                let address = ud.pc.wrapping_add(*v as u64) & trunc_mask;
-                s += &format!("0x{:x}", address);
-            },
-            Operand::Pointer(size, seg, off) => {
-                match size {
-                    32 => {
-                        s += &format!("word 0x{:x}0x{:x}", seg, off & 0xffff);
-                    }
-                    48 => {
-                        s += &format!("dword 0x{:x}0x{:x}", seg, off);
-                    }
-                    _ => unreachable!(),
-                }
-            },
-            &Operand::Const(size, v) => {
-                if cast {
-                    s += &Self::print_cast(ud, size);
-                }
-                s += &format!("{}", v);
-            },
-        }
-
-        return s;
-    }
-
-    fn print_cast(ud: &ud, size: u16) -> String {
-        let mut s = String::new();
-
-        if ud.br_far != 0 {
-            s += "far ";
-        }
-        match size {
-            8 => { s += "byte "; },
-            16 => { s += "word "; },
-            32 => { s += "dword "; },
-            64 => { s += "qword "; },
-            80 => { s += "tword "; },
-            128 => { s += "oword "; },
-            256 => { s += "yword "; },
-            _ => {}
-        }
-
-        return s;
     }
 }
 

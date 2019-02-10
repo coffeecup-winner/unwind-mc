@@ -151,7 +151,7 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
                 asm.push(json!({
                     "address": insn.address,
                     "hex": insn.hex.clone(),
-                    "assembly": insn.assembly.clone(),
+                    "assembly": insn.assembly(),
                 }));
             } else {
                 match analyzer.graph().get_extra_data(insn.address) {
@@ -159,7 +159,7 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
                         asm.push(json!({
                             "address": insn.address,
                             "hex": insn.hex.clone(),
-                            "assembly": insn.assembly.clone(),
+                            "assembly": insn.assembly(),
                         }));
                     },
                     _ => {},
