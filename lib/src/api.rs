@@ -150,7 +150,7 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
             if function == 0 {
                 asm.push(json!({
                     "address": insn.address,
-                    "hex": insn.hex.clone(),
+                    "hex": analyzer.graph().get_bytes_as_hex(insn),
                     "assembly": insn.assembly(),
                 }));
             } else {
@@ -158,7 +158,7 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
                     Some(data) if data.function_address == function => {
                         asm.push(json!({
                             "address": insn.address,
-                            "hex": insn.hex.clone(),
+                            "hex": analyzer.graph().get_bytes_as_hex(insn),
                             "assembly": insn.assembly(),
                         }));
                     },

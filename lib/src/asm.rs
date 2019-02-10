@@ -175,6 +175,14 @@ impl InstructionGraph {
         &self.bytes[addr..(addr + size)]
     }
 
+    pub fn get_bytes_as_hex(&self, insn: &Insn) -> String {
+        let mut hex = String::new();
+        for byte in self.get_bytes(insn.address, insn.length as usize) {
+            hex.push_str(&format!("{:02x}", byte));
+        }
+        hex
+    }
+
     pub fn get_extra_data(&self, address: u64) -> Option<&ExtraData> {
         self.extra_data.get(&address)
     }
@@ -239,32 +247,22 @@ impl InstructionGraph {
                 insn.length - ((address - insn.address) as u8)
             }
         };
-        // write a pseudo instruction
-        let mut hex = String::new();
-        for i in 0..length {
-            hex.push_str(&format!(
-                "{:02x}",
-                self.bytes[self.to_byte_array_index(address + u64::from(i))]
-            ));
-        }
         self.instructions.insert(
             address,
             Insn {
                 address,
                 code: Mnemonic::Inone,
                 length,
-                hex,
                 // assembly: data_display_text,
                 operands: vec![],
-                prefix_rex: 0,
                 prefix_segment: Reg::NONE,
                 prefix_operand_size: false,
                 prefix_address_size: false,
-                prefix_lock: 0,
-                prefix_str: 0,
-                prefix_rep: 0,
-                prefix_repe: 0,
-                prefix_repne: 0,
+                prefix_lock: false,
+                prefix_str: false,
+                prefix_rep: false,
+                prefix_repe: false,
+                prefix_repne: false,
                 br_far: false,
                 opr_mode: 0,
             },

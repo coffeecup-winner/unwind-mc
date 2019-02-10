@@ -1,4 +1,3 @@
-use std::ffi::CStr;
 use std::mem;
 
 use libudis86_sys::*;
@@ -29,24 +28,20 @@ impl Disassembler {
             ud_set_pc(&mut self.ud, pc);
             ud_set_input_buffer(&mut self.ud, bytes.as_ptr().add(offset), length);
             while ud_disassemble(&mut self.ud) != 0 {
-                let hex_cstr = CStr::from_ptr(ud_insn_hex(&mut self.ud));
-
                 result.push(Insn {
                     address: ud_insn_off(&self.ud),
                     code: Mnemonic::from_ud_mnemonic_code(ud_insn_mnemonic(&self.ud)),
                     length: ud_insn_len(&self.ud) as u8,
-                    hex: hex_cstr.to_str().unwrap().to_owned(),
                     // assembly: Self::print_intel(&self.ud, mnemonic, &operands),
                     operands: Self::get_operands(&mut self.ud),
-                    prefix_rex: self.ud.pfx_rex,
                     prefix_segment: Reg::from_ud_type(mem::transmute(u32::from(self.ud.pfx_seg))),
                     prefix_operand_size: self.ud.pfx_opr == 0x66,
                     prefix_address_size: self.ud.pfx_adr == 0x67,
-                    prefix_lock: self.ud.pfx_lock,
-                    prefix_str: self.ud.pfx_str,
-                    prefix_rep: self.ud.pfx_rep,
-                    prefix_repe: self.ud.pfx_repe,
-                    prefix_repne: self.ud.pfx_repne,
+                    prefix_lock: self.ud.pfx_lock != 0,
+                    prefix_str: self.ud.pfx_str != 0,
+                    prefix_rep: self.ud.pfx_rep != 0,
+                    prefix_repe: self.ud.pfx_repe != 0,
+                    prefix_repne: self.ud.pfx_repne != 0,
                     br_far: self.ud.br_far != 0,
                     opr_mode: self.ud.opr_mode,
                 });
@@ -76,17 +71,15 @@ pub struct Insn {
     pub address: u64,
     pub code: Mnemonic,
     pub length: u8,
-    pub hex: String,
     pub operands: Vec<Operand>,
-    pub prefix_rex: u8,
     pub prefix_segment: Reg,
     pub prefix_operand_size: bool,
     pub prefix_address_size: bool,
-    pub prefix_lock: u8,
-    pub prefix_str: u8,
-    pub prefix_rep: u8,
-    pub prefix_repe: u8,
-    pub prefix_repne: u8,
+    pub prefix_lock: bool,
+    pub prefix_str: bool,
+    pub prefix_rep: bool,
+    pub prefix_repe: bool,
+    pub prefix_repne: bool,
     pub br_far: bool,
     pub opr_mode: u8,
 }
@@ -113,15 +106,15 @@ impl Insn {
             result += self.prefix_segment.to_str();
         }
 
-        if self.prefix_lock != 0 {
+        if self.prefix_lock {
             result += "lock ";
         }
 
-        if self.prefix_rep != 0 {
+        if self.prefix_rep {
             result += "rep ";
-        } else if self.prefix_repe != 0 {
+        } else if self.prefix_repe {
             result += "repe ";
-        } else if self.prefix_repne != 0 {
+        } else if self.prefix_repne {
             result += "repne ";
         }
 
