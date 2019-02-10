@@ -8,7 +8,7 @@ name = "unwindmc"
 crate-type = ["dylib", "rlib"]
 
 [dependencies]
-bincode = "1.0.1"
+bincode = "1.1.1"
 either = "1.5.0"
 goblin = "0.0.19"
 libudis86-sys = "0.2.0"
