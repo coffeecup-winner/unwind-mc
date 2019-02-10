@@ -142,20 +142,33 @@ pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
 }
 
 #[no_mangle]
-pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
-    trace!("print_instructions: {}", handle);
+pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
+    trace!("get_instructions: {}", handle);
     with_analyzer(handle, &mut |analyzer| {
         let mut asm = vec![];
         for (_, insn) in analyzer.graph().instructions_iter() {
-            asm.push(json!({
-                "address": insn.address,
-                "hex": insn.hex.clone(),
-                "assembly": insn.assembly.clone(),
-            }));
+            if function == 0 {
+                asm.push(json!({
+                    "address": insn.address,
+                    "hex": insn.hex.clone(),
+                    "assembly": insn.assembly.clone(),
+                }));
+            } else {
+                match analyzer.graph().get_extra_data(insn.address) {
+                    Some(data) if data.function_address == function => {
+                        asm.push(json!({
+                            "address": insn.address,
+                            "hex": insn.hex.clone(),
+                            "assembly": insn.assembly.clone(),
+                        }));
+                    },
+                    _ => {},
+                }
+            }
         }
         copy_to_buffer(json::Value::Array(asm).to_string(), ptr, size);
     });
-    trace!("print_instructions: done");
+    trace!("get_instructions: done");
 }
 
 fn with_analyzer(handle: u32, func: &mut FnMut(&Analyzer)) {

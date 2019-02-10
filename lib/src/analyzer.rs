@@ -125,7 +125,7 @@ impl Analyzer {
             let mut visited_all_links = true;
             while !stack.is_empty() {
                 let address = stack.pop().unwrap();
-                self.graph.get_extra_data(address).function_address = func.address;
+                self.graph.get_extra_data_mut(address).function_address = func.address;
                 if !self.graph.contains_address(address) {
                     warn!("Analyzer::resolve_function_bounds: WARNING: trying to access address 0x{:x}", address);
                     continue;

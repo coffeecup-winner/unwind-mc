@@ -5,7 +5,11 @@ div
     button(v-on:click='saveDBClicked') Save DB
     #layout_functions
         ul.functions
-            Function.function(v-for='func in functions' v-bind:func='func')
+            Function.function(
+                v-for='func in functions'
+                v-bind:func='func'
+                v-on:functionClick='functionClicked'
+            )
     #layout_main
         Asm(v-bind:instructions='instructions')
 </template>
@@ -49,37 +53,40 @@ module.exports = {
     data() {
         return {
             handle: null as (number | null),
+            functions: [] as Function[],
+            instructions: [] as Instruction[],
+            selectedFunction: null as (Function | null),
         }
     },
     components: { Asm, Function },
-    computed: {
-        functions(): Function[] {
-            if (this.handle == null) {
-                return []
-            }
-            return unwindmc.getFunctions(this.handle)
-        },
-        instructions(): Instruction[] {
-            if (this.handle == null) {
-                return []
-            }
-            return unwindmc.getInstructions(this.handle)
-        },
-    },
     methods: {
-        openClicked: function () {
+        open(handle: number | null) {
+            this.handle = handle
+            if (handle == null) {
+                this.functions = []
+                this.instructions = []
+                this.selectedFunction = null
+                return
+            }
+            this.functions = unwindmc.getFunctions(this.handle)
+            if (this.functions.length == 0) {
+                this.selectedFunction = null
+                this.instructions = unwindmc.getInstructions(this.handle, 0)
+                return
+            }
+            this.selectedFunction = this.functions[0]
+            this.instructions = unwindmc.getInstructions(this.handle, this.selectedFunction.address)
+        },
+
+        openClicked() {
             e.dialog.showOpenDialog({
                 title: 'Open a binary file',
             }, f => {
-                if (f.length > 0) {
-                    this.handle = unwindmc.openBinaryFile(f[0])
-                } else {
-                    this.handle = null
-                }
+                this.open(f.length > 0 ? unwindmc.openBinaryFile(f[0]) : null)
             })
         },
 
-        openDBClicked: function () {
+        openDBClicked() {
             e.dialog.showOpenDialog({
                 title: 'Open a DB',
                 filters: [{
@@ -87,15 +94,11 @@ module.exports = {
                     extensions: ['db']
                 }],
             }, f => {
-                if (f.length > 0) {
-                    this.handle = unwindmc.openDB(f[0])
-                } else {
-                    this.handle = null
-                }
+                this.open(f.length > 0 ? unwindmc.openDB(f[0]) : null)
             })
         },
 
-        saveDBClicked: function () {
+        saveDBClicked() {
             e.dialog.showSaveDialog({
                 title: 'Save the DB',
                 filters: [{
@@ -107,6 +110,11 @@ module.exports = {
                     unwindmc.saveDB(this.handle, f)
                 }
             })
+        },
+
+        functionClicked(func: Function) {
+            this.selectedFunction = func
+            this.instructions = unwindmc.getInstructions(this.handle, func.address)
         },
     },
 }

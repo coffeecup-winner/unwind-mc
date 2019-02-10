@@ -175,7 +175,11 @@ impl InstructionGraph {
         &self.bytes[addr..(addr + size)]
     }
 
-    pub fn get_extra_data(&mut self, address: u64) -> &mut ExtraData {
+    pub fn get_extra_data(&self, address: u64) -> Option<&ExtraData> {
+        self.extra_data.get(&address)
+    }
+
+    pub fn get_extra_data_mut(&mut self, address: u64) -> &mut ExtraData {
         self.extra_data.entry(address).or_insert(ExtraData {
             function_address: 0,
             import_name: "".to_string(),
@@ -263,7 +267,7 @@ impl InstructionGraph {
                 prefix_repne: 0,
             },
         );
-        self.get_extra_data(address).is_protected = true;
+        self.get_extra_data_mut(address).is_protected = true;
         // remove old instructions
         while size < length {
             let insn = self

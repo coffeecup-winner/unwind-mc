@@ -4,11 +4,11 @@ import * as ref from 'ref'
 const _unwindmc = ffi.Library('libunwindmc', {
     version: ['string', []],
     init: ['bool', ['pointer']],
-    open_binary_file: ['int', ['string']],
-    open_db: ['int', ['string']],
-    save_db: ['void', ['int', 'string']],
-    get_functions: ['void', ['int', 'string', 'int']],
-    print_instructions: ['void', ['int', 'string', 'int']],
+    open_binary_file: ['uint32', ['string']],
+    open_db: ['uint32', ['string']],
+    save_db: ['void', ['uint32', 'string']],
+    get_functions: ['void', ['uint32', 'string', 'size_t']],
+    get_instructions: ['void', ['uint32', 'uint64', 'string', 'size_t']],
 })
 
 const _buffer = Buffer.alloc(16 * 1024 * 1024)
@@ -52,8 +52,8 @@ export default {
         return JSON.parse(ref.readCString(_buffer))
     },
 
-    getInstructions(handle: number): Instruction[] {
-        _unwindmc.print_instructions(handle, _buffer, _buffer.byteLength)
+    getInstructions(handle: number, func: number): Instruction[] {
+        _unwindmc.get_instructions(handle, func, _buffer, _buffer.byteLength)
         return JSON.parse(ref.readCString(_buffer))
     },
 }
