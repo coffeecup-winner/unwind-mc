@@ -37,7 +37,9 @@ pub fn open_binary_file(path: &str) -> Result<Analyzer, String> {
                         let range = section.pointer_to_raw_data as usize ..
                             (section.pointer_to_raw_data as usize + section.size_of_raw_data as usize);
                         let text = Vec::from(&buf[range]);
-                        return Analyzer::create(text, pe.image_base as u64 + section.virtual_address as u64);
+                        let mut analyzer = Analyzer::create(text, pe.image_base as u64 + section.virtual_address as u64)?;
+                        analyzer.add_function(pe.image_base as u64 + pe.header.optional_header.unwrap().standard_fields.address_of_entry_point as u64);
+                        return Ok(analyzer);
                     }
                     _ => {}
                 }

@@ -1,34 +1,65 @@
 <template lang="jade">
-    div
-        button(v-on:click='openClicked') Open File
-        button(v-on:click='openDBClicked') Open DB
-        button(v-on:click='saveDBClicked') Save DB
-        table.main
-            tr(v-for='insn in instructions')
-                td {{ Number(insn.address).toString(16).padStart(8, '0') }}
-                td {{ insn.hex }}
-                td {{ insn.assembly }}
+div
+    button(v-on:click='openClicked') Open File
+    button(v-on:click='openDBClicked') Open DB
+    button(v-on:click='saveDBClicked') Save DB
+    #layout_functions
+        ul.functions
+            Function.function(v-for='func in functions' v-bind:func='func')
+    #layout_main
+        Asm(v-bind:instructions='instructions')
 </template>
 
 <style lang="scss" scoped>
-    .main {
-        font-family: 'Courier New', Courier, monospace
-    }
+#layout_functions {
+    position: fixed;
+    overflow-y: scroll;
+    top: 40px;
+    left: 0;
+    width: 200px;
+    height: calc(100vh - 40px);
+}
+
+#layout_main {
+    position: fixed;
+    overflow-y: scroll;
+    top: 40px;
+    left: 200px;
+    right: 0;
+    height: calc(100vh - 40px);
+}
+
+.functions {
+    margin: 0;
+    padding: 0 0 0 10px;
+}
 </style>
 
 <script lang="ts">
-import unwindmc from '../unwindmc'
+import * as Asm from './Asm.vue'
+import * as Function from './Function.vue'
+
+import unwindmc,{ Instruction } from '../unwindmc'
 import { remote as e } from 'electron'
 
-export default {
+module.exports = {
     created: function () {
         unwindmc.init(line => console.log(line))
     },
-    data: {
-        handle: null as (number | null),
+    data() {
+        return {
+            handle: null as (number | null),
+        }
     },
+    components: { Asm, Function },
     computed: {
-        instructions: function () {
+        functions(): Function[] {
+            if (this.handle == null) {
+                return []
+            }
+            return unwindmc.getFunctions(this.handle)
+        },
+        instructions(): Instruction[] {
             if (this.handle == null) {
                 return []
             }

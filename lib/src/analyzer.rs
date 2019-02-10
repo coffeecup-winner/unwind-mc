@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::collections::btree_map::Iter;
 
 use asm::*;
 use assignment_tracker::*;
@@ -15,8 +16,8 @@ pub enum FunctionStatus {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Function {
-    address: u64,
-    status: FunctionStatus,
+    pub address: u64,
+    pub status: FunctionStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -58,6 +59,10 @@ impl Analyzer {
 
     pub fn graph(&self) -> &InstructionGraph {
         &self.graph
+    }
+
+    pub fn functions_iter(&self) -> Iter<u64, Function> {
+        self.functions.iter()
     }
 
     pub fn add_function(&mut self, address: u64) -> () {

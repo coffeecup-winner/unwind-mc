@@ -116,10 +116,7 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
         None => return (),
     };
     trace!("save_db: {}", path);
-    OPEN_HANDLES.with(|handles_cell| {
-        let handles = handles_cell.borrow();
-        let analyzer = &handles.as_ref().unwrap()[&handle];
-
+    with_analyzer(handle, &mut |analyzer| {
         match decompiler::save_db(analyzer, path) {
             Ok(()) => {},
             Err(s) => error!("{}", s),
@@ -129,11 +126,25 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
 }
 
 #[no_mangle]
+pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
+    trace!("get_functions: {}", handle);
+    with_analyzer(handle, &mut |analyzer| {
+        let mut functions = vec![];
+        for (_, func) in analyzer.functions_iter() {
+            functions.push(json!({
+                "address": func.address,
+                "status": format!("{:?}", func.status),
+            }));
+        }
+        copy_to_buffer(json::Value::Array(functions).to_string(), ptr, size);
+    });
+    trace!("get_functions: done");
+}
+
+#[no_mangle]
 pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
     trace!("print_instructions: {}", handle);
-    OPEN_HANDLES.with(|handles_cell| {
-        let handles = handles_cell.borrow();
-        let analyzer = &handles.as_ref().unwrap()[&handle];
+    with_analyzer(handle, &mut |analyzer| {
         let mut asm = vec![];
         for (_, insn) in analyzer.graph().instructions_iter() {
             asm.push(json!({
@@ -142,15 +153,17 @@ pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
                 "assembly": insn.assembly.clone(),
             }));
         }
-        let s = json::Value::Array(asm).to_string();
-        let count = std::cmp::min(s.len() + 1, size);
-        unsafe {
-            let data = CString::from_vec_unchecked(s.into_bytes());
-            std::ptr::copy_nonoverlapping(data.as_ptr(), ptr, count - 1);
-            std::slice::from_raw_parts_mut(ptr, count)[count - 1] = 0;
-        }
+        copy_to_buffer(json::Value::Array(asm).to_string(), ptr, size);
     });
     trace!("print_instructions: done");
+}
+
+fn with_analyzer(handle: u32, func: &mut FnMut(&Analyzer)) {
+    OPEN_HANDLES.with(|handles_cell| {
+        let handles = handles_cell.borrow();
+        let analyzer = &handles.as_ref().unwrap()[&handle];
+        func(analyzer);
+    });
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
@@ -158,5 +171,14 @@ fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
     match cstr.to_str() {
         Ok(s) => Some(s),
         Err(_) => None,
+    }
+}
+
+fn copy_to_buffer(s: String, buf: *mut c_char, size: usize) {
+    let count = std::cmp::min(s.len() + 1, size);
+    unsafe {
+        let data = CString::from_vec_unchecked(s.into_bytes());
+        std::ptr::copy_nonoverlapping(data.as_ptr(), buf, count - 1);
+        std::slice::from_raw_parts_mut(buf, count)[count - 1] = 0;
     }
 }
