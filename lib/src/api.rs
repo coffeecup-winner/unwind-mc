@@ -28,7 +28,9 @@ impl Log for CallbackLogger {
     }
 
     fn log(&self, record: &Record) {
-        let line = format!("{}: {}", record.level(), record.args());
+        let line = format!("[{}] {}: {}",
+            time::strftime("%H:%M:%S.%f", &time::now()).expect("Failed to format time"),
+            record.level(), record.args());
         unsafe {
             (self.callback)(CString::from_vec_unchecked(line.into_bytes()).as_ptr());
         }
@@ -62,6 +64,7 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         Some(p) => p,
         None => return INVALID_HANDLE,
     };
+    trace!("open_binary_file: {}", path);
     let analyzer = match decompiler::open_binary_file(path) {
         Ok(analyzer) => analyzer,
         Err(s) => {
@@ -76,6 +79,7 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         );
         handle
     });
+    trace!("open_binary_file: done");
     handle
 }
 
@@ -85,6 +89,7 @@ pub extern "C" fn open_db(path: *const c_char) -> u32 {
         Some(p) => p,
         None => return INVALID_HANDLE,
     };
+    trace!("open_db: {}", path);
     let analyzer = match decompiler::open_db(path) {
         Ok(analyzer) => analyzer,
         Err(s) => {
@@ -99,6 +104,7 @@ pub extern "C" fn open_db(path: *const c_char) -> u32 {
         );
         handle
     });
+    trace!("open_db: done");
     handle
 }
 
@@ -108,6 +114,7 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
         Some(p) => p,
         None => return (),
     };
+    trace!("save_db: {}", path);
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
@@ -117,10 +124,12 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
             Err(s) => error!("{}", s),
         }
     });
+    trace!("save_db: done");
 }
 
 #[no_mangle]
 pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
+    trace!("print_instructions: {}", handle);
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
@@ -140,6 +149,7 @@ pub fn print_instructions(handle: u32, ptr: *mut c_char, size: usize) {
             std::slice::from_raw_parts_mut(ptr, count)[count - 1] = 0;
         }
     });
+    trace!("print_instructions: done");
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
