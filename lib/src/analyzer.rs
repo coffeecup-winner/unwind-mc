@@ -61,6 +61,7 @@ impl Analyzer {
     }
 
     pub fn add_function(&mut self, address: u64) -> () {
+        trace!("Analyzer::add_function: 0x{:x}", address);
         self.functions.insert(
             address,
             Function {
@@ -71,9 +72,11 @@ impl Analyzer {
     }
 
     pub fn analyze(&mut self) -> () {
+        trace!("Analyzer::analyze");
         self.add_explicit_calls();
         self.resolve_function_bounds();
         self.resolve_external_function_calls();
+        trace!("Analyzer::analyze: done");
     }
 
     fn add_explicit_calls(&mut self) -> () {
@@ -97,9 +100,11 @@ impl Analyzer {
     }
 
     fn resolve_function_bounds(&mut self) -> () {
+        trace!("Analyzer::resolve_function_bounds");
         // TODO: remove copying
         let mut functions = self.functions.clone();
         for func in functions.values_mut() {
+            trace!("Analyzer::resolve_function_bounds: 0x{:x}", func.address);
             if !self.graph.in_bounds(func.address) {
                 func.status = FunctionStatus::BoundsNotResolvedInvalidAddress;
                 continue;
@@ -116,6 +121,10 @@ impl Analyzer {
             while !stack.is_empty() {
                 let address = stack.pop().unwrap();
                 self.graph.get_extra_data(address).function_address = func.address;
+                if !self.graph.contains_address(address) {
+                    warn!("Analyzer::resolve_function_bounds: WARNING: trying to access address 0x{:x}", address);
+                    continue;
+                }
                 let insn = self.graph.get_vertex(&address).clone();
                 if insn.code == Mnemonic::Iret {
                     continue;
@@ -149,6 +158,7 @@ impl Analyzer {
             }
         }
         self.functions = functions;
+        trace!("Analyzer::resolve_function_bounds: done");
     }
 
     fn add_next_links(&mut self, insn: &Insn) -> () {
@@ -238,6 +248,9 @@ impl Analyzer {
                     _ => false,
                 })).reverse_edges();
             self.graph.dfs_pick(&table.reference, &mut |insn, _| {
+                if insn.operands.len() < 1 {
+                    return Pick::Continue;
+                }
                 match insn.operands[0] {
                     Operand::MemoryRelative(_, _, base, index, _, _) => {
                         // find out the jump index register

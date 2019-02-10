@@ -65,13 +65,14 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         None => return INVALID_HANDLE,
     };
     trace!("open_binary_file: {}", path);
-    let analyzer = match decompiler::open_binary_file(path) {
+    let mut analyzer = match decompiler::open_binary_file(path) {
         Ok(analyzer) => analyzer,
         Err(s) => {
             error!("{}", s);
             return INVALID_HANDLE;
         }
     };
+    analyzer.analyze();
     let handle = NEXT_HANDLE.with(|next_cell| {
         let handle = *next_cell;
         OPEN_HANDLES.with(|handles_cell|

@@ -49,6 +49,7 @@ fn empty_edge_predicate() -> Box<Fn(&Link) -> bool> {
 }
 
 pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> {
+    trace!("InstructionGraph::disassemble: 0x{:x}, {} bytes", pc, bytes.len());
     let mut disassembler = Disassembler::new();
 
     let instructions = disassembler.disassemble(&bytes[..], pc, 0, bytes.len());
@@ -72,6 +73,7 @@ pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> 
         edge_predicate: empty_edge_predicate(),
     };
 
+    trace!("InstructionGraph::disassemble: done");
     Ok(graph)
 }
 
@@ -315,6 +317,7 @@ impl InstructionGraph {
 
     pub fn redisassemble(&mut self, address: u64) -> () {
         // This function will fix any instructions that were incorrectly disassembled because of the data block that was treated as code
+        trace!("InstructionGraph::redisassemble: 0x{:x}", address);
         if !self.instructions.contains_key(&address) {
             self.split_instruction_at(address);
         }
@@ -340,6 +343,7 @@ impl InstructionGraph {
             match self.instructions.get(&new_insn.address) {
                 Some(old_insn) if old_insn.length == new_insn.length => {
                     if fixed_instructions {
+                        trace!("InstructionGraph::redisassemble: done");
                         return;
                     }
                 }
@@ -354,7 +358,7 @@ impl InstructionGraph {
                 }
             }
         }
-        panic!("FIXME: Extra disassemble size was too small");
+        error!("InstructionGraph::redisassemble: FIXME: Extra disassemble size was too small");
     }
 
     fn to_byte_array_index(&self, address: u64) -> usize {

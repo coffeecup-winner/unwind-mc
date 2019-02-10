@@ -5,6 +5,7 @@ extern crate bincode;
 extern crate either;
 extern crate goblin;
 extern crate libudis86_sys;
+#[macro_use]
 extern crate log;
 extern crate serde;
 #[macro_use]
