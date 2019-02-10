@@ -1,18 +1,14 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
-use std::fs::File;
-use std::io::{Read, Write};
 use std::os::raw::c_char;
-use std::path::PathBuf;
 
-use bincode::{serialize, deserialize};
-use goblin::Object;
 use log::*;
 use serde_json as json;
 use serde_json::json;
 
 use analyzer::Analyzer;
+use decompiler;
 
 const VERSION: &[u8] = b"0.1.0\0";
 
@@ -62,105 +58,64 @@ pub extern "C" fn init(log_callback: extern "C" fn(line: *const c_char) -> ()) -
 
 #[no_mangle]
 pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
-    // TODO: Move out parts of this function
-    let path = match to_str(path).map(|p| PathBuf::from(p)) {
+    let path = match to_str(path) {
         Some(p) => p,
         None => return INVALID_HANDLE,
     };
-    let mut file = match File::open(&path) {
-        Ok(f) => f,
-        Err(_) => return INVALID_HANDLE,
+    let analyzer = match decompiler::open_binary_file(path) {
+        Ok(analyzer) => analyzer,
+        Err(s) => {
+            error!("{}", s);
+            return INVALID_HANDLE;
+        }
     };
-    let mut buf = vec![];
-    file.read_to_end(&mut buf).expect("Failed to read file");
-    let mut analyzer = None;
-    match Object::parse(&buf).expect("Failed to parse the file contents") {
-        Object::Elf(elf) => {
-            for section in elf.section_headers {
-                if section.is_executable() {
-                    let range = section.file_range();
-                    let vm_range = section.vm_range();
-                    let text = Vec::from(&buf[range]);
-                    analyzer = Some(Analyzer::create(text, vm_range.start as u64)
-                        .expect("Failed to create the analyze"));
-                }
-            }
-        }
-        Object::PE(pe) => {
-            for section in pe.sections {
-                match section.name() {
-                    Ok(name) if name == ".text" => {
-                        let range = section.pointer_to_raw_data as usize ..
-                            (section.pointer_to_raw_data as usize + section.size_of_raw_data as usize);
-                        let text = Vec::from(&buf[range]);
-                        analyzer = Some(Analyzer::create(text, pe.image_base as u64 + section.virtual_address as u64)
-                            .expect("Failed to create the analyze"));
-                    }
-                    _ => {}
-                }
-            }
-        }
-        _ => return INVALID_HANDLE,
-    }
-    return match analyzer {
-        Some(analyzer) => {
-            let handle = NEXT_HANDLE.with(|next_cell| {
-                let handle = *next_cell;
-                OPEN_HANDLES.with(|handles_cell|
-                    handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
-                );
-                handle
-            });
-            handle
-        }
-        None => INVALID_HANDLE
-    }
+    let handle = NEXT_HANDLE.with(|next_cell| {
+        let handle = *next_cell;
+        OPEN_HANDLES.with(|handles_cell|
+            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+        );
+        handle
+    });
+    handle
 }
 
 #[no_mangle]
 pub extern "C" fn open_db(path: *const c_char) -> u32 {
-    // TODO: Move out parts of this function
-    let path = match to_str(path).map(|p| PathBuf::from(p)) {
+    let path = match to_str(path) {
         Some(p) => p,
         None => return INVALID_HANDLE,
     };
-    let mut file = match File::open(&path) {
-        Ok(f) => f,
-        Err(_) => return INVALID_HANDLE,
-    };
-    let mut buf = vec![];
-    file.read_to_end(&mut buf).expect("Failed to read file");
-    let analyzer = deserialize(&buf[..]);
-    
-    return match analyzer {
-        Ok(analyzer) => {
-            let handle = NEXT_HANDLE.with(|next_cell| {
-                let handle = *next_cell;
-                OPEN_HANDLES.with(|handles_cell|
-                    handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
-                );
-                handle
-            });
-            handle
+    let analyzer = match decompiler::open_db(path) {
+        Ok(analyzer) => analyzer,
+        Err(s) => {
+            error!("{}", s);
+            return INVALID_HANDLE;
         }
-        _ => INVALID_HANDLE
-    }
+    };
+    let handle = NEXT_HANDLE.with(|next_cell| {
+        let handle = *next_cell;
+        OPEN_HANDLES.with(|handles_cell|
+            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+        );
+        handle
+    });
+    handle
 }
 
 #[no_mangle]
 pub extern "C" fn save_db(handle: u32, path: *const c_char) {
-    // TODO: Move out parts of this function
-    let path = match to_str(path).map(|p| PathBuf::from(p)) {
+    let path = match to_str(path) {
         Some(p) => p,
         None => return (),
     };
-    let mut file = File::create(&path).expect("Failed to open file for writing");
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
 
-        let buf = serialize(analyzer).expect("Failed to serialize the analyzer");
-        file.write_all(&buf[..]).expect("Failed to write file");
+        match decompiler::save_db(analyzer, path) {
+            Ok(()) => {},
+            Err(s) => error!("{}", s),
+        }
     });
 }
 
