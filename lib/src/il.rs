@@ -1,6 +1,6 @@
 use disassembler::Reg;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ILOperand {
     Value(i32),
     Register(Reg),
@@ -9,18 +9,18 @@ pub enum ILOperand {
     Pointer(Reg, i32),
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BinaryInstruction<Op : Clone> {
     pub left: Op,
     pub right: Op,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct UnaryInstruction<Op> {
     pub operand: Op,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum BranchType {
     Equal,
     NotEqual,
@@ -31,14 +31,14 @@ pub enum BranchType {
     Unconditional,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct BranchInstruction<Op : Clone> {
     pub type_: BranchType,
     pub condition: Option<BinaryInstruction<Op>>,
     pub target: u64,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ILBinaryOperator {
     Add,
     And,
@@ -51,13 +51,13 @@ pub enum ILBinaryOperator {
     Xor,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ILUnaryOperator {
     Negate,
     Not,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ILInstruction<Op : Clone> {
     Binary(ILBinaryOperator, BinaryInstruction<Op>),
     Unary(ILUnaryOperator, UnaryInstruction<Op>),

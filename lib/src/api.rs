@@ -9,6 +9,7 @@ use serde_json::json;
 
 use analyzer::Analyzer;
 use decompiler;
+use il_decompiler::decompile;
 
 const VERSION: &[u8] = b"0.1.0\0";
 
@@ -143,7 +144,7 @@ pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
 
 #[no_mangle]
 pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
-    trace!("get_instructions: {}", handle);
+    trace!("get_instructions: {}, 0x{:x}", handle, function);
     with_analyzer(handle, &mut |analyzer| {
         let mut asm = vec![];
         for (_, insn) in analyzer.graph().instructions_iter() {
@@ -167,6 +168,16 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
             }
         }
         copy_to_buffer(json::Value::Array(asm).to_string(), ptr, size);
+    });
+    trace!("get_instructions: done");
+}
+
+#[no_mangle]
+pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
+    trace!("get_instructions: {}, 0x{:x}", handle, function);
+    with_analyzer(handle, &mut |analyzer| {
+        let il = decompile(analyzer.graph(), function);
+        copy_to_buffer(serde_json::to_string(&il).expect("Failed to serialize JSON"), ptr, size);
     });
     trace!("get_instructions: done");
 }

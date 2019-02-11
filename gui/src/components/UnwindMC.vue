@@ -3,6 +3,7 @@ div
     button(v-on:click='openClicked') Open File
     button(v-on:click='openDBClicked') Open DB
     button(v-on:click='saveDBClicked') Save DB
+    button(v-on:click='decompileILClicked') Decompile IL
     #layout_functions
         ul.functions
             Function.function(
@@ -110,6 +111,14 @@ module.exports = {
                     unwindmc.saveDB(this.handle, f)
                 }
             })
+        },
+
+        decompileILClicked() {
+            if (this.selectedFunction == null) {
+                return
+            }
+            let il = unwindmc.decompileIL(this.handle, this.selectedFunction.address)
+            console.log(il)
         },
 
         functionClicked(func: Function) {
