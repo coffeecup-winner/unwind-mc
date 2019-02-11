@@ -1667,7 +1667,7 @@ impl Reg {
         }
     }
 
-    fn to_str(&self) -> &str {
+    pub fn to_str(&self) -> &str {
         match self {
             Reg::AL => "al",
             Reg::CL => "cl",

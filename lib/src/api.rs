@@ -177,7 +177,14 @@ pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
     trace!("get_instructions: {}, 0x{:x}", handle, function);
     with_analyzer(handle, &mut |analyzer| {
         let il = decompile(analyzer.graph(), function);
-        copy_to_buffer(serde_json::to_string(&il).expect("Failed to serialize JSON"), ptr, size);
+        let mut res = vec![];
+        for (i, insn) in il.iter().enumerate() {
+            res.push(json!({
+                "address": i,
+                "text": insn.print_syntax(),
+            }));
+        }
+        copy_to_buffer(json::Value::Array(res).to_string(), ptr, size);
     });
     trace!("get_instructions: done");
 }

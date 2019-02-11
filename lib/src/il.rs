@@ -82,3 +82,141 @@ pub fn binary<Op : Clone>(left: Op, right: Op) -> BinaryInstruction<Op> {
 pub fn branch<Op : Clone>(type_: BranchType, condition: Option<BinaryInstruction<Op>>, target: u64) -> BranchInstruction<Op> {
     BranchInstruction { type_, condition, target }
 }
+
+impl ILInstruction<ILOperand> {
+    pub fn print_syntax(&self) -> String {
+        let mut res = String::new();
+        match self {
+            ILInstruction::Binary(op, binary) => {
+                res += Self::print_binary_operator(op);
+                res += " ";
+                res += &Self::print_operand(&binary.left);
+                res += ", ";
+                res += &Self::print_operand(&binary.right);
+            },
+            ILInstruction::Unary(op, unary) => {
+                res += Self::print_unary_operator(op);
+                res += " ";
+                res += &Self::print_operand(&unary.operand);
+            },
+            ILInstruction::Assign(binary) => {
+                res += &Self::print_operand(&binary.left);
+                res += " := ";
+                res += &Self::print_operand(&binary.right);
+            },
+            ILInstruction::Branch(branch) => {
+                res += &Self::print_branch(branch);
+            },
+            ILInstruction::Call(unary) => {
+                res += "call ";
+                res += &Self::print_operand(&unary.operand);
+            },
+            ILInstruction::Return(unary) => {
+                res += "ret ";
+                res += &Self::print_operand(&unary.operand);
+            },
+            ILInstruction::Nop => {
+                res += "nop";
+            },
+            ILInstruction::Continue => {
+                res += "continue";
+            },
+            ILInstruction::Break => {
+                res += "break";
+            },
+        }
+        res
+    }
+
+    fn print_binary_operator(op: &ILBinaryOperator) -> &'static str {
+        use self::ILBinaryOperator::*;
+        match op {
+            Add => "add",
+            And => "and",
+            Divide => "div",
+            Multiply => "mul",
+            LoadAddress => "lea",
+            Or => "or",
+            ShiftLeft => "shl",
+            ShiftRight => "shr",
+            Subtract => "sub",
+            Xor => "xor",
+        }
+    }
+
+    fn print_unary_operator(op: &ILUnaryOperator) -> &'static str {
+        use self::ILUnaryOperator::*;
+        match op {
+            Negate => "neg",
+            Not => "not",
+        }
+    }
+
+    fn print_branch_type(type_: &BranchType) -> &'static str {
+        use self::BranchType::*;
+        match type_ {
+            Equal => "==",
+            NotEqual => "!=",
+            Less => "<",
+            LessOrEqual => "<=",
+            GreaterOrEqual => ">=",
+            Greater => ">",
+            Unconditional => panic!("Can't print unconditional branch type"),
+        }
+    }
+
+    fn print_branch(br: &BranchInstruction<ILOperand>) -> String {
+        let mut res = String::new();
+        if br.type_ == BranchType::Unconditional {
+            res += "jmp ";
+            res += &br.target.to_string();
+        } else {
+            res += "br ";
+            res += &br.target.to_string();
+            res += " if ";
+            if let Some(condition) = &br.condition {
+                res += &Self::print_operand(&condition.left);
+                res += " ";
+                res += Self::print_branch_type(&br.type_);
+                res += " ";
+                res += &Self::print_operand(&condition.right);
+            } else {
+                panic!("Invalid branch instruction")
+            }
+        }
+        res
+    }
+
+    fn print_operand(op: &ILOperand) -> String {
+        let mut res = String::new();
+        use self::ILOperand::*;
+        match op {
+            Value(v) => return v.to_string(),
+            Register(r) => return String::from(r.to_str()),
+            Argument(v) => {
+                res += "arg(";
+                res += &v.to_string();
+                res += ")";
+            }
+            Local(v) => {
+                res += "loc(";
+                res += &v.to_string();
+                res += ")";
+            },
+            &Pointer(b, i, s, o) => {
+                res += "ptr(";
+                res += b.to_str();
+                res += " + ";
+                if i != Reg::NONE && s != 0 {
+                    res += i.to_str();
+                    res += " * ";
+                    res += &s.to_string();
+                    res += " + ";
+                }
+                res += &o.to_string();
+                res += ")";
+            },
+        }
+        res
+    }
+}
