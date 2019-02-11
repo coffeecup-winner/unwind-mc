@@ -6,7 +6,7 @@ pub enum ILOperand {
     Register(Reg),
     Argument(i32),
     Local(i32),
-    Pointer(Reg, i32),
+    Pointer(Reg, Reg, u8, i32),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
@@ -44,6 +44,7 @@ pub enum ILBinaryOperator {
     And,
     Divide,
     Multiply,
+    LoadAddress,
     Or,
     ShiftLeft,
     ShiftRight,

@@ -85,7 +85,7 @@ fn stage_test_functions_array() {
             Some(binary(Register(Reg::ESI), Argument(4))),
             7,
         )),
-        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, 0))),
+        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
         Branch(branch(Equal, Some(binary(Register(Reg::EAX), Value(0))), 5)),
         Call(unary(Register(Reg::EAX))),
         Binary(Add, binary(Register(Reg::ESI), Value(4))),
@@ -109,7 +109,7 @@ fn stage_test_functions_array() {
             ))]),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
-                    instructions: vec![Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, 0)))],
+                    instructions: vec![Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0)))],
                 }),
                 Block::ConditionalBlock(ConditionalBlock {
                     condition: invert_condition(vec![Branch(branch(
@@ -175,7 +175,7 @@ fn stage_test_functions_array() {
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![Assign(binary(
                         (Register(Reg::EAX), Some(1)),
-                        (Pointer(Reg::ESI, 0), Some(0)),
+                        (Pointer(Reg::ESI, Reg::NONE, 0, 0), Some(0)),
                     ))],
                 }),
                 Block::ConditionalBlock(ConditionalBlock {

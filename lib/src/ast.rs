@@ -20,6 +20,7 @@ pub enum Operator {
     Multiply,
     Divide,
     Modulo,
+    LoadAddress,
 }
 
 #[derive(Debug, PartialEq, Clone)]

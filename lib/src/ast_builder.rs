@@ -237,6 +237,7 @@ impl<'a> AstBuilder<'a> {
             ILBinaryOperator::Add => Operator::Add,
             ILBinaryOperator::And => Operator::And,
             ILBinaryOperator::Divide => Operator::Divide,
+            ILBinaryOperator::LoadAddress => Operator::LoadAddress,
             ILBinaryOperator::Multiply => Operator::Multiply,
             ILBinaryOperator::Or => Operator::Or,
             ILBinaryOperator::ShiftLeft => Operator::ShiftLeft,
@@ -278,7 +279,7 @@ impl<'a> AstBuilder<'a> {
         use ast::Expression::*;
         use il::ILOperand::*;
         match op {
-            Pointer(_, _) => Dereference(Box::new(VarRef(Var::Var(self.get_var_name(*id))))),
+            Pointer(_, _, _, _) => Dereference(Box::new(VarRef(Var::Var(self.get_var_name(*id))))),
             Register(_) => VarRef(Var::Var(self.get_var_name(*id))),
             Argument(offset) => VarRef(Var::Var(self.parameter_names[offset].clone())),
             Local(offset) => VarRef(Var::Var(self.local_names[offset].clone())),

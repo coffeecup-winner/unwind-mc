@@ -196,6 +196,16 @@ impl ILDecompiler {
                 None,
                 insn.get_target_address(),
             ))],
+            Mnemonic::Ijs => vec![Branch(branch(
+                Less,
+                self.find_condition(graph, insn.address, Less),
+                insn.get_target_address(),
+            ))],
+            Mnemonic::Ijns => vec![Branch(branch(
+                GreaterOrEqual,
+                self.find_condition(graph, insn.address, GreaterOrEqual),
+                insn.get_target_address(),
+            ))],
             Mnemonic::Ijz => vec![Branch(branch(
                 Equal,
                 self.find_condition(graph, insn.address, Equal),
@@ -206,6 +216,10 @@ impl ILDecompiler {
                 self.find_condition(graph, insn.address, NotEqual),
                 insn.get_target_address(),
             ))],
+            Mnemonic::Ilea => {
+                let (left, right) = self.get_binary_operands(&insn.operands);
+                vec![Binary(LoadAddress, binary(left, right))]
+            }
             Mnemonic::Imov => {
                 let (left, right) = self.get_binary_operands(&insn.operands);
                 match (&left, &right) {
@@ -289,7 +303,7 @@ impl ILDecompiler {
         use il::ILOperand::*;
         match operand {
             &Operand::Register(_, r) => Register(r),
-            &Operand::MemoryRelative(_, _, base, index, _, offset) => {
+            &Operand::MemoryRelative(_, _, base, index, scale, offset) => {
                 if base == Reg::ESP {
                     let offset = self.stack_offset + offset as i32;
                     if offset >= 0 {
@@ -304,10 +318,8 @@ impl ILDecompiler {
                     } else {
                         Local(offset)
                     }
-                } else if index == Reg::NONE {
-                    Pointer(base, offset as i32)
                 } else {
-                    panic!("Not supported")
+                    Pointer(base, index, scale, offset as i32)
                 }
             }
             &Operand::ImmediateSigned(_, v) => Value(v as i32),

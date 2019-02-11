@@ -382,7 +382,7 @@ impl TypeResolver {
     ) -> BinaryInstruction<ResolvedOperand> {
         use il::ILOperand::*;
         let op = match binary.right {
-            Pointer(reg, _) => Register(reg),
+            Pointer(reg, _, _, _) => Register(reg),
             _ => binary.right,
         };
         if !self.type_exists(&op) {
@@ -394,7 +394,7 @@ impl TypeResolver {
 
         let right_id = self.get_current_id(&op);
         self.assign_type_builder(&binary.left, &op);
-        if let Pointer(_, _) = binary.right {
+        if let Pointer(_, _, _, _) = binary.right {
             let type_ = Rc::new(RefCell::new((*self.get_type(&op).borrow()).clone()));
             *self.get_type(&op).borrow_mut() = TypeBuilder::Pointer(type_.clone());
             self.set_type(&binary.left, type_);
@@ -525,7 +525,7 @@ impl TypeResolver {
 
     fn get_current_id(&mut self, op: &ILOperand) -> Option<i32> {
         match op {
-            ILOperand::Register(_) | ILOperand::Pointer(_, _) => {
+            ILOperand::Register(_) | ILOperand::Pointer(_, _, _, _) => {
                 let id = self.current_ids[op];
                 self.coalesce_ids(id);
                 Some(id)

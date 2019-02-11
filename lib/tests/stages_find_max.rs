@@ -105,7 +105,7 @@ fn stage_test_find_max() {
         )),
         Assign(binary(Register(Reg::EDX), Argument(0))),
         Assign(binary(Register(Reg::EAX), Value(0x80000000))),
-        Assign(binary(Register(Reg::ESI), Pointer(Reg::EDX, 0))),
+        Assign(binary(Register(Reg::ESI), Pointer(Reg::EDX, Reg::NONE, 0, 0))),
         Branch(branch(
             GreaterOrEqual,
             Some(binary(Register(Reg::EAX), Register(Reg::ESI))),
@@ -156,7 +156,7 @@ fn stage_test_find_max() {
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
                                 Register(Reg::ESI),
-                                Pointer(Reg::EDX, 0),
+                                Pointer(Reg::EDX, Reg::NONE, 0, 0),
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
@@ -251,7 +251,7 @@ fn stage_test_find_max() {
                         Block::SequentialBlock(SequentialBlock {
                             instructions: vec![Assign(binary(
                                 (Register(Reg::ESI), Some(4)),
-                                (Pointer(Reg::EDX, 0), Some(2)),
+                                (Pointer(Reg::EDX, Reg::NONE, 0, 0), Some(2)),
                             ))],
                         }),
                         Block::ConditionalBlock(ConditionalBlock {
