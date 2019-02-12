@@ -71,7 +71,8 @@ fn stage_test_functions_array() {
         00400018: 5e                 pop esi
         00400019: c3                 ret",
     );
-    let il = il_decompiler::decompile(analyzer.graph(), 0x400000);
+    let il = il_decompiler::decompile(analyzer.graph(), 0x400000)
+        .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;

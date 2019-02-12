@@ -173,28 +173,36 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
 }
 
 #[no_mangle]
-pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
+pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) -> bool {
     trace!("get_instructions: {}, 0x{:x}", handle, function);
     with_analyzer(handle, &mut |analyzer| {
-        let il = decompile(analyzer.graph(), function);
-        let mut res = vec![];
-        for (i, insn) in il.iter().enumerate() {
-            res.push(json!({
-                "address": i,
-                "text": insn.print_syntax(),
-            }));
+        match decompile(analyzer.graph(), function) {
+            Ok(il) => {
+                let mut res = vec![];
+                for (i, insn) in il.iter().enumerate() {
+                    res.push(json!({
+                        "address": i,
+                        "text": insn.print_syntax(),
+                    }));
+                }
+                copy_to_buffer(json::Value::Array(res).to_string(), ptr, size);
+                trace!("get_instructions: done");
+                true
+            }
+            Err(s) => {
+                error!("get_instructions: ERROR: {}", s);
+                false
+            }
         }
-        copy_to_buffer(json::Value::Array(res).to_string(), ptr, size);
-    });
-    trace!("get_instructions: done");
+    })
 }
 
-fn with_analyzer(handle: u32, func: &mut FnMut(&Analyzer)) {
+fn with_analyzer<T>(handle: u32, func: &mut FnMut(&Analyzer) -> T) -> T {
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
         let analyzer = &handles.as_ref().unwrap()[&handle];
-        func(analyzer);
-    });
+        func(analyzer)
+    })
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {

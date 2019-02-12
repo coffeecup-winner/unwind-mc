@@ -10,7 +10,7 @@ struct ILDecompiler {
     pub frame_pointer_offset: i32,
 }
 
-pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<ILOperand>> {
+pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstruction<ILOperand>>> {
     let mut decompiler = ILDecompiler {
         stack_offset: -(REGISTER_SIZE as i32),
         frame_pointer_offset: 0,
@@ -22,9 +22,9 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<IL
         let address = stack.pop().unwrap();
         let insn = graph.get_vertex(&address).clone();
 
-        let il_insns = decompiler.convert_instruction(graph, &insn);
+        let il_insns = decompiler.convert_instruction(graph, &insn)?;
         if il_insns.len() > insn.length as usize {
-            panic!("FIXME: not enough virtual addresses");
+            return Err(String::from("FIXME: not enough virtual addresses"));
         }
         for (i, il_insn) in il_insns.into_iter().enumerate() {
             il.insert(insn.address + i as u64, il_insn);
@@ -72,20 +72,21 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> Vec<ILInstruction<IL
             insn => res.push(insn),
         }
     }
-    res
+    Ok(res)
 }
 
 impl ILDecompiler {
+    // TODO: This code should be rewritten in a more robust way
     fn find_condition(
         &mut self,
         graph: &InstructionGraph,
         mut addr: u64,
         branch_type: BranchType,
-    ) -> Option<BinaryInstruction<ILOperand>> {
+    ) -> UResult<Option<BinaryInstruction<ILOperand>>> {
         use il::ILOperand::*;
 
         if branch_type == BranchType::Unconditional {
-            return None;
+            return Ok(None);
         }
 
         while addr > 0 {
@@ -93,20 +94,20 @@ impl ILDecompiler {
                 let insn = graph.get_vertex(&addr);
                 match insn.code {
                     Mnemonic::Icmp => {
-                        let (left, right) = self.get_binary_operands(&insn.operands);
-                        return Some(binary(left, right));
+                        let (left, right) = self.get_binary_operands(&insn.operands)?;
+                        return Ok(Some(binary(left, right)));
                     }
                     Mnemonic::Idec => {
-                        let operand = self.get_unary_operand(&insn.operands);
-                        return Some(binary(operand, Value(0)));
+                        let operand = self.get_unary_operand(&insn.operands)?;
+                        return Ok(Some(binary(operand, Value(0))));
                     }
                     Mnemonic::Itest => {
-                        let (left, right) = self.get_binary_operands(&insn.operands);
+                        let (left, right) = self.get_binary_operands(&insn.operands)?;
                         match (&left, &right) {
                             (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
-                                return Some(binary(left, Value(0)))
+                                return Ok(Some(binary(left, Value(0))));
                             }
-                            _ => panic!(format!("Unsupported instruction\n{:#?}", insn)),
+                            _ => return Err(format!("Unsupported instruction\n{:#?}", insn)),
                         }
                     }
                     _ => {}
@@ -114,14 +115,14 @@ impl ILDecompiler {
             }
             addr -= 1;
         }
-        panic!("Failed to find a condition")
+        Err(String::from("Failed to find a condition"))
     }
 
     fn convert_instruction(
         &mut self,
         graph: &InstructionGraph,
         insn: &Insn,
-    ) -> Vec<ILInstruction<ILOperand>> {
+    ) -> Result<Vec<ILInstruction<ILOperand>>, String> {
         use il::BranchType::*;
         use il::ILBinaryOperator::*;
         use il::ILInstruction::*;
@@ -129,203 +130,210 @@ impl ILDecompiler {
         use il::ILUnaryOperator::*;
         match insn.code {
             Mnemonic::Iadd => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(Add, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(Add, binary(left, right))])
             }
             Mnemonic::Iand => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(And, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(And, binary(left, right))])
             }
             Mnemonic::Icall => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Call(unary(operand))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Call(unary(operand))])
             }
             Mnemonic::Icdq => {
-                vec![] // TODO: take into account size extension
+                Ok(vec![]) // TODO: take into account size extension
             }
             Mnemonic::Icmovl => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![
                     Branch(branch(
                         GreaterOrEqual,
-                        self.find_condition(graph, insn.address, GreaterOrEqual),
+                        self.find_condition(graph, insn.address, GreaterOrEqual)?,
                         insn.address + u64::from(insn.length),
                     )),
                     Assign(binary(left, right)),
-                ]
+                ])
             }
-            Mnemonic::Icmp => vec![Nop],
+            Mnemonic::Icmp => Ok(vec![Nop]),
             Mnemonic::Idec => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Binary(Subtract, binary(operand, Value(1)))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Binary(Subtract, binary(operand, Value(1)))])
             }
             Mnemonic::Iidiv => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Binary(Divide, binary(Register(Reg::EAX), operand))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Binary(Divide, binary(Register(Reg::EAX), operand))])
             }
             Mnemonic::Iimul => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(Multiply, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(Multiply, binary(left, right))])
             }
             Mnemonic::Iinc => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Binary(Add, binary(operand, Value(1)))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Binary(Add, binary(operand, Value(1)))])
             }
-            Mnemonic::Ija | Mnemonic::Ijg => vec![Branch(branch(
+            Mnemonic::Ija | Mnemonic::Ijg => Ok(vec![Branch(branch(
                 Greater,
-                self.find_condition(graph, insn.address, Greater),
+                self.find_condition(graph, insn.address, Greater)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijae | Mnemonic::Ijge => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijae | Mnemonic::Ijge => Ok(vec![Branch(branch(
                 GreaterOrEqual,
-                self.find_condition(graph, insn.address, GreaterOrEqual),
+                self.find_condition(graph, insn.address, GreaterOrEqual)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijb | Mnemonic::Ijl => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijb | Mnemonic::Ijl => Ok(vec![Branch(branch(
                 Less,
-                self.find_condition(graph, insn.address, Less),
+                self.find_condition(graph, insn.address, Less)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijbe | Mnemonic::Ijle => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijbe | Mnemonic::Ijle => Ok(vec![Branch(branch(
                 LessOrEqual,
-                self.find_condition(graph, insn.address, LessOrEqual),
+                self.find_condition(graph, insn.address, LessOrEqual)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijmp => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijmp => Ok(vec![Branch(branch(
                 Unconditional,
                 None,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijs => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijs => Ok(vec![Branch(branch(
                 Less,
-                self.find_condition(graph, insn.address, Less),
+                self.find_condition(graph, insn.address, Less)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijns => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijns => Ok(vec![Branch(branch(
                 GreaterOrEqual,
-                self.find_condition(graph, insn.address, GreaterOrEqual),
+                self.find_condition(graph, insn.address, GreaterOrEqual)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijz => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijz => Ok(vec![Branch(branch(
                 Equal,
-                self.find_condition(graph, insn.address, Equal),
+                self.find_condition(graph, insn.address, Equal)?,
                 insn.get_target_address(),
-            ))],
-            Mnemonic::Ijnz => vec![Branch(branch(
+            ))]),
+            Mnemonic::Ijnz => Ok(vec![Branch(branch(
                 NotEqual,
-                self.find_condition(graph, insn.address, NotEqual),
+                self.find_condition(graph, insn.address, NotEqual)?,
                 insn.get_target_address(),
-            ))],
+            ))]),
             Mnemonic::Ilea => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(LoadAddress, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(LoadAddress, binary(left, right))])
             }
             Mnemonic::Imov => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
                 match (&left, &right) {
                     (Register(Reg::EBP), Register(Reg::ESP)) => {
                         self.frame_pointer_offset = self.stack_offset;
-                        vec![]
+                        Ok(vec![])
                     }
                     (Register(Reg::ESP), Register(Reg::EBP)) => {
                         self.stack_offset = self.frame_pointer_offset;
-                        vec![]
+                        Ok(vec![])
                     }
-                    (Register(Reg::EBP), _) | (Register(Reg::ESP), _) => panic!("Not supported"),
-                    _ => vec![Assign(binary(left, right))],
+                    (Register(Reg::EBP), _) | (Register(Reg::ESP), _) => Err(String::from("Not supported")),
+                    _ => Ok(vec![Assign(binary(left, right))]),
                 }
             }
             Mnemonic::Ineg => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Unary(Negate, unary(operand))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Unary(Negate, unary(operand))])
             }
             Mnemonic::Inot => {
-                let operand = self.get_unary_operand(&insn.operands);
-                vec![Unary(Not, unary(operand))]
+                let operand = self.get_unary_operand(&insn.operands)?;
+                Ok(vec![Unary(Not, unary(operand))])
             }
             Mnemonic::Ior => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(Or, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(Or, binary(left, right))])
             }
             Mnemonic::Ipush => {
                 self.stack_offset -= REGISTER_SIZE as i32;
-                vec![Nop]
+                Ok(vec![Nop])
             }
             Mnemonic::Ipop => {
                 self.stack_offset += REGISTER_SIZE as i32;
-                vec![Nop]
+                Ok(vec![Nop])
             }
             Mnemonic::Iret => {
                 self.stack_offset += REGISTER_SIZE as i32;
                 if self.stack_offset != 0 {
-                    panic!("Stack imbalance");
+                    Err(String::from("Stack imbalance"))
+                } else {
+                    Ok(vec![Return(unary(Register(Reg::EAX)))])
                 }
-                vec![Return(unary(Register(Reg::EAX)))]
             }
             Mnemonic::Ishl => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(ShiftLeft, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(ShiftLeft, binary(left, right))])
             }
             Mnemonic::Isar => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(ShiftRight, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(ShiftRight, binary(left, right))])
             }
             Mnemonic::Isub => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(Subtract, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(Subtract, binary(left, right))])
             }
-            Mnemonic::Itest => vec![Nop],
+            Mnemonic::Itest => Ok(vec![Nop]),
             Mnemonic::Ixor => {
-                let (left, right) = self.get_binary_operands(&insn.operands);
-                vec![Binary(Xor, binary(left, right))]
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Binary(Xor, binary(left, right))])
             }
-            _ => panic!(format!("Unsupported instruction\n{:#?}", insn)),
+            _ => Err(format!("Unsupported instruction\n{:#?}", insn)),
         }
     }
 
-    fn get_unary_operand(&mut self, operands: &[Operand]) -> ILOperand {
-        let mut ops = self.convert_operands(operands);
-        ops.remove(0)
+    fn get_unary_operand(&mut self, operands: &[Operand]) -> UResult<ILOperand> {
+        let mut ops = self.convert_operands(operands)?;
+        if ops.len() != 1 {
+            return Err(String::from("Invalid number of operands"))
+        }
+        Ok(ops.remove(0))
     }
 
-    fn get_binary_operands(&mut self, operands: &[Operand]) -> (ILOperand, ILOperand) {
-        let mut ops = self.convert_operands(operands);
+    fn get_binary_operands(&mut self, operands: &[Operand]) -> UResult<(ILOperand, ILOperand)> {
+        let mut ops = self.convert_operands(operands)?;
+        if ops.len() != 2 {
+            return Err(String::from("Invalid number of operands"))
+        }
         let right = ops.remove(1);
         let left = ops.remove(0);
-        (left, right)
+        Ok((left, right))
     }
 
-    fn convert_operands(&mut self, operands: &[Operand]) -> Vec<ILOperand> {
+    fn convert_operands(&mut self, operands: &[Operand]) -> UResult<Vec<ILOperand>> {
         operands.iter().map(|op| self.convert_operand(op)).collect()
     }
 
-    fn convert_operand(&self, operand: &Operand) -> ILOperand {
+    fn convert_operand(&self, operand: &Operand) -> UResult<ILOperand> {
         use il::ILOperand::*;
         match operand {
-            &Operand::Register(_, r) => Register(r),
+            &Operand::Register(_, r) => Ok(Register(r)),
             &Operand::MemoryRelative(_, _, base, index, scale, offset) => {
                 if base == Reg::ESP {
                     let offset = self.stack_offset + offset as i32;
                     if offset >= 0 {
-                        Argument(offset)
+                        Ok(Argument(offset))
                     } else {
-                        Local(offset)
+                        Ok(Local(offset))
                     }
                 } else if base == Reg::EBP {
                     let offset = self.frame_pointer_offset + offset as i32;
                     if offset >= 0 {
-                        Argument(offset)
+                        Ok(Argument(offset))
                     } else {
-                        Local(offset)
+                        Ok(Local(offset))
                     }
                 } else {
-                    Pointer(base, index, scale, offset as i32)
+                    Ok(Pointer(base, index, scale, offset as i32))
                 }
             }
-            &Operand::ImmediateSigned(_, v) => Value(v as i32),
-            &Operand::ImmediateUnsigned(_, v) => Value(v as i32),
-            &Operand::Const(_, v) => Value(v as i32),
-            _ => panic!("Not supported"),
+            &Operand::ImmediateSigned(_, v) => Ok(Value(v as i32)),
+            &Operand::ImmediateUnsigned(_, v) => Ok(Value(v as i32)),
+            &Operand::Const(_, v) => Ok(Value(v as i32)),
+            _ => Err(String::from("Not supported")),
         }
     }
 }

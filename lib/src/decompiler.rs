@@ -8,12 +8,13 @@ use goblin::Object;
 use analyzer::Analyzer;
 use asm::InstructionGraph;
 use ast_builder::AstBuilder;
+use common::UResult;
 use cpp_emitter::CppEmitter;
 use flow_analyzer::build_flow_graph;
 use il_decompiler::decompile;
 use type_resolver::TypeResolver;
 
-pub fn open_binary_file(path: &str) -> Result<Analyzer, String> {
+pub fn open_binary_file(path: &str) -> UResult<Analyzer> {
     let path = PathBuf::from(path);
     let mut file = File::open(&path).map_err(|e| e.to_string())?;
     let mut buf = vec![];
@@ -50,7 +51,7 @@ pub fn open_binary_file(path: &str) -> Result<Analyzer, String> {
     }
 }
 
-pub fn open_db(path: &str) -> Result<Analyzer, String> {
+pub fn open_db(path: &str) -> UResult<Analyzer> {
     let path = PathBuf::from(path);
     let mut file = File::open(&path).map_err(|e| e.to_string())?;
     let mut buf = vec![];
@@ -58,7 +59,7 @@ pub fn open_db(path: &str) -> Result<Analyzer, String> {
     deserialize(&buf[..]).map_err(|e| e.to_string())
 }
 
-pub fn save_db(analyzer: &Analyzer, path: &str) -> Result<(), String> {
+pub fn save_db(analyzer: &Analyzer, path: &str) -> UResult<()> {
     let path = PathBuf::from(path);
     let mut file = File::create(&path).map_err(|e| e.to_string())?;
     let buf = serialize(analyzer).map_err(|e| e.to_string())?;
@@ -67,7 +68,7 @@ pub fn save_db(analyzer: &Analyzer, path: &str) -> Result<(), String> {
 }
 
 pub fn decompile_function(graph: &InstructionGraph, address: u64) -> String {
-    let il = decompile(graph, address);
+    let il = decompile(graph, address).expect("Failed to decompile IL");
     let blocks = build_flow_graph(il);
     let (blocks, types) = TypeResolver::resolve_types(blocks);
     let func = AstBuilder::build_ast(format!("sub_{0:06x}", address), &blocks, &types);

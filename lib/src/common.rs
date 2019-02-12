@@ -3,6 +3,8 @@ use std::hash::Hash;
 
 pub const REGISTER_SIZE: u32 = 4;
 
+pub type UResult<T> = Result<T, String>;
+
 pub enum Pick<T> {
     Return(Option<T>),
     Continue,

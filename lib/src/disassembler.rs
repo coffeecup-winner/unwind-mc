@@ -90,7 +90,8 @@ impl Insn {
         if let Operand::RelativeAddress(v) = self.operands[0] {
             (target_address as i64 + v) as u64
         } else {
-            unreachable!()
+            error!("ERROR: Invalid instruction to get target address from: {:?}", self);
+            0
         }
     }
 
@@ -1824,7 +1825,10 @@ impl Reg {
             Reg::YMM14 => "ymm14",
             Reg::YMM15 => "ymm15",
             Reg::RIP => "rip",
-            _ => panic!("Invalid register")
+            Reg::NONE => {
+                error!("Printing NONE register");
+                "<ERROR:NONE>"
+            }
         }
     }
 }

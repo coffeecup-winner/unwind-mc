@@ -88,7 +88,8 @@ fn stage_test_find_max() {
         08048424: 5e                 pop esi
         08048425: c3                 ret",
     );
-    let il = il_decompiler::decompile(analyzer.graph(), 0x8048400);
+    let il = il_decompiler::decompile(analyzer.graph(), 0x8048400)
+        .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;
