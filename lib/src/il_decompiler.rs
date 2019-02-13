@@ -232,7 +232,7 @@ impl ILDecompiler {
                         self.stack_offset = self.frame_pointer_offset;
                         Ok(vec![])
                     }
-                    (Register(Reg::EBP), _) | (Register(Reg::ESP), _) => Err(String::from("Not supported")),
+                    (Register(Reg::ESP), _) => Err(String::from("Setting register ESP is not supported")),
                     _ => Ok(vec![Assign(binary(left, right))]),
                 }
             }
@@ -311,6 +311,7 @@ impl ILDecompiler {
         use il::ILOperand::*;
         match operand {
             &Operand::Register(_, r) => Ok(Register(r)),
+            &Operand::MemoryAbsolute(_, v) => Ok(Pointer(Reg::NONE, Reg::NONE, 0, v as u32)),
             &Operand::MemoryRelative(_, _, base, index, scale, offset) => {
                 if base == Reg::ESP {
                     let offset = self.stack_offset + offset as i32;
@@ -327,13 +328,14 @@ impl ILDecompiler {
                         Ok(Local(offset))
                     }
                 } else {
-                    Ok(Pointer(base, index, scale, offset as i32))
+                    Ok(Pointer(base, index, scale, offset as u32))
                 }
             }
+            &Operand::Pointer(_, _, _) => Err(format!("Not supported: {:?}", operand)),
             &Operand::ImmediateSigned(_, v) => Ok(Value(v as i32)),
             &Operand::ImmediateUnsigned(_, v) => Ok(Value(v as i32)),
+            &Operand::RelativeAddress(v) => Ok(Value(v as i32)),
             &Operand::Const(_, v) => Ok(Value(v as i32)),
-            _ => Err(String::from("Not supported")),
         }
     }
 }

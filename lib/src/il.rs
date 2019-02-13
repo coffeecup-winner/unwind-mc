@@ -6,7 +6,7 @@ pub enum ILOperand {
     Register(Reg),
     Argument(i32),
     Local(i32),
-    Pointer(Reg, Reg, u8, i32),
+    Pointer(Reg, Reg, u8, u32),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
