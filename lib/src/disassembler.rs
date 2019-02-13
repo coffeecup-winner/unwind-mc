@@ -432,6 +432,26 @@ impl Operand {
     }
 }
 
+bitflags! {
+    pub struct Flags: u32 {
+        const NONE = 0x0000;
+        const CF = 0x0001;
+        // Reserved 0x0002;
+        const PF = 0x0004;
+        // Reserved 0x0008;
+        const AF = 0x0010;
+        // Reserved 0x0020;
+        const ZF = 0x0040;
+        const SF = 0x0080;
+        // ...
+        const OF = 0x0800;
+        // Add the rest if needed
+        const PZS = Self::PF.bits | Self::ZF.bits | Self::SF.bits;
+        const PAZSO = Self::AF.bits | Self::OF.bits | Self::PZS.bits;
+        const CPAZSO = Self::CF.bits | Self::PAZSO.bits;
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Reg {
     NONE,

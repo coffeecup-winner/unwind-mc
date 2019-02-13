@@ -76,46 +76,64 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstru
 }
 
 impl ILDecompiler {
-    // TODO: This code should be rewritten in a more robust way
     fn find_condition(
         &mut self,
         graph: &InstructionGraph,
         mut addr: u64,
-        branch_type: BranchType,
+        flag: Flags,
     ) -> UResult<Option<BinaryInstruction<ILOperand>>> {
         use il::ILOperand::*;
-
-        if branch_type == BranchType::Unconditional {
-            return Ok(None);
-        }
-
         while addr > 0 {
             if graph.contains_address(addr) {
                 let insn = graph.get_vertex(&addr);
                 match insn.code {
                     Mnemonic::Icmp => {
-                        let (left, right) = self.get_binary_operands(&insn.operands)?;
-                        return Ok(Some(binary(left, right)));
-                    }
-                    Mnemonic::Idec => {
-                        let operand = self.get_unary_operand(&insn.operands)?;
-                        return Ok(Some(binary(operand, Value(0))));
-                    }
-                    Mnemonic::Itest => {
-                        let (left, right) = self.get_binary_operands(&insn.operands)?;
-                        match (&left, &right) {
-                            (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
-                                return Ok(Some(binary(left, Value(0))));
-                            }
-                            _ => return Err(format!("Unsupported instruction\n{:#?}", insn)),
+                        if Self::check_flags(flag, Flags::CPAZSO, Flags::NONE)? {
+                            let (left, right) = self.get_binary_operands(&insn.operands)?;
+                            return Ok(Some(binary(left, right)));
                         }
                     }
-                    _ => {}
+                    Mnemonic::Idec => {
+                        if Self::check_flags(flag, Flags::PAZSO, Flags::NONE)? {
+                            let operand = self.get_unary_operand(&insn.operands)?;
+                            return Ok(Some(binary(operand, Value(0))));
+                        }
+                    }
+                    Mnemonic::Itest => {
+                        if Self::check_flags(flag, Flags::PZS, Flags::CF | Flags::OF | Flags::AF)? {
+                            let (left, right) = self.get_binary_operands(&insn.operands)?;
+                            match (&left, &right) {
+                                (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
+                                    return Ok(Some(binary(left, Value(0))));
+                                }
+                                _ => return Err(format!("Unsupported instruction\n{:#?}", insn)),
+                            }
+                        }
+                    }
+                    Mnemonic::Ija | Mnemonic::Ijae | Mnemonic::Ijb | Mnemonic::Ijbe |
+                    Mnemonic::Ijg | Mnemonic::Ijge | Mnemonic::Ijl | Mnemonic::Ijle |
+                    Mnemonic::Ijs | Mnemonic::Ijns | Mnemonic::Ijz | Mnemonic::Ijnz |
+                    Mnemonic::Ijmp | Mnemonic::Icmovl | Mnemonic::Imov => {}
+                    _ => {
+                        return Err(format!("Unsupported instruction for condition searching: {:?}", insn));
+                    }
                 }
             }
             addr -= 1;
         }
         Err(String::from("Failed to find a condition"))
+    }
+
+    fn check_flags(test: Flags, set_flags: Flags, invalid_flags: Flags) -> UResult<bool> {
+        if (test & invalid_flags) != Flags::NONE {
+            Err(String::from("Depending on undefined or constant flags"))
+        } else if (test & set_flags) == test {
+            Ok(true)
+        } else if (test & set_flags) != Flags::NONE {
+            Err(String::from("Depending on flags set by different instructions"))
+        } else {
+            Ok(false)
+        }
     }
 
     fn convert_instruction(
@@ -149,7 +167,7 @@ impl ILDecompiler {
                 Ok(vec![
                     Branch(branch(
                         GreaterOrEqual,
-                        self.find_condition(graph, insn.address, GreaterOrEqual)?,
+                        self.find_condition(graph, insn.address, Flags::SF | Flags::OF)?,
                         insn.address + u64::from(insn.length),
                     )),
                     Assign(binary(left, right)),
@@ -172,24 +190,44 @@ impl ILDecompiler {
                 let operand = self.get_unary_operand(&insn.operands)?;
                 Ok(vec![Binary(Add, binary(operand, Value(1)))])
             }
-            Mnemonic::Ija | Mnemonic::Ijg => Ok(vec![Branch(branch(
+            Mnemonic::Ija => Ok(vec![Branch(branch(
                 Greater,
-                self.find_condition(graph, insn.address, Greater)?,
+                self.find_condition(graph, insn.address, Flags::CF | Flags::ZF)?,
                 insn.get_target_address(),
             ))]),
-            Mnemonic::Ijae | Mnemonic::Ijge => Ok(vec![Branch(branch(
+            Mnemonic::Ijae => Ok(vec![Branch(branch(
                 GreaterOrEqual,
-                self.find_condition(graph, insn.address, GreaterOrEqual)?,
+                self.find_condition(graph, insn.address, Flags::CF)?,
                 insn.get_target_address(),
             ))]),
-            Mnemonic::Ijb | Mnemonic::Ijl => Ok(vec![Branch(branch(
+            Mnemonic::Ijb => Ok(vec![Branch(branch(
                 Less,
-                self.find_condition(graph, insn.address, Less)?,
+                self.find_condition(graph, insn.address, Flags::CF)?,
                 insn.get_target_address(),
             ))]),
-            Mnemonic::Ijbe | Mnemonic::Ijle => Ok(vec![Branch(branch(
+            Mnemonic::Ijbe => Ok(vec![Branch(branch(
                 LessOrEqual,
-                self.find_condition(graph, insn.address, LessOrEqual)?,
+                self.find_condition(graph, insn.address, Flags::CF | Flags::ZF)?,
+                insn.get_target_address(),
+            ))]),
+            Mnemonic::Ijg => Ok(vec![Branch(branch(
+                Greater,
+                self.find_condition(graph, insn.address, Flags::ZF | Flags::SF | Flags::OF)?,
+                insn.get_target_address(),
+            ))]),
+            Mnemonic::Ijge => Ok(vec![Branch(branch(
+                GreaterOrEqual,
+                self.find_condition(graph, insn.address, Flags::SF | Flags::OF)?,
+                insn.get_target_address(),
+            ))]),
+            Mnemonic::Ijl => Ok(vec![Branch(branch(
+                Less,
+                self.find_condition(graph, insn.address, Flags::SF | Flags::OF)?,
+                insn.get_target_address(),
+            ))]),
+            Mnemonic::Ijle => Ok(vec![Branch(branch(
+                LessOrEqual,
+                self.find_condition(graph, insn.address, Flags::ZF | Flags::SF | Flags::OF)?,
                 insn.get_target_address(),
             ))]),
             Mnemonic::Ijmp => Ok(vec![Branch(branch(
@@ -199,22 +237,22 @@ impl ILDecompiler {
             ))]),
             Mnemonic::Ijs => Ok(vec![Branch(branch(
                 Less,
-                self.find_condition(graph, insn.address, Less)?,
+                self.find_condition(graph, insn.address, Flags::SF)?,
                 insn.get_target_address(),
             ))]),
             Mnemonic::Ijns => Ok(vec![Branch(branch(
                 GreaterOrEqual,
-                self.find_condition(graph, insn.address, GreaterOrEqual)?,
+                self.find_condition(graph, insn.address, Flags::SF)?,
                 insn.get_target_address(),
             ))]),
             Mnemonic::Ijz => Ok(vec![Branch(branch(
                 Equal,
-                self.find_condition(graph, insn.address, Equal)?,
+                self.find_condition(graph, insn.address, Flags::ZF)?,
                 insn.get_target_address(),
             ))]),
             Mnemonic::Ijnz => Ok(vec![Branch(branch(
                 NotEqual,
-                self.find_condition(graph, insn.address, NotEqual)?,
+                self.find_condition(graph, insn.address, Flags::ZF)?,
                 insn.get_target_address(),
             ))]),
             Mnemonic::Ilea => {

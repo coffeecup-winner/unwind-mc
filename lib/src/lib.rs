@@ -2,6 +2,8 @@
 #![feature(nll)]
 #![feature(slice_patterns)]
 extern crate bincode;
+#[macro_use]
+extern crate bitflags;
 extern crate either;
 extern crate goblin;
 extern crate libudis86_sys;

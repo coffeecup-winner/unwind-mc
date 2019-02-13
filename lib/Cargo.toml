@@ -9,6 +9,7 @@ crate-type = ["dylib", "rlib"]
 
 [dependencies]
 bincode = "1.1.1"
+bitflags = "1.0.4"
 either = "1.5.0"
 goblin = "0.0.19"
 libudis86-sys = "0.2.0"
