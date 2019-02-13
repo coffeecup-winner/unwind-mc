@@ -290,6 +290,10 @@ impl ILDecompiler {
                     _ => Ok(vec![Assign(binary(left, right))]),
                 }
             }
+            Mnemonic::Imovsx => {
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                Ok(vec![Assign(binary(left, right))]) // TODO: take into account size extension
+            }
             Mnemonic::Ineg => {
                 let operand = self.get_unary_operand(&insn.operands)?;
                 Ok(vec![Unary(Negate, unary(operand))])
@@ -318,14 +322,20 @@ impl ILDecompiler {
                     Ok(vec![Return(unary(Register(Reg::EAX)))])
                 }
             }
+            Mnemonic::Isar => {
+                let (left, right) = self.get_binary_operands(&insn.operands)?;
+                // TODO: take into account signedness
+                Ok(vec![Binary(ShiftRight, binary(left, right))])
+            }
             Mnemonic::Ishl => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(ShiftLeft, binary(left, right))])
             }
-            Mnemonic::Isar => {
+            Mnemonic::Ishr => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
+                // TODO: take into account signedness
                 Ok(vec![Binary(ShiftRight, binary(left, right))])
-            }
+            }            
             Mnemonic::Isub => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(Subtract, binary(left, right))])

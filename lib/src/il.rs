@@ -205,8 +205,10 @@ impl ILInstruction<ILOperand> {
             },
             &Pointer(b, i, s, o) => {
                 res += "ptr(";
-                res += b.to_str();
-                res += " + ";
+                if b != Reg::NONE {
+                    res += b.to_str();
+                    res += " + ";
+                }
                 if i != Reg::NONE && s != 0 {
                     res += i.to_str();
                     res += " * ";
