@@ -87,20 +87,32 @@ impl ILDecompiler {
             if graph.contains_address(addr) {
                 let insn = graph.get_vertex(&addr);
                 match insn.code {
-                    Mnemonic::Icmp => {
+                    Mnemonic::Iand | Mnemonic::Ior => {
+                        if Self::check_flags(flag, Flags::PZS, Flags::CAO)? {
+                            let (left, _) = self.get_binary_operands(&insn.operands)?;
+                            return Ok(Some(binary(left, Value(0))));
+                        }
+                    }
+                    Mnemonic::Iadd => {
+                        if Self::check_flags(flag, Flags::CPAZSO, Flags::NONE)? {
+                            let (left, _) = self.get_binary_operands(&insn.operands)?;
+                            return Ok(Some(binary(left, Value(0))));
+                        }
+                    }
+                    Mnemonic::Icmp | Mnemonic::Isub => {
                         if Self::check_flags(flag, Flags::CPAZSO, Flags::NONE)? {
                             let (left, right) = self.get_binary_operands(&insn.operands)?;
                             return Ok(Some(binary(left, right)));
                         }
                     }
-                    Mnemonic::Idec => {
+                    Mnemonic::Idec | Mnemonic::Iinc => {
                         if Self::check_flags(flag, Flags::PAZSO, Flags::NONE)? {
                             let operand = self.get_unary_operand(&insn.operands)?;
                             return Ok(Some(binary(operand, Value(0))));
                         }
                     }
                     Mnemonic::Itest => {
-                        if Self::check_flags(flag, Flags::PZS, Flags::CF | Flags::OF | Flags::AF)? {
+                        if Self::check_flags(flag, Flags::PZS, Flags::CAO)? {
                             let (left, right) = self.get_binary_operands(&insn.operands)?;
                             match (&left, &right) {
                                 (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
@@ -113,7 +125,11 @@ impl ILDecompiler {
                     Mnemonic::Ija | Mnemonic::Ijae | Mnemonic::Ijb | Mnemonic::Ijbe |
                     Mnemonic::Ijg | Mnemonic::Ijge | Mnemonic::Ijl | Mnemonic::Ijle |
                     Mnemonic::Ijs | Mnemonic::Ijns | Mnemonic::Ijz | Mnemonic::Ijnz |
-                    Mnemonic::Ijmp | Mnemonic::Icmovl | Mnemonic::Imov => {}
+                    Mnemonic::Ijmp | Mnemonic::Icmovl | Mnemonic::Imov |
+                    Mnemonic::Ipush | Mnemonic::Ipop | Mnemonic::Ilea => {}
+                    Mnemonic::Iret => {
+                        return Err(String::from("Failed to find condition"))
+                    }
                     _ => {
                         return Err(format!("Unsupported instruction for condition searching: {:?}", insn));
                     }

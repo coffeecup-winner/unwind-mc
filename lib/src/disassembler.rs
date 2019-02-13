@@ -446,6 +446,7 @@ bitflags! {
         // ...
         const OF = 0x0800;
         // Add the rest if needed
+        const CAO = Self::CF.bits | Self::AF.bits | Self::OF.bits;
         const PZS = Self::PF.bits | Self::ZF.bits | Self::SF.bits;
         const PAZSO = Self::AF.bits | Self::OF.bits | Self::PZS.bits;
         const CPAZSO = Self::CF.bits | Self::PAZSO.bits;
