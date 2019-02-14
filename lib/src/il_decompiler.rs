@@ -290,6 +290,13 @@ impl ILDecompiler {
                     _ => Ok(vec![Assign(binary(left, right))]),
                 }
             }
+            Mnemonic::Imovsd => {
+                if !insn.prefix_str || !insn.prefix_rep {
+                    Err(format!("Unsupported movsd instruction: {:?}", insn))
+                } else {
+                    Ok(vec![Copy(copy(Register(Reg::EDI), Register(Reg::ESI), Value(4), Register(Reg::ECX)))])
+                }
+            }
             Mnemonic::Imovsx => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Assign(binary(left, right))]) // TODO: take into account size extension

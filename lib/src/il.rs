@@ -21,6 +21,14 @@ pub struct UnaryInstruction<Op> {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+pub struct CopyInstruction<Op> {
+    pub dst: Op,
+    pub src: Op,
+    pub stride: Op,
+    pub count: Op,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub enum BranchType {
     Equal,
     NotEqual,
@@ -63,6 +71,7 @@ pub enum ILInstruction<Op : Clone> {
     Binary(ILBinaryOperator, BinaryInstruction<Op>),
     Unary(ILUnaryOperator, UnaryInstruction<Op>),
     Assign(BinaryInstruction<Op>),
+    Copy(CopyInstruction<Op>),
     Branch(BranchInstruction<Op>),
     Call(UnaryInstruction<Op>),
     Return(UnaryInstruction<Op>), // TODO: remove data
@@ -77,6 +86,10 @@ pub fn unary<Op>(operand: Op) -> UnaryInstruction<Op> {
 
 pub fn binary<Op : Clone>(left: Op, right: Op) -> BinaryInstruction<Op> {
     BinaryInstruction { left, right }
+}
+
+pub fn copy<Op : Clone>(dst: Op, src: Op, stride: Op, count: Op) -> CopyInstruction<Op> {
+    CopyInstruction { dst, src, stride, count }
 }
 
 pub fn branch<Op : Clone>(type_: BranchType, condition: Option<BinaryInstruction<Op>>, target: u64) -> BranchInstruction<Op> {
@@ -104,6 +117,16 @@ impl ILInstruction<ILOperand> {
                 res += " := ";
                 res += &Self::print_operand(&binary.right);
             },
+            ILInstruction::Copy(copy) => {
+                res += "copy (";
+                res += &Self::print_operand(&copy.stride);
+                res += " * ";
+                res += &Self::print_operand(&copy.count);
+                res += ") bytes from ";
+                res += &Self::print_operand(&copy.src);
+                res += " to ";
+                res += &Self::print_operand(&copy.dst);
+            }
             ILInstruction::Branch(branch) => {
                 res += &Self::print_branch(branch);
             },

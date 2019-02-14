@@ -205,6 +205,9 @@ impl<'a> AstBuilder<'a> {
                 self.build_var(&binary.left),
                 self.build_expression(&binary.right),
             ),
+            ILInstruction::Copy(_copy) => {
+                panic!("Not supported yet")
+            }
             ILInstruction::Call(unary) => {
                 Statement::FunctionCall(self.build_expression(&unary.operand))
             }
