@@ -275,6 +275,49 @@ impl ILDecompiler {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(LoadAddress, binary(left, right))])
             }
+            Mnemonic::Ilodsb => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsb instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Binary(Add, binary(Register(Reg::ESI), Value(1))),
+                    ])
+                }
+            }
+            Mnemonic::Ilodsw => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsw instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Binary(Add, binary(Register(Reg::ESI), Value(2))),
+                    ])
+                }
+            }
+            Mnemonic::Ilodsd => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsd instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Binary(Add, binary(Register(Reg::ESI), Value(4))),
+                    ])
+                }
+            }
+            Mnemonic::Iloop => {
+                Ok(vec![
+                    Binary(Subtract, binary(Register(Reg::ECX), Value(1))),
+                    Branch(branch(
+                        Greater,
+                        Some(binary(Register(Reg::ECX), Value(0))),
+                        insn.get_target_address(),
+                    )),
+                ])
+            }
             Mnemonic::Imov => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 match (&left, &right) {
@@ -342,7 +385,40 @@ impl ILDecompiler {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 // TODO: take into account signedness
                 Ok(vec![Binary(ShiftRight, binary(left, right))])
-            }            
+            }
+            Mnemonic::Istosb => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsb instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Binary(Add, binary(Register(Reg::EDI), Value(1))),
+                    ])
+                }
+            }
+            Mnemonic::Istosw => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsw instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Binary(Add, binary(Register(Reg::EDI), Value(2))),
+                    ])
+                }
+            }
+            Mnemonic::Istosd => {
+                if insn.operands.len() != 0 || insn.prefix_rep {
+                    Err(format!("Unsupported lodsd instruction: {:?}", insn))
+                } else {
+                    // TODO: take into account register size
+                    Ok(vec![
+                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Binary(Add, binary(Register(Reg::EDI), Value(4))),
+                    ])
+                }
+            }
             Mnemonic::Isub => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(Subtract, binary(left, right))])
