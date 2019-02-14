@@ -173,7 +173,6 @@ impl TypeResolver {
                 Continue => Continue,
                 Break => Break,
                 Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.coalesce_binary(id_from, id_to, &b)), br.target)),
-                Nop => Nop,
             }).collect()
     }
 
@@ -336,7 +335,6 @@ impl TypeResolver {
                 Continue => Continue,
                 Break => Break,
                 Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.convert_binary(&b)), br.target)),
-                Nop => Nop,
             }).collect()
     }
 

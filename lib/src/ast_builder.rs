@@ -113,7 +113,6 @@ impl<'a> AstBuilder<'a> {
                 Block::SequentialBlock(block) => {
                     for insn in block.instructions.iter() {
                         match insn {
-                            ILInstruction::Nop => (),
                             insn => statements.push(self.build_statement(insn)),
                         }
                     }
@@ -217,7 +216,7 @@ impl<'a> AstBuilder<'a> {
             }
             ILInstruction::Continue => Statement::Continue,
             ILInstruction::Break => Statement::Break,
-            ILInstruction::Nop | ILInstruction::Branch(_) => {
+            ILInstruction::Branch(_) => {
                 panic!("impossble")
             }
         }

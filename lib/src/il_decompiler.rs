@@ -23,12 +23,7 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstru
         let insn = graph.get_vertex(&address).clone();
 
         let il_insns = decompiler.convert_instruction(graph, &insn)?;
-        if il_insns.len() > insn.length as usize {
-            return Err(String::from("FIXME: not enough virtual addresses"));
-        }
-        for (i, il_insn) in il_insns.into_iter().enumerate() {
-            il.insert(insn.address + i as u64, il_insn);
-        }
+        il.insert(insn.address, il_insns);
 
         for pair in graph.get_adjacent(&address).into_iter().rev() {
             match pair {
@@ -48,28 +43,25 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstru
 
     use il::ILInstruction::*;
     let mut targets = HashMap::new();
-    let mut nop_counts = HashMap::new();
-    let mut nops = 0;
-    for (i, (addr, insn)) in il.iter().enumerate() {
-        targets.insert(*addr, i as u64);
-        nop_counts.insert(*addr, nops as u64);
-        if let Nop = insn {
-            nops += 1;
-        }
+    let mut index = 0;
+    for (addr, insns) in il.iter() {
+        targets.insert(*addr, index);
+        index += insns.len() as u64;
     }
 
     let mut res = vec![];
-    for (_, insn) in il {
-        match insn {
-            Branch(branch) => {
-                res.push(Branch(BranchInstruction {
-                    type_: branch.type_.clone(),
-                    condition: branch.condition.clone(),
-                    target: targets[&branch.target] - nop_counts[&branch.target],
-                }));
+    for (_, insns) in il {
+        for insn in insns {
+            match insn {
+                Branch(branch) => {
+                    res.push(Branch(BranchInstruction {
+                        type_: branch.type_.clone(),
+                        condition: branch.condition.clone(),
+                        target: targets[&branch.target],
+                    }));
+                }
+                insn => res.push(insn),
             }
-            Nop => {}
-            insn => res.push(insn),
         }
     }
     Ok(res)
@@ -189,7 +181,7 @@ impl ILDecompiler {
                     Assign(binary(left, right)),
                 ])
             }
-            Mnemonic::Icmp => Ok(vec![Nop]),
+            Mnemonic::Icmp => Ok(vec![]),
             Mnemonic::Idec => {
                 let operand = self.get_unary_operand(&insn.operands)?;
                 Ok(vec![Binary(Subtract, binary(operand, Value(1)))])
@@ -358,11 +350,11 @@ impl ILDecompiler {
             }
             Mnemonic::Ipush => {
                 self.stack_offset -= REGISTER_SIZE as i32;
-                Ok(vec![Nop])
+                Ok(vec![])
             }
             Mnemonic::Ipop => {
                 self.stack_offset += REGISTER_SIZE as i32;
-                Ok(vec![Nop])
+                Ok(vec![])
             }
             Mnemonic::Iret => {
                 self.stack_offset += REGISTER_SIZE as i32;
@@ -423,7 +415,7 @@ impl ILDecompiler {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(Subtract, binary(left, right))])
             }
-            Mnemonic::Itest => Ok(vec![Nop]),
+            Mnemonic::Itest => Ok(vec![]),
             Mnemonic::Ixor => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 Ok(vec![Binary(Xor, binary(left, right))])

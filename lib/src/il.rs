@@ -75,7 +75,6 @@ pub enum ILInstruction<Op : Clone> {
     Branch(BranchInstruction<Op>),
     Call(UnaryInstruction<Op>),
     Return(UnaryInstruction<Op>), // TODO: remove data
-    Nop,                          // TODO: remove this
     Continue,
     Break,
 }
@@ -137,9 +136,6 @@ impl ILInstruction<ILOperand> {
             ILInstruction::Return(unary) => {
                 res += "ret ";
                 res += &Self::print_operand(&unary.operand);
-            },
-            ILInstruction::Nop => {
-                res += "nop";
             },
             ILInstruction::Continue => {
                 res += "continue";
