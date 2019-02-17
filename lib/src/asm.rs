@@ -238,7 +238,7 @@ impl InstructionGraph {
         self.mark_data_bytes(address, count, display_text);
     }
 
-    pub fn mark_data_bytes(&mut self, address: u64, length: u8, data_display_text: String) -> () {
+    pub fn mark_data_bytes(&mut self, address: u64, length: u8, _data_display_text: String) -> () {
         // check if there is an instruction at address, otherwise split an existing one
         let mut size = match self.instructions.get(&address) {
             Some(instr) => instr.length,
