@@ -71,8 +71,7 @@ fn stage_test_functions_array() {
         00400018: 5e                 pop esi
         00400019: c3                 ret",
     );
-    let il = il_decompiler::decompile(project.graph(), 0x400000)
-        .expect("Failed to decompile IL");
+    let il = il_decompiler::decompile(project.graph(), 0x400000).expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;
@@ -86,7 +85,10 @@ fn stage_test_functions_array() {
             Some(binary(Register(Reg::ESI), Argument(4))),
             7,
         )),
-        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+        Assign(binary(
+            Register(Reg::EAX),
+            Pointer(Reg::ESI, Reg::NONE, 0, 0),
+        )),
         Branch(branch(Equal, Some(binary(Register(Reg::EAX), Value(0))), 5)),
         Call(unary(Register(Reg::EAX))),
         Binary(Add, binary(Register(Reg::ESI), Value(4))),
@@ -110,7 +112,10 @@ fn stage_test_functions_array() {
             ))]),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
-                    instructions: vec![Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0)))],
+                    instructions: vec![Assign(binary(
+                        Register(Reg::EAX),
+                        Pointer(Reg::ESI, Reg::NONE, 0, 0),
+                    ))],
                 }),
                 Block::ConditionalBlock(ConditionalBlock {
                     condition: invert_condition(vec![Branch(branch(

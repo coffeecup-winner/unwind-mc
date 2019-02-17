@@ -22,7 +22,13 @@ impl Disassembler {
         }
     }
 
-    pub fn disassemble(&mut self, bytes: &[u8], pc: u64, offset: usize, length: usize) -> Vec<Insn> {
+    pub fn disassemble(
+        &mut self,
+        bytes: &[u8],
+        pc: u64,
+        offset: usize,
+        length: usize,
+    ) -> Vec<Insn> {
         let mut result = vec![];
         unsafe {
             ud_set_pc(&mut self.ud, pc);
@@ -90,7 +96,10 @@ impl Insn {
         if let Operand::RelativeAddress(v) = self.operands[0] {
             (target_address as i64 + v) as u64
         } else {
-            error!("ERROR: Invalid instruction to get target address from: {:?}", self);
+            error!(
+                "ERROR: Invalid instruction to get target address from: {:?}",
+                self
+            );
             0
         }
     }
@@ -100,10 +109,11 @@ impl Insn {
     pub fn assembly(&self) -> String {
         let mut result = String::new();
 
-        if self.prefix_segment != Reg::NONE &&
-            self.operands.len() > 1 &&
-            !self.operands[0].is_mem() &&
-            !self.operands[1].is_mem() {
+        if self.prefix_segment != Reg::NONE
+            && self.operands.len() > 1
+            && !self.operands[0].is_mem()
+            && !self.operands[1].is_mem()
+        {
             result += self.prefix_segment.to_str();
         }
 
@@ -125,23 +135,24 @@ impl Insn {
             let mut cast = false;
             result += " ";
             if self.operands[0].is_mem() {
-                if self.operands.len() <= 1 ||
-                    self.operands[1].is_imm() ||
-                    self.operands[1].is_const() ||
-                    self.operands[0].size() != self.operands[1].size() {
+                if self.operands.len() <= 1
+                    || self.operands[1].is_imm()
+                    || self.operands[1].is_const()
+                    || self.operands[0].size() != self.operands[1].size()
+                {
                     cast = true;
                 } else if self.operands.len() > 1 {
                     if let Operand::Register(_, Reg::CL) = self.operands[1] {
                         match self.code {
-                            Mnemonic::Ircl |
-                            Mnemonic::Irol |
-                            Mnemonic::Iror |
-                            Mnemonic::Ircr |
-                            Mnemonic::Ishl |
-                            Mnemonic::Ishr |
-                            Mnemonic::Isar => {
+                            Mnemonic::Ircl
+                            | Mnemonic::Irol
+                            | Mnemonic::Iror
+                            | Mnemonic::Ircr
+                            | Mnemonic::Ishl
+                            | Mnemonic::Ishr
+                            | Mnemonic::Isar => {
                                 cast = true;
-                            },
+                            }
                             _ => {}
                         }
                     }
@@ -153,8 +164,7 @@ impl Insn {
         if self.operands.len() > 1 {
             let mut cast = false;
             result += ", ";
-            if self.operands[1].is_mem() &&
-                self.operands[1].size() != self.operands[0].size() {
+            if self.operands[1].is_mem() && self.operands[1].size() != self.operands[0].size() {
                 cast = true;
             }
             result += &self.print_operand(&self.operands[1], cast);
@@ -163,8 +173,7 @@ impl Insn {
         if self.operands.len() > 2 {
             let mut cast = false;
             result += ", ";
-            if self.operands[2].is_mem() &&
-                self.operands[2].size() != self.operands[1].size() {
+            if self.operands[2].is_mem() && self.operands[2].size() != self.operands[1].size() {
                 cast = true;
             }
             result += &self.print_operand(&self.operands[2], cast);
@@ -184,7 +193,7 @@ impl Insn {
         match op {
             Operand::Register(_, r) => {
                 s += r.to_str();
-            },
+            }
             &Operand::MemoryAbsolute(size, v) => {
                 if cast {
                     s += &self.print_cast(size);
@@ -225,36 +234,34 @@ impl Insn {
                     }
                 }
                 s += "]";
-            },
+            }
             Operand::ImmediateSigned(_, v) => {
                 s += &format!("0x{:x}", v);
             }
             Operand::ImmediateUnsigned(_, v) => {
                 s += &format!("0x{:x}", v);
-            },
+            }
             Operand::RelativeAddress(v) => {
                 let trunc_mask = 0xffffffffffffffff >> (64 - self.opr_mode);
                 let pc = self.address + u64::from(self.length);
                 let address = pc.wrapping_add(*v as u64) & trunc_mask;
                 s += &format!("0x{:x}", address);
-            },
-            Operand::Pointer(size, seg, off) => {
-                match size {
-                    32 => {
-                        s += &format!("word 0x{:x}0x{:x}", seg, off & 0xffff);
-                    }
-                    48 => {
-                        s += &format!("dword 0x{:x}0x{:x}", seg, off);
-                    }
-                    _ => unreachable!(),
+            }
+            Operand::Pointer(size, seg, off) => match size {
+                32 => {
+                    s += &format!("word 0x{:x}0x{:x}", seg, off & 0xffff);
                 }
+                48 => {
+                    s += &format!("dword 0x{:x}0x{:x}", seg, off);
+                }
+                _ => unreachable!(),
             },
             &Operand::Const(size, v) => {
                 if cast {
                     s += &self.print_cast(size);
                 }
                 s += &format!("{}", v);
-            },
+            }
         }
 
         return s;
@@ -267,13 +274,27 @@ impl Insn {
             s += "far ";
         }
         match size {
-            8 => { s += "byte "; },
-            16 => { s += "word "; },
-            32 => { s += "dword "; },
-            64 => { s += "qword "; },
-            80 => { s += "tword "; },
-            128 => { s += "oword "; },
-            256 => { s += "yword "; },
+            8 => {
+                s += "byte ";
+            }
+            16 => {
+                s += "word ";
+            }
+            32 => {
+                s += "dword ";
+            }
+            64 => {
+                s += "qword ";
+            }
+            80 => {
+                s += "tword ";
+            }
+            128 => {
+                s += "oword ";
+            }
+            256 => {
+                s += "yword ";
+            }
             _ => {}
         }
 
@@ -303,18 +324,25 @@ impl Operand {
                 let index = Reg::from_ud_type(operand.index);
                 if base == Reg::NONE && index == Reg::NONE {
                     assert!(operand.scale == 0 && operand.offset != 8);
-                    MemoryAbsolute(operand.size,
-                        Self::get_off_u64(operand.offset, operand.lval))
+                    MemoryAbsolute(
+                        operand.size,
+                        Self::get_off_u64(operand.offset, operand.lval),
+                    )
                 } else {
                     assert!(operand.offset != 64);
-                    MemoryRelative(operand.size, operand.offset, base, index, operand.scale,
-                        Self::get_off_i64(operand.offset, operand.lval))
+                    MemoryRelative(
+                        operand.size,
+                        operand.offset,
+                        base,
+                        index,
+                        operand.scale,
+                        Self::get_off_i64(operand.offset, operand.lval),
+                    )
                 }
-            },
-            ud_type::UD_OP_PTR => Pointer(
-                operand.size,
-                unsafe { operand.lval.ptr.seg },
-                unsafe { operand.lval.ptr.off }),
+            }
+            ud_type::UD_OP_PTR => Pointer(operand.size, unsafe { operand.lval.ptr.seg }, unsafe {
+                operand.lval.ptr.off
+            }),
             ud_type::UD_OP_IMM => {
                 if operand._oprcode == 46 /* OP_sI */ && operand.size != mode {
                     // Sign expand
@@ -327,12 +355,10 @@ impl Operand {
                     }
                     ImmediateSigned(operand.size, v as i64)
                 } else {
-                    ImmediateUnsigned(operand.size,
-                        Self::get_imm_u64(operand.size, operand.lval))
+                    ImmediateUnsigned(operand.size, Self::get_imm_u64(operand.size, operand.lval))
                 }
-            },
-            ud_type::UD_OP_JIMM => RelativeAddress(
-                Self::get_imm_i64(operand.size, operand.lval)),
+            }
+            ud_type::UD_OP_JIMM => RelativeAddress(Self::get_imm_i64(operand.size, operand.lval)),
             ud_type::UD_OP_CONST => Const(operand.size, unsafe { operand.lval.uqword }),
             _ => panic!("Register used as operand type"),
         }
@@ -340,16 +366,14 @@ impl Operand {
 
     pub fn is_mem(&self) -> bool {
         match self {
-            Operand::MemoryAbsolute(_, _)
-            | Operand::MemoryRelative(_, _, _, _, _, _) => true,
+            Operand::MemoryAbsolute(_, _) | Operand::MemoryRelative(_, _, _, _, _, _) => true,
             _ => false,
         }
     }
 
     pub fn is_imm(&self) -> bool {
         match self {
-            Operand::ImmediateSigned(_, _)
-            | Operand::ImmediateUnsigned(_, _) => true,
+            Operand::ImmediateSigned(_, _) | Operand::ImmediateUnsigned(_, _) => true,
             _ => false,
         }
     }
@@ -2766,7 +2790,7 @@ impl Mnemonic {
             ud_mnemonic_code::UD_Inone => Inone,
             ud_mnemonic_code::UD_Idb => Idb,
             ud_mnemonic_code::UD_Ipause => Ipause,
-            ud_mnemonic_code::UD_MAX_MNEMONIC_CODE => panic!("Invalid mnemonic code")
+            ud_mnemonic_code::UD_MAX_MNEMONIC_CODE => panic!("Invalid mnemonic code"),
         }
     }
 

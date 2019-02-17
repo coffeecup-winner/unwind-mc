@@ -151,7 +151,8 @@ impl TypeResolver {
                     true_branch: self.coalesce_blocks(id_from, id_to, b.true_branch),
                     false_branch: self.coalesce_blocks(id_from, id_to, b.false_branch),
                 }),
-            }).collect()
+            })
+            .collect()
     }
 
     fn coalesce_instructions(
@@ -172,8 +173,14 @@ impl TypeResolver {
                 Copy(_copy) => panic!("Not supported yet"),
                 Continue => Continue,
                 Break => Break,
-                Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.coalesce_binary(id_from, id_to, &b)), br.target)),
-            }).collect()
+                Branch(br) => Branch(branch(
+                    br.type_,
+                    br.condition
+                        .map(|b| self.coalesce_binary(id_from, id_to, &b)),
+                    br.target,
+                )),
+            })
+            .collect()
     }
 
     fn coalesce_unary(
@@ -314,7 +321,8 @@ impl TypeResolver {
                         false_branch,
                     })
                 }
-            }).collect()
+            })
+            .collect()
     }
 
     fn convert_instructions(
@@ -334,8 +342,13 @@ impl TypeResolver {
                 Return(unary) => Return(self.convert_return(&unary, returns_value)),
                 Continue => Continue,
                 Break => Break,
-                Branch(br) => Branch(branch(br.type_, br.condition.map(|b| self.convert_binary(&b)), br.target)),
-            }).collect()
+                Branch(br) => Branch(branch(
+                    br.type_,
+                    br.condition.map(|b| self.convert_binary(&b)),
+                    br.target,
+                )),
+            })
+            .collect()
     }
 
     fn convert_unary(
@@ -432,11 +445,7 @@ impl TypeResolver {
         // most probably need to check all paths
         blocks.iter().any(|b| match b {
             Block::SequentialBlock(ref b) => b.instructions.iter().any(|i| match i {
-                ILInstruction::Assign(ref i)
-                    if i.left == ILOperand::Register(Reg::EAX) =>
-                {
-                    true
-                }
+                ILInstruction::Assign(ref i) if i.left == ILOperand::Register(Reg::EAX) => true,
                 _ => false,
             }),
             _ => false,

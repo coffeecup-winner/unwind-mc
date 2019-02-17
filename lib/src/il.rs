@@ -10,7 +10,7 @@ pub enum ILOperand {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
-pub struct BinaryInstruction<Op : Clone> {
+pub struct BinaryInstruction<Op: Clone> {
     pub left: Op,
     pub right: Op,
 }
@@ -40,7 +40,7 @@ pub enum BranchType {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
-pub struct BranchInstruction<Op : Clone> {
+pub struct BranchInstruction<Op: Clone> {
     pub type_: BranchType,
     pub condition: Option<BinaryInstruction<Op>>,
     pub target: u64,
@@ -67,7 +67,7 @@ pub enum ILUnaryOperator {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ILInstruction<Op : Clone> {
+pub enum ILInstruction<Op: Clone> {
     Binary(ILBinaryOperator, BinaryInstruction<Op>),
     Unary(ILUnaryOperator, UnaryInstruction<Op>),
     Assign(BinaryInstruction<Op>),
@@ -83,16 +83,29 @@ pub fn unary<Op>(operand: Op) -> UnaryInstruction<Op> {
     UnaryInstruction { operand }
 }
 
-pub fn binary<Op : Clone>(left: Op, right: Op) -> BinaryInstruction<Op> {
+pub fn binary<Op: Clone>(left: Op, right: Op) -> BinaryInstruction<Op> {
     BinaryInstruction { left, right }
 }
 
-pub fn copy<Op : Clone>(dst: Op, src: Op, stride: Op, count: Op) -> CopyInstruction<Op> {
-    CopyInstruction { dst, src, stride, count }
+pub fn copy<Op: Clone>(dst: Op, src: Op, stride: Op, count: Op) -> CopyInstruction<Op> {
+    CopyInstruction {
+        dst,
+        src,
+        stride,
+        count,
+    }
 }
 
-pub fn branch<Op : Clone>(type_: BranchType, condition: Option<BinaryInstruction<Op>>, target: u64) -> BranchInstruction<Op> {
-    BranchInstruction { type_, condition, target }
+pub fn branch<Op: Clone>(
+    type_: BranchType,
+    condition: Option<BinaryInstruction<Op>>,
+    target: u64,
+) -> BranchInstruction<Op> {
+    BranchInstruction {
+        type_,
+        condition,
+        target,
+    }
 }
 
 impl ILInstruction<ILOperand> {
@@ -105,17 +118,17 @@ impl ILInstruction<ILOperand> {
                 res += &Self::print_operand(&binary.left);
                 res += ", ";
                 res += &Self::print_operand(&binary.right);
-            },
+            }
             ILInstruction::Unary(op, unary) => {
                 res += Self::print_unary_operator(op);
                 res += " ";
                 res += &Self::print_operand(&unary.operand);
-            },
+            }
             ILInstruction::Assign(binary) => {
                 res += &Self::print_operand(&binary.left);
                 res += " := ";
                 res += &Self::print_operand(&binary.right);
-            },
+            }
             ILInstruction::Copy(copy) => {
                 res += "copy (";
                 res += &Self::print_operand(&copy.stride);
@@ -128,21 +141,21 @@ impl ILInstruction<ILOperand> {
             }
             ILInstruction::Branch(branch) => {
                 res += &Self::print_branch(branch);
-            },
+            }
             ILInstruction::Call(unary) => {
                 res += "call ";
                 res += &Self::print_operand(&unary.operand);
-            },
+            }
             ILInstruction::Return(unary) => {
                 res += "ret ";
                 res += &Self::print_operand(&unary.operand);
-            },
+            }
             ILInstruction::Continue => {
                 res += "continue";
-            },
+            }
             ILInstruction::Break => {
                 res += "break";
-            },
+            }
         }
         res
     }
@@ -221,7 +234,7 @@ impl ILInstruction<ILOperand> {
                 res += "loc(";
                 res += &v.to_string();
                 res += ")";
-            },
+            }
             &Pointer(b, i, s, o) => {
                 res += "ptr(";
                 if b != Reg::NONE {
@@ -236,7 +249,7 @@ impl ILInstruction<ILOperand> {
                 }
                 res += &o.to_string();
                 res += ")";
-            },
+            }
         }
         res
     }

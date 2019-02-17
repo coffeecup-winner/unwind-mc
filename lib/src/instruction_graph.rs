@@ -49,7 +49,11 @@ fn empty_edge_predicate() -> Box<Fn(&Link) -> bool> {
 }
 
 pub fn disassemble(bytes: Vec<u8>, pc: u64) -> Result<InstructionGraph, String> {
-    trace!("InstructionGraph::disassemble: 0x{:x}, {} bytes", pc, bytes.len());
+    trace!(
+        "InstructionGraph::disassemble: 0x{:x}, {} bytes",
+        pc,
+        bytes.len()
+    );
     let mut disassembler = Disassembler::new();
 
     let instructions = disassembler.disassemble(&bytes[..], pc, 0, bytes.len());
@@ -108,21 +112,23 @@ impl Graph<u64, Insn, Link> for InstructionGraph {
             &self.instruction_links
         };
         match instruction_links.get(vid) {
-            Some(links) => for link in links.iter().filter(|e| (*self.edge_predicate)(e)) {
-                let address = if self.is_reversed {
-                    &link.address
-                } else {
-                    &link.target_address
-                };
-                if self.in_bounds(*address) {
-                    result.push(Result::Ok((address, link)));
-                } else {
-                    result.push(Result::Err(format!(
-                        "DFS: Jump outside of code section: {}",
-                        address
-                    )));
+            Some(links) => {
+                for link in links.iter().filter(|e| (*self.edge_predicate)(e)) {
+                    let address = if self.is_reversed {
+                        &link.address
+                    } else {
+                        &link.target_address
+                    };
+                    if self.in_bounds(*address) {
+                        result.push(Result::Ok((address, link)));
+                    } else {
+                        result.push(Result::Err(format!(
+                            "DFS: Jump outside of code section: {}",
+                            address
+                        )));
+                    }
                 }
-            },
+            }
             None => result.push(Result::Err(format!(
                 "DFS: Couldn't find links for {}",
                 &self.instructions[vid].assembly()
@@ -333,7 +339,8 @@ impl InstructionGraph {
                 self.extra_data
                     .get(&(address + len))
                     .map_or(false, |d| d.is_protected)
-            }).unwrap_or(disasm_length);
+            })
+            .unwrap_or(disasm_length);
         let mut new_instructions = self.disassembler.disassemble(
             &self.bytes[..],
             address,

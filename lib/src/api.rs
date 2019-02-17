@@ -27,9 +27,12 @@ impl Log for CallbackLogger {
     }
 
     fn log(&self, record: &Record) {
-        let line = format!("[{}] {}: {}",
+        let line = format!(
+            "[{}] {}: {}",
             time::strftime("%H:%M:%S.%f", &time::now()).expect("Failed to format time"),
-            record.level(), record.args());
+            record.level(),
+            record.args()
+        );
         unsafe {
             (self.callback)(CString::from_vec_unchecked(line.into_bytes()).as_ptr());
         }
@@ -47,13 +50,13 @@ pub extern "C" fn version() -> *const c_char {
 
 #[no_mangle]
 pub extern "C" fn init(log_callback: extern "C" fn(line: *const c_char) -> ()) -> bool {
-    log::set_boxed_logger(Box::new(CallbackLogger { callback: log_callback }))
-        .expect("Failed to set the logger");
+    log::set_boxed_logger(Box::new(CallbackLogger {
+        callback: log_callback,
+    }))
+    .expect("Failed to set the logger");
     log::set_max_level(LevelFilter::Trace);
     trace!("Initialized logging");
-    OPEN_HANDLES.with(|handles|
-        *handles.borrow_mut() = Some(HashMap::new())
-    );
+    OPEN_HANDLES.with(|handles| *handles.borrow_mut() = Some(HashMap::new()));
     true
 }
 
@@ -74,9 +77,13 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
     project.analyze_asm();
     let handle = NEXT_HANDLE.with(|next_cell| {
         let handle = *next_cell;
-        OPEN_HANDLES.with(|handles_cell|
-            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(project))
-        );
+        OPEN_HANDLES.with(|handles_cell| {
+            handles_cell
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .insert(handle, Box::new(project))
+        });
         handle
     });
     trace!("open_binary_file: done");
@@ -99,9 +106,13 @@ pub extern "C" fn open_db(path: *const c_char) -> u32 {
     };
     let handle = NEXT_HANDLE.with(|next_cell| {
         let handle = *next_cell;
-        OPEN_HANDLES.with(|handles_cell|
-            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(project))
-        );
+        OPEN_HANDLES.with(|handles_cell| {
+            handles_cell
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .insert(handle, Box::new(project))
+        });
         handle
     });
     trace!("open_db: done");
@@ -115,12 +126,13 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
         None => return (),
     };
     trace!("save_db: {}", path);
-    with_project(handle, &mut |project| {
-        match Project::serialize_to_file(project, path) {
-            Ok(()) => {},
+    with_project(
+        handle,
+        &mut |project| match Project::serialize_to_file(project, path) {
+            Ok(()) => {}
             Err(s) => error!("{}", s),
-        }
-    });
+        },
+    );
     trace!("save_db: done");
 }
 
@@ -162,8 +174,8 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
                             "hex": project.graph().get_bytes_as_hex(insn),
                             "assembly": insn.assembly(),
                         }));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }

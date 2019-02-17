@@ -35,19 +35,14 @@ impl AssignmentTracker {
             if try_match(insn, register) {
                 match insn.operands[1] {
                     Operand::Register(_, r) => {
-                        return AssignmentTracker::find(
-                            graph,
-                            insn.address,
-                            r,
-                            &mut |i, reg| {
-                                if let Operand::Register(_, r) = i.operands[0] { 
-                                    if r == reg && i.code == Mnemonic::Imov {
-                                        return true;
-                                    }
+                        return AssignmentTracker::find(graph, insn.address, r, &mut |i, reg| {
+                            if let Operand::Register(_, r) = i.operands[0] {
+                                if r == reg && i.code == Mnemonic::Imov {
+                                    return true;
                                 }
-                                return false;
-                            },
-                        );
+                            }
+                            return false;
+                        });
                     }
                     Operand::ImmediateSigned(_, v) => return Some(v as u64),
                     Operand::ImmediateUnsigned(_, v) => return Some(v),
@@ -65,13 +60,9 @@ impl AssignmentTracker {
 
             if let Mnemonic::Imov = insn.code {
                 match (insn.operands[0], insn.operands[1]) {
-                    (Operand::Register(_, r0), Operand::Register(_, r1)) if r0 == register =>
-                        return AssignmentTracker::find(
-                            graph,
-                            insn.address,
-                            r1,
-                            try_match,
-                        ),
+                    (Operand::Register(_, r0), Operand::Register(_, r1)) if r0 == register => {
+                        return AssignmentTracker::find(graph, insn.address, r1, try_match);
+                    }
                     _ => {}
                 }
             }

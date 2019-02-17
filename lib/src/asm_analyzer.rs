@@ -6,8 +6,11 @@ use disassembler::*;
 use instruction_graph::*;
 use project::*;
 
-pub fn analyze(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Function>,
-    jump_tables: &mut BTreeMap<u64, JumpTable>) {
+pub fn analyze(
+    graph: &mut InstructionGraph,
+    functions: &mut BTreeMap<u64, Function>,
+    jump_tables: &mut BTreeMap<u64, JumpTable>,
+) {
     trace!("Analyzer::analyze");
     add_explicit_calls(graph, functions);
     resolve_function_bounds(graph, functions, jump_tables);
@@ -18,16 +21,13 @@ pub fn analyze(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Funct
 fn add_explicit_calls(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Function>) -> () {
     let mut calls = vec![];
     for (_, insn) in graph.instructions_iter() {
-        if insn.code == Mnemonic::Icall
-            && insn.operands[0].is_reladdr()
-        {
+        if insn.code == Mnemonic::Icall && insn.operands[0].is_reladdr() {
             calls.push(insn.clone());
         }
     }
     for call in calls {
         let target_address = call.get_target_address();
-        graph
-            .add_link(call.address, target_address, LinkType::Call);
+        graph.add_link(call.address, target_address, LinkType::Call);
         functions.entry(target_address).or_insert(Function {
             address: target_address,
             status: FunctionStatus::Created,
@@ -37,8 +37,11 @@ fn add_explicit_calls(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64
     }
 }
 
-fn resolve_function_bounds(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Function>,
-    jump_tables: &mut BTreeMap<u64, JumpTable>) {
+fn resolve_function_bounds(
+    graph: &mut InstructionGraph,
+    functions: &mut BTreeMap<u64, Function>,
+    jump_tables: &mut BTreeMap<u64, JumpTable>,
+) {
     trace!("Analyzer::resolve_function_bounds");
     for func in functions.values_mut() {
         trace!("Analyzer::resolve_function_bounds: 0x{:x}", func.address);
@@ -59,7 +62,10 @@ fn resolve_function_bounds(graph: &mut InstructionGraph, functions: &mut BTreeMa
             let address = stack.pop().unwrap();
             graph.get_extra_data_mut(address).function_address = func.address;
             if !graph.contains_address(address) {
-                warn!("Analyzer::resolve_function_bounds: WARNING: trying to access address 0x{:x}", address);
+                warn!(
+                    "Analyzer::resolve_function_bounds: WARNING: trying to access address 0x{:x}",
+                    address
+                );
                 continue;
             }
             let insn = graph.get_vertex(&address).clone();
@@ -106,9 +112,7 @@ fn resolve_function_bounds(graph: &mut InstructionGraph, functions: &mut BTreeMa
 
 fn add_next_links(graph: &mut InstructionGraph, insn: &Insn) -> () {
     match insn.code {
-        Mnemonic::Iret | Mnemonic::Ijmp | Mnemonic::Iint3 => {
-            ()
-        }
+        Mnemonic::Iret | Mnemonic::Ijmp | Mnemonic::Iint3 => (),
         _ => {
             let next = graph.get_next(insn.address);
             if next != graph.first_address_after_code() {
@@ -141,15 +145,18 @@ fn add_explicit_branches(graph: &mut InstructionGraph, insn: &Insn) -> () {
         | Mnemonic::Ijs
         | Mnemonic::Ijz => {
             if insn.operands[0].is_reladdr() {
-                graph
-                    .add_link(insn.address, insn.get_target_address(), LinkType::Branch);
+                graph.add_link(insn.address, insn.get_target_address(), LinkType::Branch);
             }
         }
         _ => {}
     }
 }
 
-fn add_switch_cases(graph: &mut InstructionGraph, jump_tables: &mut BTreeMap<u64, JumpTable>, insn: &Insn) -> () {
+fn add_switch_cases(
+    graph: &mut InstructionGraph,
+    jump_tables: &mut BTreeMap<u64, JumpTable>,
+    insn: &Insn,
+) -> () {
     if insn.code != Mnemonic::Ijmp {
         return;
     }
@@ -164,10 +171,7 @@ fn add_switch_cases(graph: &mut InstructionGraph, jump_tables: &mut BTreeMap<u64
         for i in table.first_index..table.count {
             graph.add_link(
                 table.reference,
-                u64::from(
-                    graph
-                        .read_u32(table.address + u64::from(i * REGISTER_SIZE)),
-                ),
+                u64::from(graph.read_u32(table.address + u64::from(i * REGISTER_SIZE))),
                 LinkType::SwitchCaseJump,
             );
         }
@@ -189,7 +193,8 @@ fn resolve_jump_table(graph: &mut InstructionGraph, table: &mut JumpTable) -> ()
             .set_edge_filter(Box::new(|e: &Link| match e.type_ {
                 LinkType::Next | LinkType::Branch => true,
                 _ => false,
-            })).reverse_edges();
+            }))
+            .reverse_edges();
         graph.dfs_pick(&table.reference, &mut |insn, _| {
             if insn.operands.len() < 1 {
                 return Pick::Continue;
@@ -204,10 +209,7 @@ fn resolve_jump_table(graph: &mut InstructionGraph, table: &mut JumpTable) -> ()
                     }
 
                     // update the main jump register if the jump is indirect
-                    if indirect_access == 0
-                        && insn.code == Mnemonic::Imov
-                        && base == low_byte_idx
-                    {
+                    if indirect_access == 0 && insn.code == Mnemonic::Imov && base == low_byte_idx {
                         if let Operand::MemoryRelative(_, _, base, _, _, v) = insn.operands[1] {
                             idx = base;
                             indirect_access = v as u64;
@@ -236,9 +238,7 @@ fn resolve_jump_table(graph: &mut InstructionGraph, table: &mut JumpTable) -> ()
         })
     };
     // TODO: remove the need for restoring the graph state
-    graph
-        .set_edge_filter(Box::new(|_| true))
-        .reverse_edges();
+    graph.set_edge_filter(Box::new(|_| true)).reverse_edges();
 
     if cases_count_option.is_none() {
         return;
@@ -270,14 +270,12 @@ fn resolve_jump_table(graph: &mut InstructionGraph, table: &mut JumpTable) -> ()
     }
     table.count = jumps_count;
     while cases_count >= 4 {
-        graph
-            .add_jump_table_indirect_entries(table.address + offset, 4);
+        graph.add_jump_table_indirect_entries(table.address + offset, 4);
         cases_count -= 4;
         offset += u64::from(REGISTER_SIZE);
     }
     if cases_count > 0 {
-        graph
-            .add_jump_table_indirect_entries(table.address + offset, cases_count);
+        graph.add_jump_table_indirect_entries(table.address + offset, cases_count);
         offset += u64::from(cases_count);
     }
     graph.redisassemble(table.address + offset);

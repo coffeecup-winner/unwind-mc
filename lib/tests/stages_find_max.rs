@@ -88,8 +88,7 @@ fn stage_test_find_max() {
         08048424: 5e                 pop esi
         08048425: c3                 ret",
     );
-    let il = il_decompiler::decompile(project.graph(), 0x8048400)
-        .expect("Failed to decompile IL");
+    let il = il_decompiler::decompile(project.graph(), 0x8048400).expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;
@@ -106,7 +105,10 @@ fn stage_test_find_max() {
         )),
         Assign(binary(Register(Reg::EDX), Argument(0))),
         Assign(binary(Register(Reg::EAX), Value(0x80000000))),
-        Assign(binary(Register(Reg::ESI), Pointer(Reg::EDX, Reg::NONE, 0, 0))),
+        Assign(binary(
+            Register(Reg::ESI),
+            Pointer(Reg::EDX, Reg::NONE, 0, 0),
+        )),
         Branch(branch(
             GreaterOrEqual,
             Some(binary(Register(Reg::EAX), Register(Reg::ESI))),

@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
 use std::collections::btree_map::Iter;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use bincode::{serialize, deserialize};
+use bincode::{deserialize, serialize};
 use goblin::Object;
 
 use asm_analyzer;
@@ -96,13 +96,19 @@ impl Project {
                 for section in pe.sections {
                     match section.name() {
                         Ok(name) if name == ".text" => {
-                            let range = section.pointer_to_raw_data as usize ..
-                                (section.pointer_to_raw_data as usize + section.size_of_raw_data as usize);
+                            let range = section.pointer_to_raw_data as usize
+                                ..(section.pointer_to_raw_data as usize
+                                    + section.size_of_raw_data as usize);
                             let text = Vec::from(&buf[range]);
                             let image_base = pe.image_base as u64 + section.virtual_address as u64;
                             let mut project = Self::from_text(text, image_base)?;
-                            let entry_point_address =
-                                pe.image_base as u64 + pe.header.optional_header.unwrap().standard_fields.address_of_entry_point as u64;
+                            let entry_point_address = pe.image_base as u64
+                                + pe.header
+                                    .optional_header
+                                    .unwrap()
+                                    .standard_fields
+                                    .address_of_entry_point
+                                    as u64;
                             project.add_function(entry_point_address);
                             return Ok(project);
                         }
@@ -168,7 +174,11 @@ impl Project {
         let il = self.decompile_il(function).expect("Failed to decompile IL");
         let blocks = flow_analyzer::build_flow_graph(il);
         let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
-        let func = ast_builder::AstBuilder::build_ast(format!("sub_{0:06x}", function.address), &blocks, &types);
+        let func = ast_builder::AstBuilder::build_ast(
+            format!("sub_{0:06x}", function.address),
+            &blocks,
+            &types,
+        );
         cpp_emitter::CppEmitter::emit(&func)
     }
 }

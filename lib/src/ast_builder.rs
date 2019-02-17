@@ -87,21 +87,24 @@ impl<'a> AstBuilder<'a> {
                 .map(|v| Variable {
                     name: v.clone(),
                     type_: builder.types[v].clone(),
-                }).collect(),
+                })
+                .collect(),
             locals: builder
                 .local_names
                 .values()
                 .map(|v| Variable {
                     name: v.clone(),
                     type_: builder.types[v].clone(),
-                }).collect(),
+                })
+                .collect(),
             variables: builder
                 .variable_names
                 .values()
                 .map(|v| Variable {
                     name: v.clone(),
                     type_: builder.types[v].clone(),
-                }).collect(),
+                })
+                .collect(),
             body,
         }
     }
@@ -176,11 +179,11 @@ impl<'a> AstBuilder<'a> {
 
     fn build_condition(&mut self, condition: &[Instruction]) -> Expression {
         match &condition[..] {
-            [ILInstruction::Branch(branch)] => {
-                self.build_binary_operator(AstBuilder::get_binary_operator(&branch.type_), &branch.condition.clone().unwrap())
-            }
-            [ILInstruction::Assign(assign), ILInstruction::Branch(branch)] =>
-            {
+            [ILInstruction::Branch(branch)] => self.build_binary_operator(
+                AstBuilder::get_binary_operator(&branch.type_),
+                &branch.condition.clone().unwrap(),
+            ),
+            [ILInstruction::Assign(assign), ILInstruction::Branch(branch)] => {
                 // TODO: this is a special case where we can inline the assigned variable, remove this
                 let mut compare = branch.condition.clone().unwrap();
                 compare.left = assign.right;
@@ -204,9 +207,7 @@ impl<'a> AstBuilder<'a> {
                 self.build_var(&binary.left),
                 self.build_expression(&binary.right),
             ),
-            ILInstruction::Copy(_copy) => {
-                panic!("Not supported yet")
-            }
+            ILInstruction::Copy(_copy) => panic!("Not supported yet"),
             ILInstruction::Call(unary) => {
                 Statement::FunctionCall(self.build_expression(&unary.operand))
             }
@@ -216,9 +217,7 @@ impl<'a> AstBuilder<'a> {
             }
             ILInstruction::Continue => Statement::Continue,
             ILInstruction::Break => Statement::Break,
-            ILInstruction::Branch(_) => {
-                panic!("impossble")
-            }
+            ILInstruction::Branch(_) => panic!("impossble"),
         }
     }
 

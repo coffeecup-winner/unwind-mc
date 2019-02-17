@@ -65,8 +65,11 @@ pub fn analyze<'a>(func: &'a str) -> Project {
 
     let mut instructions = String::new();
     for (_, i) in project.graph().instructions_iter() {
-        instructions.push_str(&format!("{:08x} {}\n", i.address,
-            project.graph().get_bytes_as_hex(i)));
+        instructions.push_str(&format!(
+            "{:08x} {}\n",
+            i.address,
+            project.graph().get_bytes_as_hex(i)
+        ));
     }
 
     assert_eq!(instructions, canon_lines);

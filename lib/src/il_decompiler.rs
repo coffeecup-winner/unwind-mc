@@ -107,23 +107,39 @@ impl ILDecompiler {
                         if Self::check_flags(flag, Flags::PZS, Flags::CAO)? {
                             let (left, right) = self.get_binary_operands(&insn.operands)?;
                             match (&left, &right) {
-                                (Register(reg_left), Register(reg_right)) if reg_left == reg_right => {
+                                (Register(reg_left), Register(reg_right))
+                                    if reg_left == reg_right =>
+                                {
                                     return Ok(Some(binary(left, Value(0))));
                                 }
                                 _ => return Err(format!("Unsupported instruction\n{:#?}", insn)),
                             }
                         }
                     }
-                    Mnemonic::Ija | Mnemonic::Ijae | Mnemonic::Ijb | Mnemonic::Ijbe |
-                    Mnemonic::Ijg | Mnemonic::Ijge | Mnemonic::Ijl | Mnemonic::Ijle |
-                    Mnemonic::Ijs | Mnemonic::Ijns | Mnemonic::Ijz | Mnemonic::Ijnz |
-                    Mnemonic::Ijmp | Mnemonic::Icmovl | Mnemonic::Imov |
-                    Mnemonic::Ipush | Mnemonic::Ipop | Mnemonic::Ilea => {}
-                    Mnemonic::Iret => {
-                        return Err(String::from("Failed to find condition"))
-                    }
+                    Mnemonic::Ija
+                    | Mnemonic::Ijae
+                    | Mnemonic::Ijb
+                    | Mnemonic::Ijbe
+                    | Mnemonic::Ijg
+                    | Mnemonic::Ijge
+                    | Mnemonic::Ijl
+                    | Mnemonic::Ijle
+                    | Mnemonic::Ijs
+                    | Mnemonic::Ijns
+                    | Mnemonic::Ijz
+                    | Mnemonic::Ijnz
+                    | Mnemonic::Ijmp
+                    | Mnemonic::Icmovl
+                    | Mnemonic::Imov
+                    | Mnemonic::Ipush
+                    | Mnemonic::Ipop
+                    | Mnemonic::Ilea => {}
+                    Mnemonic::Iret => return Err(String::from("Failed to find condition")),
                     _ => {
-                        return Err(format!("Unsupported instruction for condition searching: {:?}", insn));
+                        return Err(format!(
+                            "Unsupported instruction for condition searching: {:?}",
+                            insn
+                        ));
                     }
                 }
             }
@@ -138,7 +154,9 @@ impl ILDecompiler {
         } else if (test & set_flags) == test {
             Ok(true)
         } else if (test & set_flags) != Flags::NONE {
-            Err(String::from("Depending on flags set by different instructions"))
+            Err(String::from(
+                "Depending on flags set by different instructions",
+            ))
         } else {
             Ok(false)
         }
@@ -162,7 +180,7 @@ impl ILDecompiler {
                         self.stack_offset += v;
                         Ok(vec![])
                     }
-                    _ => Ok(vec![Binary(Add, binary(left, right))])
+                    _ => Ok(vec![Binary(Add, binary(left, right))]),
                 }
             }
             Mnemonic::Iand => {
@@ -279,7 +297,10 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Assign(binary(
+                            Register(Reg::EAX),
+                            Pointer(Reg::ESI, Reg::NONE, 0, 0),
+                        )),
                         Binary(Add, binary(Register(Reg::ESI), Value(1))),
                     ])
                 }
@@ -290,7 +311,10 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Assign(binary(
+                            Register(Reg::EAX),
+                            Pointer(Reg::ESI, Reg::NONE, 0, 0),
+                        )),
                         Binary(Add, binary(Register(Reg::ESI), Value(2))),
                     ])
                 }
@@ -301,21 +325,22 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Register(Reg::EAX), Pointer(Reg::ESI, Reg::NONE, 0, 0))),
+                        Assign(binary(
+                            Register(Reg::EAX),
+                            Pointer(Reg::ESI, Reg::NONE, 0, 0),
+                        )),
                         Binary(Add, binary(Register(Reg::ESI), Value(4))),
                     ])
                 }
             }
-            Mnemonic::Iloop => {
-                Ok(vec![
-                    Binary(Subtract, binary(Register(Reg::ECX), Value(1))),
-                    Branch(branch(
-                        Greater,
-                        Some(binary(Register(Reg::ECX), Value(0))),
-                        insn.get_target_address(),
-                    )),
-                ])
-            }
+            Mnemonic::Iloop => Ok(vec![
+                Binary(Subtract, binary(Register(Reg::ECX), Value(1))),
+                Branch(branch(
+                    Greater,
+                    Some(binary(Register(Reg::ECX), Value(0))),
+                    insn.get_target_address(),
+                )),
+            ]),
             Mnemonic::Imov => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
                 match (&left, &right) {
@@ -327,7 +352,9 @@ impl ILDecompiler {
                         self.stack_offset = self.frame_pointer_offset;
                         Ok(vec![])
                     }
-                    (Register(Reg::ESP), _) => Err(String::from("Setting register ESP is not supported")),
+                    (Register(Reg::ESP), _) => {
+                        Err(String::from("Setting register ESP is not supported"))
+                    }
                     _ => Ok(vec![Assign(binary(left, right))]),
                 }
             }
@@ -335,7 +362,12 @@ impl ILDecompiler {
                 if !insn.prefix_str || !insn.prefix_rep {
                     Err(format!("Unsupported movsd instruction: {:?}", insn))
                 } else {
-                    Ok(vec![Copy(copy(Register(Reg::EDI), Register(Reg::ESI), Value(4), Register(Reg::ECX)))])
+                    Ok(vec![Copy(copy(
+                        Register(Reg::EDI),
+                        Register(Reg::ESI),
+                        Value(4),
+                        Register(Reg::ECX),
+                    ))])
                 }
             }
             Mnemonic::Imovsx => {
@@ -365,7 +397,10 @@ impl ILDecompiler {
             Mnemonic::Iret => {
                 self.stack_offset += REGISTER_SIZE as i32;
                 if self.stack_offset != 0 {
-                    Err(format!("Stack imbalance (stack offset is {})", self.stack_offset))
+                    Err(format!(
+                        "Stack imbalance (stack offset is {})",
+                        self.stack_offset
+                    ))
                 } else {
                     Ok(vec![Return(unary(Register(Reg::EAX)))])
                 }
@@ -390,7 +425,10 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Assign(binary(
+                            Pointer(Reg::EDI, Reg::NONE, 0, 0),
+                            Register(Reg::EAX),
+                        )),
                         Binary(Add, binary(Register(Reg::EDI), Value(1))),
                     ])
                 }
@@ -401,7 +439,10 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Assign(binary(
+                            Pointer(Reg::EDI, Reg::NONE, 0, 0),
+                            Register(Reg::EAX),
+                        )),
                         Binary(Add, binary(Register(Reg::EDI), Value(2))),
                     ])
                 }
@@ -412,7 +453,10 @@ impl ILDecompiler {
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
-                        Assign(binary(Pointer(Reg::EDI, Reg::NONE, 0, 0), Register(Reg::EAX))),
+                        Assign(binary(
+                            Pointer(Reg::EDI, Reg::NONE, 0, 0),
+                            Register(Reg::EAX),
+                        )),
                         Binary(Add, binary(Register(Reg::EDI), Value(4))),
                     ])
                 }
@@ -439,7 +483,7 @@ impl ILDecompiler {
     fn get_unary_operand(&mut self, operands: &[Operand]) -> UResult<ILOperand> {
         let mut ops = self.convert_operands(operands)?;
         if ops.len() != 1 {
-            return Err(String::from("Invalid number of operands"))
+            return Err(String::from("Invalid number of operands"));
         }
         Ok(ops.remove(0))
     }
@@ -447,7 +491,7 @@ impl ILDecompiler {
     fn get_binary_operands(&mut self, operands: &[Operand]) -> UResult<(ILOperand, ILOperand)> {
         let mut ops = self.convert_operands(operands)?;
         if ops.len() != 2 {
-            return Err(String::from("Invalid number of operands"))
+            return Err(String::from("Invalid number of operands"));
         }
         let right = ops.remove(1);
         let left = ops.remove(0);
