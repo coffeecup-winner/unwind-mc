@@ -53,7 +53,6 @@ module.exports = {
     },
     data() {
         return {
-            handle: null as (number | null),
             functions: [] as Function[],
             instructions: [] as Instruction[],
             selectedFunction: null as (Function | null),
@@ -61,29 +60,28 @@ module.exports = {
     },
     components: { Asm, Function },
     methods: {
-        open(handle: number | null) {
-            this.handle = handle
-            if (handle == null) {
+        projectOpened(opened: boolean) {
+            if (!opened) {
                 this.functions = []
                 this.instructions = []
                 this.selectedFunction = null
                 return
             }
-            this.functions = unwindmc.getFunctions(this.handle)
+            this.functions = unwindmc.getFunctions()
             if (this.functions.length == 0) {
                 this.selectedFunction = null
-                this.instructions = unwindmc.getInstructions(this.handle, 0)
+                this.instructions = unwindmc.getInstructions(0)
                 return
             }
             this.selectedFunction = this.functions[0]
-            this.instructions = unwindmc.getInstructions(this.handle, this.selectedFunction.address)
+            this.instructions = unwindmc.getInstructions(this.selectedFunction.address)
         },
 
         openClicked() {
             e.dialog.showOpenDialog({
                 title: 'Open a binary file',
             }, f => {
-                this.open(f.length > 0 ? unwindmc.openBinaryFile(f[0]) : null)
+                this.projectOpened(f.length > 0 && unwindmc.openBinaryFile(f[0]))
             })
         },
 
@@ -95,7 +93,7 @@ module.exports = {
                     extensions: ['db']
                 }],
             }, f => {
-                this.open(f.length > 0 ? unwindmc.openDB(f[0]) : null)
+                this.projectOpened(f.length > 0 && unwindmc.openDB(f[0]))
             })
         },
 
@@ -108,7 +106,7 @@ module.exports = {
                 }],
             }, f => {
                 if (f) {
-                    unwindmc.saveDB(this.handle, f)
+                    unwindmc.saveDB(f)
                 }
             })
         },
@@ -121,7 +119,7 @@ module.exports = {
                 console.log(f.address)
                 console.log(f.status)
                 if (f.status == 'BoundsResolved') {
-                    let il = unwindmc.decompileIL(this.handle, f.address)
+                    let il = unwindmc.decompileIL(f.address)
                     console.log(il)
                 }
             }
@@ -129,7 +127,7 @@ module.exports = {
 
         functionClicked(func: Function) {
             this.selectedFunction = func
-            this.instructions = unwindmc.getInstructions(this.handle, func.address)
+            this.instructions = unwindmc.getInstructions(func.address)
         },
     },
 }

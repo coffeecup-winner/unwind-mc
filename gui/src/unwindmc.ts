@@ -4,12 +4,12 @@ import * as ref from 'ref'
 const _unwindmc = ffi.Library('libunwindmc', {
     version: ['string', []],
     init: ['bool', ['pointer']],
-    open_binary_file: ['uint32', ['string']],
-    open_db: ['uint32', ['string']],
-    save_db: ['void', ['uint32', 'string']],
-    get_functions: ['void', ['uint32', 'string', 'size_t']],
-    get_instructions: ['void', ['uint32', 'uint64', 'string', 'size_t']],
-    decompile_il: ['bool', ['uint32', 'uint64', 'string', 'size_t']],
+    open_binary_file: ['bool', ['string']],
+    open_db: ['bool', ['string']],
+    save_db: ['void', ['string']],
+    get_functions: ['void', ['string', 'size_t']],
+    get_instructions: ['void', ['uint64', 'string', 'size_t']],
+    decompile_il: ['bool', ['uint64', 'string', 'size_t']],
 })
 
 const _buffer = Buffer.alloc(16 * 1024 * 1024)
@@ -38,30 +38,30 @@ export default {
         return _unwindmc.init(_logCallback)
     },
 
-    openBinaryFile(file: string): number {
+    openBinaryFile(file: string): boolean {
         return _unwindmc.open_binary_file(file)
     },
 
-    openDB(file: string): number {
+    openDB(file: string): boolean {
         return _unwindmc.open_db(file)
     },
 
-    saveDB(handle: number, file: string) {
-        _unwindmc.save_db(handle, file)
+    saveDB(file: string) {
+        _unwindmc.save_db(file)
     },
 
-    getFunctions(handle: number): Function[] {
-        _unwindmc.get_functions(handle, _buffer, _buffer.byteLength)
+    getFunctions(): Function[] {
+        _unwindmc.get_functions(_buffer, _buffer.byteLength)
         return JSON.parse(ref.readCString(_buffer))
     },
 
-    getInstructions(handle: number, func: number): Instruction[] {
-        _unwindmc.get_instructions(handle, func, _buffer, _buffer.byteLength)
+    getInstructions(func: number): Instruction[] {
+        _unwindmc.get_instructions(func, _buffer, _buffer.byteLength)
         return JSON.parse(ref.readCString(_buffer))
     },
 
-    decompileIL(handle: number, func: number) {
-        if (_unwindmc.decompile_il(handle, func, _buffer, _buffer.byteLength)) {
+    decompileIL(func: number) {
+        if (_unwindmc.decompile_il(func, _buffer, _buffer.byteLength)) {
             return JSON.parse(ref.readCString(_buffer))
         } else {
             return null

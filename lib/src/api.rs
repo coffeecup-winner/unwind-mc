@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
@@ -12,10 +11,7 @@ use project::*;
 const VERSION: &[u8] = b"0.1.0\0";
 
 thread_local!(
-    static OPEN_HANDLES: RefCell<Option<HashMap<u32, Box<Project>>>> = RefCell::new(None));
-thread_local!(
-    static NEXT_HANDLE: u32 = 1);
-const INVALID_HANDLE: u32 = 0;
+    static PROJECT: RefCell<Option<Project>> = RefCell::new(None));
 
 struct CallbackLogger {
     callback: extern "C" fn(line: *const c_char) -> (),
@@ -56,78 +52,57 @@ pub extern "C" fn init(log_callback: extern "C" fn(line: *const c_char) -> ()) -
     .expect("Failed to set the logger");
     log::set_max_level(LevelFilter::Trace);
     trace!("Initialized logging");
-    OPEN_HANDLES.with(|handles| *handles.borrow_mut() = Some(HashMap::new()));
+    PROJECT.with(|p| *p.borrow_mut() = None);
     true
 }
 
 #[no_mangle]
-pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
+pub extern "C" fn open_binary_file(path: *const c_char) -> bool {
     let path = match to_str(path) {
         Some(p) => p,
-        None => return INVALID_HANDLE,
+        None => return false,
     };
     trace!("open_binary_file: {}", path);
     let mut project = match Project::from_binary_file(path) {
         Ok(project) => project,
         Err(s) => {
             error!("{}", s);
-            return INVALID_HANDLE;
+            return false;
         }
     };
     project.analyze_asm();
-    let handle = NEXT_HANDLE.with(|next_cell| {
-        let handle = *next_cell;
-        OPEN_HANDLES.with(|handles_cell| {
-            handles_cell
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .insert(handle, Box::new(project))
-        });
-        handle
-    });
+    PROJECT.with(|p| *p.borrow_mut() = Some(project));
     trace!("open_binary_file: done");
-    handle
+    true
 }
 
 #[no_mangle]
-pub extern "C" fn open_db(path: *const c_char) -> u32 {
+pub extern "C" fn open_db(path: *const c_char) -> bool {
     let path = match to_str(path) {
         Some(p) => p,
-        None => return INVALID_HANDLE,
+        None => return false,
     };
     trace!("open_db: {}", path);
     let project = match Project::from_serialized_file(path) {
         Ok(project) => project,
         Err(s) => {
             error!("{}", s);
-            return INVALID_HANDLE;
+            return false;
         }
     };
-    let handle = NEXT_HANDLE.with(|next_cell| {
-        let handle = *next_cell;
-        OPEN_HANDLES.with(|handles_cell| {
-            handles_cell
-                .borrow_mut()
-                .as_mut()
-                .unwrap()
-                .insert(handle, Box::new(project))
-        });
-        handle
-    });
+    PROJECT.with(|p| *p.borrow_mut() = Some(project));
     trace!("open_db: done");
-    handle
+    true
 }
 
 #[no_mangle]
-pub extern "C" fn save_db(handle: u32, path: *const c_char) {
+pub extern "C" fn save_db(path: *const c_char) {
     let path = match to_str(path) {
         Some(p) => p,
         None => return (),
     };
     trace!("save_db: {}", path);
     with_project(
-        handle,
         &mut |project| match Project::serialize_to_file(project, path) {
             Ok(()) => {}
             Err(s) => error!("{}", s),
@@ -137,9 +112,9 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
 }
 
 #[no_mangle]
-pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
-    trace!("get_functions: {}", handle);
-    with_project(handle, &mut |project| {
+pub fn get_functions(ptr: *mut c_char, size: usize) {
+    trace!("get_functions");
+    with_project(&mut |project| {
         let mut functions = vec![];
         for (_, func) in project.functions_iter() {
             functions.push(json!({
@@ -155,9 +130,9 @@ pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
 }
 
 #[no_mangle]
-pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
-    trace!("get_instructions: {}, 0x{:x}", handle, function);
-    with_project(handle, &mut |project| {
+pub fn get_instructions(function: u64, ptr: *mut c_char, size: usize) {
+    trace!("get_instructions: 0x{:x}", function);
+    with_project(&mut |project| {
         let mut asm = vec![];
         for (_, insn) in project.graph().instructions_iter() {
             if function == 0 {
@@ -185,9 +160,9 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
 }
 
 #[no_mangle]
-pub fn decompile_il(handle: u32, address: u64, ptr: *mut c_char, size: usize) -> bool {
-    trace!("get_instructions: {}, 0x{:x}", handle, address);
-    with_project(handle, &mut |project| {
+pub fn decompile_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
+    trace!("get_instructions: 0x{:x}", address);
+    with_project(&mut |project| {
         let function = match project.get_function(address) {
             Some(f) => f,
             None => {
@@ -216,12 +191,8 @@ pub fn decompile_il(handle: u32, address: u64, ptr: *mut c_char, size: usize) ->
     })
 }
 
-fn with_project<T>(handle: u32, func: &mut FnMut(&Project) -> T) -> T {
-    OPEN_HANDLES.with(|handles_cell| {
-        let handles = handles_cell.borrow();
-        let project = &handles.as_ref().unwrap()[&handle];
-        func(project)
-    })
+fn with_project<T>(func: &mut FnMut(&Project) -> T) -> T {
+    PROJECT.with(|p| func(p.borrow().as_ref().unwrap()))
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
