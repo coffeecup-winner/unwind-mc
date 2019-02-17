@@ -135,6 +135,8 @@ pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
             functions.push(json!({
                 "address": func.address,
                 "status": format!("{:?}", func.status),
+                "callingConvention": format!("{:?}", func.calling_convention),
+                "argumentsSize": func.arguments_size,
             }));
         }
         copy_to_buffer(json::Value::Array(functions).to_string(), ptr, size);

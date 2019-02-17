@@ -18,6 +18,8 @@ var _logCallback: Buffer;
 export interface Function {
     readonly address: number,
     readonly status: string,
+    readonly callingConvention: 'Unknown' | 'Stdcall',
+    readonly argumentsSize: number,
 }
 
 export interface Instruction {

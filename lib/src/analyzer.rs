@@ -59,6 +59,8 @@ impl Analyzer {
             Function {
                 address,
                 status: FunctionStatus::Created,
+                calling_convention: CallingConvention::Unknown,
+                arguments_size: None,
             },
         );
     }
@@ -87,6 +89,8 @@ impl Analyzer {
             self.functions.entry(target_address).or_insert(Function {
                 address: target_address,
                 status: FunctionStatus::Created,
+                calling_convention: CallingConvention::Unknown,
+                arguments_size: None,
             });
         }
     }
@@ -119,6 +123,13 @@ impl Analyzer {
                 }
                 let insn = self.graph.get_vertex(&address).clone();
                 if insn.code == Mnemonic::Iret {
+                    match &insn.operands[..] {
+                        &[Operand::ImmediateUnsigned(_, v)] => {
+                            func.calling_convention = CallingConvention::Stdcall;
+                            func.arguments_size = Some(v as u16);
+                        }
+                        _ => {}
+                    }
                     continue;
                 }
 
