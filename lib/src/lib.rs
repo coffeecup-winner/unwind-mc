@@ -26,6 +26,7 @@ pub mod cpp_emitter;
 pub mod decompiler;
 pub mod disassembler;
 pub mod flow_analyzer;
+pub mod function;
 pub mod il;
 pub mod il_decompiler;
 pub mod text_writer;

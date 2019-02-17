@@ -4,21 +4,8 @@ use std::collections::btree_map::Iter;
 use asm::*;
 use assignment_tracker::*;
 use common::*;
+use function::*;
 use disassembler::*;
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub enum FunctionStatus {
-    Created,
-    BoundsResolved,
-    BoundsNotResolvedInvalidAddress,
-    BoundsNotResolvedIncompleteGraph,
-}
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub struct Function {
-    pub address: u64,
-    pub status: FunctionStatus,
-}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct JumpTable {
