@@ -157,7 +157,13 @@ impl ILDecompiler {
         match insn.code {
             Mnemonic::Iadd => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
-                Ok(vec![Binary(Add, binary(left, right))])
+                match (&left, &right) {
+                    (Register(Reg::ESP), Value(v)) => {
+                        self.stack_offset += v;
+                        Ok(vec![])
+                    }
+                    _ => Ok(vec![Binary(Add, binary(left, right))])
+                }
             }
             Mnemonic::Iand => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
@@ -359,7 +365,7 @@ impl ILDecompiler {
             Mnemonic::Iret => {
                 self.stack_offset += REGISTER_SIZE as i32;
                 if self.stack_offset != 0 {
-                    Err(String::from("Stack imbalance"))
+                    Err(format!("Stack imbalance (stack offset is {})", self.stack_offset))
                 } else {
                     Ok(vec![Return(unary(Register(Reg::EAX)))])
                 }
@@ -413,7 +419,13 @@ impl ILDecompiler {
             }
             Mnemonic::Isub => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
-                Ok(vec![Binary(Subtract, binary(left, right))])
+                match (&left, &right) {
+                    (Register(Reg::ESP), Value(v)) => {
+                        self.stack_offset -= v;
+                        Ok(vec![])
+                    }
+                    _ => Ok(vec![Binary(Subtract, binary(left, right))]),
+                }
             }
             Mnemonic::Itest => Ok(vec![]),
             Mnemonic::Ixor => {
