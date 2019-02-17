@@ -5,7 +5,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use analysis_helper;
 use gcc_tools;
-use unwindmc::decompiler;
 
 pub fn test_decompiler(code: &str, expected: &str) {
     println!("===================================== CODE =====================================");
@@ -19,7 +18,7 @@ pub fn test_decompiler(code: &str, expected: &str) {
     println!("");
 
     let project = analysis_helper::analyze(&asm);
-    let cpp_code = decompiler::decompile_function(project.graph(), 0);
+    let cpp_code = project.decompile_function(project.get_function(0).unwrap());
 
     println!("==================================== RESULT ====================================");
     println!("{}", cpp_code);

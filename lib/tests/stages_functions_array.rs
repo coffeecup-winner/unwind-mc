@@ -8,7 +8,6 @@ mod analysis_helper;
 use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
-use unwindmc::decompiler;
 use unwindmc::disassembler::Reg;
 use unwindmc::flow_analyzer::*;
 use unwindmc::il::*;
@@ -33,7 +32,8 @@ fn end_to_end_functions_array() {
         00400019: c3                 ret",
     );
 
-    let code = decompiler::decompile_function(project.graph(), 0x400000);
+    let function = project.get_function(0x400000).unwrap();
+    let code = project.decompile_function(function);
     let expected = "void sub_400000(void (**arg0)(), void (**arg1)())
         {
           void (**var0)();

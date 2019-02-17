@@ -10,7 +10,6 @@ mod analysis_helper;
 use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
-use unwindmc::decompiler;
 use unwindmc::disassembler::Reg;
 use unwindmc::flow_analyzer::*;
 use unwindmc::il::*;
@@ -38,7 +37,8 @@ fn end_to_end_find_max() {
         08048425: c3                 ret",
     );
 
-    let code = decompiler::decompile_function(project.graph(), 0x8048400);
+    let function = project.get_function(0x8048400).unwrap();
+    let code = project.decompile_function(function);
     let expected = "int sub_8048400(int *arg0, int arg1)
         {
           int var0;

@@ -7,10 +7,37 @@ use std::path::PathBuf;
 use bincode::{serialize, deserialize};
 use goblin::Object;
 
-use analyzer;
-use asm::*;
+use asm_analyzer;
+use ast_builder;
 use common::*;
-use function::*;
+use cpp_emitter;
+use flow_analyzer;
+use il::*;
+use il_decompiler;
+use instruction_graph::*;
+use type_resolver;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum FunctionStatus {
+    Created,
+    BoundsResolved,
+    BoundsNotResolvedInvalidAddress,
+    BoundsNotResolvedIncompleteGraph,
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub enum CallingConvention {
+    Unknown,
+    Stdcall,
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub struct Function {
+    pub address: u64,
+    pub status: FunctionStatus,
+    pub calling_convention: CallingConvention,
+    pub arguments_size: Option<u16>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct JumpTable {
@@ -108,6 +135,10 @@ impl Project {
         &self.graph
     }
 
+    pub fn get_function(&self, address: u64) -> Option<&Function> {
+        self.functions.get(&address)
+    }
+
     pub fn functions_iter(&self) -> Iter<u64, Function> {
         self.functions.iter()
     }
@@ -126,6 +157,18 @@ impl Project {
     }
 
     pub fn analyze_asm(&mut self) {
-        analyzer::analyze(&mut self.graph, &mut self.functions, &mut self.jump_tables);
+        asm_analyzer::analyze(&mut self.graph, &mut self.functions, &mut self.jump_tables);
+    }
+
+    pub fn decompile_il(&self, function: &Function) -> UResult<Vec<ILInstruction<ILOperand>>> {
+        il_decompiler::decompile(self.graph(), function.address)
+    }
+
+    pub fn decompile_function(&self, function: &Function) -> String {
+        let il = self.decompile_il(function).expect("Failed to decompile IL");
+        let blocks = flow_analyzer::build_flow_graph(il);
+        let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
+        let func = ast_builder::AstBuilder::build_ast(format!("sub_{0:06x}", function.address), &blocks, &types);
+        cpp_emitter::CppEmitter::emit(&func)
     }
 }

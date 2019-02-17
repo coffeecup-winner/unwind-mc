@@ -1,6 +1,6 @@
-use asm::*;
 use common::*;
 use disassembler::*;
+use instruction_graph::*;
 
 pub struct AssignmentTracker;
 impl AssignmentTracker {

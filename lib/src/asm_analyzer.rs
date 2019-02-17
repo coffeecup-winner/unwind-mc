@@ -1,10 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 
-use asm::*;
 use assignment_tracker::*;
 use common::*;
-use function::*;
 use disassembler::*;
+use instruction_graph::*;
 use project::*;
 
 pub fn analyze(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Function>,

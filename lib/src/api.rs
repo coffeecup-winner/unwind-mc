@@ -7,7 +7,6 @@ use log::*;
 use serde_json as json;
 use serde_json::json;
 
-use il_decompiler::decompile;
 use project::*;
 
 const VERSION: &[u8] = b"0.1.0\0";
@@ -174,10 +173,17 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
 }
 
 #[no_mangle]
-pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) -> bool {
-    trace!("get_instructions: {}, 0x{:x}", handle, function);
+pub fn decompile_il(handle: u32, address: u64, ptr: *mut c_char, size: usize) -> bool {
+    trace!("get_instructions: {}, 0x{:x}", handle, address);
     with_project(handle, &mut |project| {
-        match decompile(project.graph(), function) {
+        let function = match project.get_function(address) {
+            Some(f) => f,
+            None => {
+                error!("Failed to find a function with the given address");
+                return false;
+            }
+        };
+        match project.decompile_il(function) {
             Ok(il) => {
                 let mut res = vec![];
                 for (i, insn) in il.iter().enumerate() {
