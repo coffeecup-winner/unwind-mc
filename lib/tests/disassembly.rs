@@ -8,38 +8,38 @@ mod analysis_helper;
 
 #[test]
 fn test_jump_target_address() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         00000021: 75 f7              jnz 0x1a
         00000023: c3                 ret",
     );
 
-    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    let (_, insn) = project.graph().instructions_iter().next().unwrap();
     assert_eq!(insn.get_target_address(), 0x1a);
     assert_eq!(insn.assembly(), "jnz 0x1a");
 }
 
 #[test]
 fn test_immediate_syntax_printing() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         00000000: 6a ff              push 0xffffffff
         00000002: c3                 ret",
     );
 
-    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    let (_, insn) = project.graph().instructions_iter().next().unwrap();
     assert_eq!(insn.assembly(), "push 0xffffffff");
 }
 
 #[test]
 fn test_memory_address_printing() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         00000000: 8b 7e 84           mov edi, [esi-0x7c]
         00000003: c3                 ret",
     );
 
-    let (_, insn) = analyzer.graph().instructions_iter().next().unwrap();
+    let (_, insn) = project.graph().instructions_iter().next().unwrap();
     assert_eq!(insn.assembly(), "mov edi, [esi-0x7c]");
 }
 

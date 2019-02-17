@@ -7,14 +7,13 @@ use log::*;
 use serde_json as json;
 use serde_json::json;
 
-use analyzer::Analyzer;
-use decompiler;
 use il_decompiler::decompile;
+use project::*;
 
 const VERSION: &[u8] = b"0.1.0\0";
 
 thread_local!(
-    static OPEN_HANDLES: RefCell<Option<HashMap<u32, Box<Analyzer>>>> = RefCell::new(None));
+    static OPEN_HANDLES: RefCell<Option<HashMap<u32, Box<Project>>>> = RefCell::new(None));
 thread_local!(
     static NEXT_HANDLE: u32 = 1);
 const INVALID_HANDLE: u32 = 0;
@@ -66,18 +65,18 @@ pub extern "C" fn open_binary_file(path: *const c_char) -> u32 {
         None => return INVALID_HANDLE,
     };
     trace!("open_binary_file: {}", path);
-    let mut analyzer = match decompiler::open_binary_file(path) {
-        Ok(analyzer) => analyzer,
+    let mut project = match Project::from_binary_file(path) {
+        Ok(project) => project,
         Err(s) => {
             error!("{}", s);
             return INVALID_HANDLE;
         }
     };
-    analyzer.analyze();
+    project.analyze_asm();
     let handle = NEXT_HANDLE.with(|next_cell| {
         let handle = *next_cell;
         OPEN_HANDLES.with(|handles_cell|
-            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(project))
         );
         handle
     });
@@ -92,8 +91,8 @@ pub extern "C" fn open_db(path: *const c_char) -> u32 {
         None => return INVALID_HANDLE,
     };
     trace!("open_db: {}", path);
-    let analyzer = match decompiler::open_db(path) {
-        Ok(analyzer) => analyzer,
+    let project = match Project::from_serialized_file(path) {
+        Ok(project) => project,
         Err(s) => {
             error!("{}", s);
             return INVALID_HANDLE;
@@ -102,7 +101,7 @@ pub extern "C" fn open_db(path: *const c_char) -> u32 {
     let handle = NEXT_HANDLE.with(|next_cell| {
         let handle = *next_cell;
         OPEN_HANDLES.with(|handles_cell|
-            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(analyzer))
+            handles_cell.borrow_mut().as_mut().unwrap().insert(handle, Box::new(project))
         );
         handle
     });
@@ -117,8 +116,8 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
         None => return (),
     };
     trace!("save_db: {}", path);
-    with_analyzer(handle, &mut |analyzer| {
-        match decompiler::save_db(analyzer, path) {
+    with_project(handle, &mut |project| {
+        match Project::serialize_to_file(project, path) {
             Ok(()) => {},
             Err(s) => error!("{}", s),
         }
@@ -129,9 +128,9 @@ pub extern "C" fn save_db(handle: u32, path: *const c_char) {
 #[no_mangle]
 pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
     trace!("get_functions: {}", handle);
-    with_analyzer(handle, &mut |analyzer| {
+    with_project(handle, &mut |project| {
         let mut functions = vec![];
-        for (_, func) in analyzer.functions_iter() {
+        for (_, func) in project.functions_iter() {
             functions.push(json!({
                 "address": func.address,
                 "status": format!("{:?}", func.status),
@@ -147,21 +146,21 @@ pub fn get_functions(handle: u32, ptr: *mut c_char, size: usize) {
 #[no_mangle]
 pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usize) {
     trace!("get_instructions: {}, 0x{:x}", handle, function);
-    with_analyzer(handle, &mut |analyzer| {
+    with_project(handle, &mut |project| {
         let mut asm = vec![];
-        for (_, insn) in analyzer.graph().instructions_iter() {
+        for (_, insn) in project.graph().instructions_iter() {
             if function == 0 {
                 asm.push(json!({
                     "address": insn.address,
-                    "hex": analyzer.graph().get_bytes_as_hex(insn),
+                    "hex": project.graph().get_bytes_as_hex(insn),
                     "assembly": insn.assembly(),
                 }));
             } else {
-                match analyzer.graph().get_extra_data(insn.address) {
+                match project.graph().get_extra_data(insn.address) {
                     Some(data) if data.function_address == function => {
                         asm.push(json!({
                             "address": insn.address,
-                            "hex": analyzer.graph().get_bytes_as_hex(insn),
+                            "hex": project.graph().get_bytes_as_hex(insn),
                             "assembly": insn.assembly(),
                         }));
                     },
@@ -177,8 +176,8 @@ pub fn get_instructions(handle: u32, function: u64, ptr: *mut c_char, size: usiz
 #[no_mangle]
 pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) -> bool {
     trace!("get_instructions: {}, 0x{:x}", handle, function);
-    with_analyzer(handle, &mut |analyzer| {
-        match decompile(analyzer.graph(), function) {
+    with_project(handle, &mut |project| {
+        match decompile(project.graph(), function) {
             Ok(il) => {
                 let mut res = vec![];
                 for (i, insn) in il.iter().enumerate() {
@@ -199,11 +198,11 @@ pub fn decompile_il(handle: u32, function: u64, ptr: *mut c_char, size: usize) -
     })
 }
 
-fn with_analyzer<T>(handle: u32, func: &mut FnMut(&Analyzer) -> T) -> T {
+fn with_project<T>(handle: u32, func: &mut FnMut(&Project) -> T) -> T {
     OPEN_HANDLES.with(|handles_cell| {
         let handles = handles_cell.borrow();
-        let analyzer = &handles.as_ref().unwrap()[&handle];
-        func(analyzer)
+        let project = &handles.as_ref().unwrap()[&handle];
+        func(project)
     })
 }
 

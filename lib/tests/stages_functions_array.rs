@@ -17,7 +17,7 @@ use unwindmc::type_resolver::*;
 
 #[test]
 fn end_to_end_functions_array() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         00400000: 56                 push esi
         00400001: 8b 74 24 08        mov esi, [esp+0x8]
@@ -33,7 +33,7 @@ fn end_to_end_functions_array() {
         00400019: c3                 ret",
     );
 
-    let code = decompiler::decompile_function(analyzer.graph(), 0x400000);
+    let code = decompiler::decompile_function(project.graph(), 0x400000);
     let expected = "void sub_400000(void (**arg0)(), void (**arg1)())
         {
           void (**var0)();
@@ -56,7 +56,7 @@ fn end_to_end_functions_array() {
 
 #[test]
 fn stage_test_functions_array() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         00400000: 56                 push esi
         00400001: 8b 74 24 08        mov esi, [esp+0x8]
@@ -71,7 +71,7 @@ fn stage_test_functions_array() {
         00400018: 5e                 pop esi
         00400019: c3                 ret",
     );
-    let il = il_decompiler::decompile(analyzer.graph(), 0x400000)
+    let il = il_decompiler::decompile(project.graph(), 0x400000)
         .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;

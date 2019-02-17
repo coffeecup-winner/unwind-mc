@@ -1,8 +1,8 @@
 use regex::Regex;
 
-use unwindmc::analyzer::Analyzer;
+use unwindmc::project::Project;
 
-pub fn analyze<'a>(func: &'a str) -> Analyzer {
+pub fn analyze<'a>(func: &'a str) -> Project {
     let normal_line_regex = Regex::new(
         r"^(?P<address>[0-9a-fA-F]{8}): (?P<bytes>((([0-9a-fA-F]{2})|  ) ){6}) (?P<asm>.+)$",
     )
@@ -59,19 +59,19 @@ pub fn analyze<'a>(func: &'a str) -> Analyzer {
     }
     canon_lines.push('\n');
 
-    let mut analyzer = Analyzer::create(bytes, address).unwrap();
-    analyzer.add_function(address);
-    analyzer.analyze();
+    let mut project = Project::from_text(bytes, address).unwrap();
+    project.add_function(address);
+    project.analyze_asm();
 
     let mut instructions = String::new();
-    for (_, i) in analyzer.graph().instructions_iter() {
+    for (_, i) in project.graph().instructions_iter() {
         instructions.push_str(&format!("{:08x} {}\n", i.address,
-            analyzer.graph().get_bytes_as_hex(i)));
+            project.graph().get_bytes_as_hex(i)));
     }
 
     assert_eq!(instructions, canon_lines);
 
-    analyzer
+    project
 }
 
 pub fn strip_indent(text: &str) -> String {

@@ -18,8 +18,8 @@ pub fn test_decompiler(code: &str, expected: &str) {
     println!("{}", asm);
     println!("");
 
-    let analyzer = analysis_helper::analyze(&asm);
-    let cpp_code = decompiler::decompile_function(analyzer.graph(), 0);
+    let project = analysis_helper::analyze(&asm);
+    let cpp_code = decompiler::decompile_function(project.graph(), 0);
 
     println!("==================================== RESULT ====================================");
     println!("{}", cpp_code);

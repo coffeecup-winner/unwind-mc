@@ -19,7 +19,7 @@ use unwindmc::type_resolver::*;
 
 #[test]
 fn end_to_end_find_max() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         08048400: 56                 push esi
         08048401: 8b 4c 24 0c        mov ecx, [esp+0xc]
@@ -38,7 +38,7 @@ fn end_to_end_find_max() {
         08048425: c3                 ret",
     );
 
-    let code = decompiler::decompile_function(analyzer.graph(), 0x8048400);
+    let code = decompiler::decompile_function(project.graph(), 0x8048400);
     let expected = "int sub_8048400(int *arg0, int arg1)
         {
           int var0;
@@ -70,7 +70,7 @@ fn end_to_end_find_max() {
 
 #[test]
 fn stage_test_find_max() {
-    let analyzer = analysis_helper::analyze(
+    let project = analysis_helper::analyze(
         "
         08048400: 56                 push esi
         08048401: 8b 4c 24 0c        mov ecx, [esp+0xc]
@@ -88,7 +88,7 @@ fn stage_test_find_max() {
         08048424: 5e                 pop esi
         08048425: c3                 ret",
     );
-    let il = il_decompiler::decompile(analyzer.graph(), 0x8048400)
+    let il = il_decompiler::decompile(project.graph(), 0x8048400)
         .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
