@@ -117,8 +117,14 @@ module.exports = {
             if (this.selectedFunction == null) {
                 return
             }
-            let il = unwindmc.decompileIL(this.handle, this.selectedFunction.address)
-            console.log(il)
+            for (let f of this.functions) {
+                console.log(f.address)
+                console.log(f.status)
+                if (f.status == 'BoundsResolved') {
+                    let il = unwindmc.decompileIL(this.handle, f.address)
+                    console.log(il)
+                }
+            }
         },
 
         functionClicked(func: Function) {
