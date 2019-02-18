@@ -20,6 +20,7 @@ export interface Function {
     readonly status: string,
     readonly callingConvention: 'Unknown' | 'Stdcall',
     readonly argumentsSize: number,
+    readonly name: string,
 }
 
 export interface Instruction {

@@ -122,6 +122,7 @@ pub fn get_functions(ptr: *mut c_char, size: usize) {
                 "status": format!("{:?}", func.status),
                 "callingConvention": format!("{:?}", func.calling_convention),
                 "argumentsSize": func.arguments_size,
+                "name": func.name,
             }));
         }
         copy_to_buffer(json::Value::Array(functions).to_string(), ptr, size);

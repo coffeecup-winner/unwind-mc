@@ -31,12 +31,25 @@ pub enum CallingConvention {
     Stdcall,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Function {
     pub address: u64,
     pub status: FunctionStatus,
     pub calling_convention: CallingConvention,
     pub arguments_size: Option<u16>,
+    pub name: String,
+}
+
+impl Function {
+    pub fn new(address: u64) -> Function {
+        Function {
+            address,
+            status: FunctionStatus::Created,
+            calling_convention: CallingConvention::Unknown,
+            arguments_size: None,
+            name: format!("sub_{0:06x}", address),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -151,15 +164,7 @@ impl Project {
 
     pub fn add_function(&mut self, address: u64) -> () {
         trace!("Project::add_function: 0x{:x}", address);
-        self.functions.insert(
-            address,
-            Function {
-                address,
-                status: FunctionStatus::Created,
-                calling_convention: CallingConvention::Unknown,
-                arguments_size: None,
-            },
-        );
+        self.functions.insert(address, Function::new(address));
     }
 
     pub fn analyze_asm(&mut self) {
@@ -174,11 +179,7 @@ impl Project {
         let il = self.decompile_il(function).expect("Failed to decompile IL");
         let blocks = flow_analyzer::build_flow_graph(il);
         let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
-        let func = ast_builder::AstBuilder::build_ast(
-            format!("sub_{0:06x}", function.address),
-            &blocks,
-            &types,
-        );
+        let func = ast_builder::AstBuilder::build_ast(function.name.clone(), &blocks, &types);
         cpp_emitter::CppEmitter::emit(&func)
     }
 }

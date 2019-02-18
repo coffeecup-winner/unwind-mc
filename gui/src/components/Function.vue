@@ -1,6 +1,6 @@
 <template lang="jade">
     li(v-bind:class='classObj')
-        a(v-on:click='onClick()') {{ func.callingConvention == 'Stdcall' ? 'S' : '?' }} {{ Number(func.address).toString(16).padStart(8, '0') }}
+        a(v-on:click='onClick()') {{ func.callingConvention == 'Stdcall' ? 'S' : '?' }} {{ func.name }}
 </template>
 
 <style lang="scss" scoped>

@@ -28,12 +28,9 @@ fn add_explicit_calls(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64
     for call in calls {
         let target_address = call.get_target_address();
         graph.add_link(call.address, target_address, LinkType::Call);
-        functions.entry(target_address).or_insert(Function {
-            address: target_address,
-            status: FunctionStatus::Created,
-            calling_convention: CallingConvention::Unknown,
-            arguments_size: None,
-        });
+        functions
+            .entry(target_address)
+            .or_insert(Function::new(target_address));
     }
 }
 
