@@ -21,12 +21,12 @@ pub fn analyze(
 fn add_explicit_calls(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64, Function>) -> () {
     let mut calls = vec![];
     for (_, insn) in graph.instructions_iter() {
-        if insn.code == Mnemonic::Icall && insn.operands[0].is_reladdr() {
+        if insn.code == Mnemonic::Icall && insn.operands[0].is_codeaddr() {
             calls.push(insn.clone());
         }
     }
     for call in calls {
-        if let Operand::RelativeAddress(target_address) = call.operands[0] {
+        if let Operand::CodeAddress(target_address) = call.operands[0] {
             graph.add_link(call.address, target_address, LinkType::Call);
             functions
                 .entry(target_address)
@@ -144,7 +144,7 @@ fn add_explicit_branches(graph: &mut InstructionGraph, insn: &Insn) -> () {
         | Mnemonic::Ijrcxz
         | Mnemonic::Ijs
         | Mnemonic::Ijz => {
-            if let Operand::RelativeAddress(target_address) = insn.operands[0] {
+            if let Operand::CodeAddress(target_address) = insn.operands[0] {
                 graph.add_link(insn.address, target_address, LinkType::Branch);
             }
         }
@@ -222,7 +222,7 @@ fn resolve_jump_table(graph: &mut InstructionGraph, table: &mut JumpTable) -> ()
                     return Pick::Continue;
                 }
                 // search for the jump to the default case
-                Operand::RelativeAddress(_) if insn.code == Mnemonic::Ija => {
+                Operand::CodeAddress(_) if insn.code == Mnemonic::Ija => {
                     // search for cases count, can find it from code like cmp ecx, 0xb
                     // the jump register is irrelevant since it must be the closest one to ja
                     let value = AssignmentTracker::find(&graph, insn.address, idx, &mut |i, _| {

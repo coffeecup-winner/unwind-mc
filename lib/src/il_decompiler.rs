@@ -516,7 +516,7 @@ impl ILDecompiler {
     }
 
     fn get_target_address(&self, insn: &Insn) -> UResult<u64> {
-        if let Operand::RelativeAddress(address) = insn.operands[0] {
+        if let Operand::CodeAddress(address) = insn.operands[0] {
             Ok(address)
         } else {
             Err(String::from("Invalid instruction"))
@@ -572,7 +572,7 @@ impl ILDecompiler {
             &Operand::Pointer(_, _, _) => Err(format!("Not supported: {:?}", operand)),
             &Operand::ImmediateSigned(_, v) => Ok(Value(v as i32)),
             &Operand::ImmediateUnsigned(_, v) => Ok(Value(v as i32)),
-            &Operand::RelativeAddress(v) => Ok(Value(v as i32)),
+            &Operand::CodeAddress(v) => Ok(Value(v as i32)),
             &Operand::Const(_, v) => Ok(Value(v as i32)),
         }
     }

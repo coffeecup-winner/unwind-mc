@@ -17,7 +17,7 @@ fn test_jump_target_address() {
     );
 
     let (_, insn) = project.graph().instructions_iter().next().unwrap();
-    assert_eq!(insn.operands[0], Operand::RelativeAddress(0x1a));
+    assert_eq!(insn.operands[0], Operand::CodeAddress(0x1a));
     assert_eq!(insn.assembly(), "jnz 0x1a");
 }
 

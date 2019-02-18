@@ -233,7 +233,7 @@ impl Insn {
             Operand::ImmediateUnsigned(_, v) => {
                 s += &format!("0x{:x}", v);
             }
-            Operand::RelativeAddress(v) => {
+            Operand::CodeAddress(v) => {
                 s += &format!("0x{:x}", v);
             }
             Operand::Pointer(size, seg, off) => match size {
@@ -299,7 +299,7 @@ pub enum Operand {
     Pointer(u16, u16, u32),
     ImmediateUnsigned(u16, u64),
     ImmediateSigned(u16, i64),
-    RelativeAddress(u64),
+    CodeAddress(u64),
     Const(u16, u64),
 }
 
@@ -347,7 +347,7 @@ impl Operand {
                     ImmediateUnsigned(operand.size, Self::get_imm_u64(operand.size, operand.lval))
                 }
             }
-            ud_type::UD_OP_JIMM => RelativeAddress(
+            ud_type::UD_OP_JIMM => CodeAddress(
                 next_address.wrapping_add(Self::get_imm_i64(operand.size, operand.lval) as u64),
             ),
             ud_type::UD_OP_CONST => Const(operand.size, unsafe { operand.lval.uqword }),
@@ -369,9 +369,9 @@ impl Operand {
         }
     }
 
-    pub fn is_reladdr(&self) -> bool {
+    pub fn is_codeaddr(&self) -> bool {
         match self {
-            Operand::RelativeAddress(_) => true,
+            Operand::CodeAddress(_) => true,
             _ => false,
         }
     }
@@ -391,7 +391,7 @@ impl Operand {
             &Operand::Pointer(s, _, _) => s,
             &Operand::ImmediateUnsigned(s, _) => s,
             &Operand::ImmediateSigned(s, _) => s,
-            Operand::RelativeAddress(_) => unreachable!(),
+            Operand::CodeAddress(_) => unreachable!(),
             &Operand::Const(s, _) => s,
         }
     }
