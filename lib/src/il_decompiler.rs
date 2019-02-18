@@ -27,7 +27,12 @@ pub fn decompile(
         let address = stack.pop().unwrap();
         let insn = graph.get_vertex(&address).clone();
 
-        let il_insns = decompiler.convert_instruction(graph, functions, &insn)?;
+        let il_insns = match decompiler.convert_instruction(graph, functions, &insn) {
+            Ok(insn) => insn,
+            Err(message) => {
+                return Err(format!("{}; Failed at {:?}", message, insn));
+            }
+        };
         il.insert(insn.address, il_insns);
 
         for pair in graph.get_adjacent(&address).into_iter().rev() {
