@@ -456,7 +456,7 @@ impl ILDecompiler {
             }
             Mnemonic::Istosb => {
                 if insn.operands.len() != 0 || insn.prefix_rep {
-                    Err(format!("Unsupported lodsb instruction: {:?}", insn))
+                    Err(format!("Unsupported stosb instruction: {:?}", insn))
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
@@ -470,7 +470,7 @@ impl ILDecompiler {
             }
             Mnemonic::Istosw => {
                 if insn.operands.len() != 0 || insn.prefix_rep {
-                    Err(format!("Unsupported lodsw instruction: {:?}", insn))
+                    Err(format!("Unsupported stosw instruction: {:?}", insn))
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
@@ -483,8 +483,15 @@ impl ILDecompiler {
                 }
             }
             Mnemonic::Istosd => {
-                if insn.operands.len() != 0 || insn.prefix_rep {
-                    Err(format!("Unsupported lodsd instruction: {:?}", insn))
+                if insn.operands.len() != 0 {
+                    Err(format!("Unsupported stosd instruction: {:?}", insn))
+                } else if insn.prefix_rep {
+                    Ok(vec![Copy(copy(
+                        Register(Reg::EDI),
+                        Register(Reg::EAX),
+                        Value(4),
+                        Register(Reg::ECX),
+                    ))])
                 } else {
                     // TODO: take into account register size
                     Ok(vec![
