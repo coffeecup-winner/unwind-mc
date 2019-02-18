@@ -117,12 +117,22 @@ pub fn get_functions(ptr: *mut c_char, size: usize) {
     with_project(&mut |project| {
         let mut functions = vec![];
         for (_, func) in project.functions_iter() {
+            let mut callees = vec![];
+            for callee in func.callees.iter() {
+                callees.push(callee);
+            }
+            let mut callers = vec![];
+            for caller in func.callers.iter() {
+                callers.push(caller);
+            }
             functions.push(json!({
                 "address": func.address,
                 "status": format!("{:?}", func.status),
                 "callingConvention": format!("{:?}", func.calling_convention),
                 "argumentsSize": func.arguments_size,
                 "name": func.name,
+                "callees": callees,
+                "callers": callers,
             }));
         }
         copy_to_buffer(json::Value::Array(functions).to_string(), ptr, size);

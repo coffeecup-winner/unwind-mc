@@ -43,6 +43,7 @@ fn resolve_function_bounds(
     jump_tables: &mut BTreeMap<u64, JumpTable>,
 ) {
     trace!("Analyzer::resolve_function_bounds");
+    let mut calls = HashSet::new();
     for func in functions.values_mut() {
         trace!("Analyzer::resolve_function_bounds: 0x{:x}", func.address);
         if !graph.in_bounds(func.address) {
@@ -69,15 +70,24 @@ fn resolve_function_bounds(
                 continue;
             }
             let insn = graph.get_vertex(&address).clone();
-            if insn.code == Mnemonic::Iret {
-                match &insn.operands[..] {
-                    &[Operand::ImmediateUnsigned(_, v)] => {
-                        func.calling_convention = CallingConvention::Stdcall;
-                        func.arguments_size = Some(v as u16);
+            match insn.code {
+                Mnemonic::Icall => match insn.operands[0] {
+                    Operand::CodeAddress(callee) => {
+                        calls.insert((func.address, callee));
                     }
                     _ => {}
+                },
+                Mnemonic::Iret => {
+                    match &insn.operands[..] {
+                        &[Operand::ImmediateUnsigned(_, v)] => {
+                            func.calling_convention = CallingConvention::Stdcall;
+                            func.arguments_size = Some(v as u16);
+                        }
+                        _ => {}
+                    }
+                    continue;
                 }
-                continue;
+                _ => {}
             }
 
             add_next_links(graph, &insn);
@@ -105,6 +115,20 @@ fn resolve_function_bounds(
             FunctionStatus::BoundsResolved
         } else {
             FunctionStatus::BoundsNotResolvedIncompleteGraph
+        }
+    }
+    for (caller, callee) in calls {
+        match functions.get_mut(&caller) {
+            Some(f) => {
+                f.callees.insert(callee);
+            }
+            None => warn!("Function at address 0x{:x} was not found", caller),
+        }
+        match functions.get_mut(&callee) {
+            Some(f) => {
+                f.callers.insert(caller);
+            }
+            None => warn!("Function at address 0x{:x} was not found", caller),
         }
     }
     trace!("Analyzer::resolve_function_bounds: done");

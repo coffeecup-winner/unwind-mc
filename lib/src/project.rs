@@ -1,5 +1,5 @@
 use std::collections::btree_map::Iter;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -38,6 +38,8 @@ pub struct Function {
     pub calling_convention: CallingConvention,
     pub arguments_size: Option<u16>,
     pub name: String,
+    pub callees: BTreeSet<u64>,
+    pub callers: BTreeSet<u64>,
 }
 
 impl Function {
@@ -48,6 +50,8 @@ impl Function {
             calling_convention: CallingConvention::Unknown,
             arguments_size: None,
             name: format!("sub_{0:06x}", address),
+            callees: BTreeSet::new(),
+            callers: BTreeSet::new(),
         }
     }
 }

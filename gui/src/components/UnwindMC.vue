@@ -6,13 +6,18 @@ div
     button(v-on:click='decompileILClicked') Decompile IL
     #layout_functions
         ul.functions
-            Function.function(
+            Function(
                 v-for='func in functions'
                 v-bind:func='func'
                 v-on:functionClick='functionClicked'
             )
     #layout_main
-        Asm(v-bind:instructions='instructions')
+        Asm(
+            v-bind:func='selectedFunction'
+            v-bind:functions='functions'
+            v-bind:instructions='instructions'
+            v-on:xrefClick='functionClicked'
+        )
 </template>
 
 <style lang="scss" scoped>
