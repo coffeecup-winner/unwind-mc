@@ -201,10 +201,10 @@ impl ILInstruction<ILOperand> {
         let mut res = String::new();
         if br.type_ == BranchType::Unconditional {
             res += "jmp ";
-            res += &br.target.to_string();
+            res += &format!("0x{:x}", br.target);
         } else {
             res += "br ";
-            res += &br.target.to_string();
+            res += &format!("0x{:x}", br.target);
             res += " if ";
             if let Some(condition) = &br.condition {
                 res += &Self::print_operand(&condition.left);
@@ -223,16 +223,16 @@ impl ILInstruction<ILOperand> {
         let mut res = String::new();
         use self::ILOperand::*;
         match op {
-            Value(v) => return v.to_string(),
+            Value(v) => return format!("0x{:x}", v),
             Register(r) => return String::from(r.to_str()),
             Argument(v) => {
                 res += "arg(";
-                res += &v.to_string();
+                res += &format!("0x{:x}", v);
                 res += ")";
             }
             Local(v) => {
                 res += "loc(";
-                res += &v.to_string();
+                res += &format!("0x{:x}", -v);
                 res += ")";
             }
             &Pointer(b, i, s, o) => {
@@ -247,7 +247,7 @@ impl ILInstruction<ILOperand> {
                     res += &s.to_string();
                     res += " + ";
                 }
-                res += &o.to_string();
+                res += &format!("0x{:x}", o);
                 res += ")";
             }
         }
