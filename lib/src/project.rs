@@ -25,7 +25,7 @@ pub enum FunctionStatus {
     BoundsNotResolvedIncompleteGraph,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub enum CallingConvention {
     Unknown,
     Stdcall,
@@ -172,7 +172,7 @@ impl Project {
     }
 
     pub fn decompile_il(&self, function: &Function) -> UResult<Vec<ILInstruction<ILOperand>>> {
-        il_decompiler::decompile(self.graph(), function.address)
+        il_decompiler::decompile(&self.graph, &self.functions, function.address)
     }
 
     pub fn decompile_function(&self, function: &Function) -> String {

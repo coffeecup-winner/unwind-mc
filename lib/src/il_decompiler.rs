@@ -4,13 +4,18 @@ use common::*;
 use disassembler::*;
 use il::*;
 use instruction_graph::{InstructionGraph, LinkType};
+use project::{CallingConvention, Function};
 
 struct ILDecompiler {
     pub stack_offset: i32,
     pub frame_pointer_offset: i32,
 }
 
-pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstruction<ILOperand>>> {
+pub fn decompile(
+    graph: &InstructionGraph,
+    functions: &BTreeMap<u64, Function>,
+    address: u64,
+) -> UResult<Vec<ILInstruction<ILOperand>>> {
     let mut decompiler = ILDecompiler {
         stack_offset: -(REGISTER_SIZE as i32),
         frame_pointer_offset: 0,
@@ -22,7 +27,7 @@ pub fn decompile(graph: &InstructionGraph, address: u64) -> UResult<Vec<ILInstru
         let address = stack.pop().unwrap();
         let insn = graph.get_vertex(&address).clone();
 
-        let il_insns = decompiler.convert_instruction(graph, &insn)?;
+        let il_insns = decompiler.convert_instruction(graph, functions, &insn)?;
         il.insert(insn.address, il_insns);
 
         for pair in graph.get_adjacent(&address).into_iter().rev() {
@@ -165,6 +170,7 @@ impl ILDecompiler {
     fn convert_instruction(
         &mut self,
         graph: &InstructionGraph,
+        functions: &BTreeMap<u64, Function>,
         insn: &Insn,
     ) -> Result<Vec<ILInstruction<ILOperand>>, String> {
         use il::BranchType::*;
@@ -189,6 +195,35 @@ impl ILDecompiler {
             }
             Mnemonic::Icall => {
                 let operand = self.get_unary_operand(&insn.operands)?;
+                match operand {
+                    ILOperand::Value(v) => match functions.get(&(v as u64)) {
+                        Some(func) if func.calling_convention == CallingConvention::Stdcall => {
+                            match func.arguments_size {
+                                Some(size) => {
+                                    self.stack_offset += size as i32;
+                                }
+                                None => {
+                                    return Err(format!(
+                                        "Function {} is stdcall but has no arguments size set",
+                                        func.name
+                                    ));
+                                }
+                            }
+                        }
+                        Some(func) => {
+                            warn!(
+                                "Calling convention of function {} is not stdcall, skipping",
+                                func.name
+                            );
+                        }
+                        None => {
+                            return Err(format!("Calling unknown function at address 0x{:x}", v));
+                        }
+                    },
+                    _ => {
+                        warn!("Calling function with unsupported operand {:?}", operand);
+                    }
+                }
                 Ok(vec![Call(unary(operand))])
             }
             Mnemonic::Icdq => {
@@ -225,67 +260,67 @@ impl ILDecompiler {
             Mnemonic::Ija => Ok(vec![Branch(branch(
                 Greater,
                 self.find_condition(graph, insn.address, Flags::CF | Flags::ZF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijae => Ok(vec![Branch(branch(
                 GreaterOrEqual,
                 self.find_condition(graph, insn.address, Flags::CF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijb => Ok(vec![Branch(branch(
                 Less,
                 self.find_condition(graph, insn.address, Flags::CF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijbe => Ok(vec![Branch(branch(
                 LessOrEqual,
                 self.find_condition(graph, insn.address, Flags::CF | Flags::ZF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijg => Ok(vec![Branch(branch(
                 Greater,
                 self.find_condition(graph, insn.address, Flags::ZF | Flags::SF | Flags::OF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijge => Ok(vec![Branch(branch(
                 GreaterOrEqual,
                 self.find_condition(graph, insn.address, Flags::SF | Flags::OF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijl => Ok(vec![Branch(branch(
                 Less,
                 self.find_condition(graph, insn.address, Flags::SF | Flags::OF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijle => Ok(vec![Branch(branch(
                 LessOrEqual,
                 self.find_condition(graph, insn.address, Flags::ZF | Flags::SF | Flags::OF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijmp => Ok(vec![Branch(branch(
                 Unconditional,
                 None,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijs => Ok(vec![Branch(branch(
                 Less,
                 self.find_condition(graph, insn.address, Flags::SF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijns => Ok(vec![Branch(branch(
                 GreaterOrEqual,
                 self.find_condition(graph, insn.address, Flags::SF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijz => Ok(vec![Branch(branch(
                 Equal,
                 self.find_condition(graph, insn.address, Flags::ZF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ijnz => Ok(vec![Branch(branch(
                 NotEqual,
                 self.find_condition(graph, insn.address, Flags::ZF)?,
-                insn.get_target_address(),
+                self.get_target_address(insn)?,
             ))]),
             Mnemonic::Ilea => {
                 let (left, right) = self.get_binary_operands(&insn.operands)?;
@@ -338,7 +373,7 @@ impl ILDecompiler {
                 Branch(branch(
                     Greater,
                     Some(binary(Register(Reg::ECX), Value(0))),
-                    insn.get_target_address(),
+                    self.get_target_address(insn)?,
                 )),
             ]),
             Mnemonic::Imov => {
@@ -477,6 +512,14 @@ impl ILDecompiler {
                 Ok(vec![Binary(Xor, binary(left, right))])
             }
             _ => Err(format!("Unsupported instruction\n{:#?}", insn)),
+        }
+    }
+
+    fn get_target_address(&self, insn: &Insn) -> UResult<u64> {
+        if let Operand::RelativeAddress(address) = insn.operands[0] {
+            Ok(address)
+        } else {
+            Err(String::from("Invalid instruction"))
         }
     }
 

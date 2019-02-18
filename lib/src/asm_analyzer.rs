@@ -26,11 +26,14 @@ fn add_explicit_calls(graph: &mut InstructionGraph, functions: &mut BTreeMap<u64
         }
     }
     for call in calls {
-        let target_address = call.get_target_address();
-        graph.add_link(call.address, target_address, LinkType::Call);
-        functions
-            .entry(target_address)
-            .or_insert(Function::new(target_address));
+        if let Operand::RelativeAddress(target_address) = call.operands[0] {
+            graph.add_link(call.address, target_address, LinkType::Call);
+            functions
+                .entry(target_address)
+                .or_insert(Function::new(target_address));
+        } else {
+            panic!("Invalid instruction");
+        }
     }
 }
 
@@ -141,8 +144,8 @@ fn add_explicit_branches(graph: &mut InstructionGraph, insn: &Insn) -> () {
         | Mnemonic::Ijrcxz
         | Mnemonic::Ijs
         | Mnemonic::Ijz => {
-            if insn.operands[0].is_reladdr() {
-                graph.add_link(insn.address, insn.get_target_address(), LinkType::Branch);
+            if let Operand::RelativeAddress(target_address) = insn.operands[0] {
+                graph.add_link(insn.address, target_address, LinkType::Branch);
             }
         }
         _ => {}

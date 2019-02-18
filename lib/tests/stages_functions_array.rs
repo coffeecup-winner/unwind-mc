@@ -5,6 +5,8 @@ extern crate unwindmc;
 
 mod analysis_helper;
 
+use std::collections::BTreeMap;
+
 use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
@@ -71,7 +73,8 @@ fn stage_test_functions_array() {
         00400018: 5e                 pop esi
         00400019: c3                 ret",
     );
-    let il = il_decompiler::decompile(project.graph(), 0x400000).expect("Failed to decompile IL");
+    let il = il_decompiler::decompile(project.graph(), &BTreeMap::new(), 0x400000)
+        .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;

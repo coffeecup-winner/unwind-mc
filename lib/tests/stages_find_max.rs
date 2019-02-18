@@ -7,6 +7,8 @@ extern crate unwindmc;
 
 mod analysis_helper;
 
+use std::collections::BTreeMap;
+
 use unwindmc::ast::*;
 use unwindmc::ast_builder::*;
 use unwindmc::cpp_emitter::*;
@@ -88,7 +90,8 @@ fn stage_test_find_max() {
         08048424: 5e                 pop esi
         08048425: c3                 ret",
     );
-    let il = il_decompiler::decompile(project.graph(), 0x8048400).expect("Failed to decompile IL");
+    let il = il_decompiler::decompile(project.graph(), &BTreeMap::new(), 0x8048400)
+        .expect("Failed to decompile IL");
 
     use unwindmc::il::BranchType::*;
     use unwindmc::il::ILBinaryOperator::*;

@@ -61,9 +61,14 @@ impl Disassembler {
         unsafe {
             let mut index = 0;
             let mut op = ud_insn_opr(ud, index);
+            let next_address = ud_insn_off(ud) + ud_insn_len(ud) as u64;
 
             while !op.is_null() {
-                result.push(Operand::from_ud_operand(ud.opr_mode as u16, *op));
+                result.push(Operand::from_ud_operand(
+                    next_address,
+                    ud.opr_mode as u16,
+                    *op,
+                ));
                 index += 1;
                 op = ud_insn_opr(ud, index);
             }
@@ -91,19 +96,6 @@ pub struct Insn {
 }
 
 impl Insn {
-    pub fn get_target_address(&self) -> u64 {
-        let target_address = self.address + u64::from(self.length);
-        if let Operand::RelativeAddress(v) = self.operands[0] {
-            (target_address as i64 + v) as u64
-        } else {
-            error!(
-                "ERROR: Invalid instruction to get target address from: {:?}",
-                self
-            );
-            0
-        }
-    }
-
     // The printing code is ported from udis86's syn-intel.c
     // The ported version is abridged, rare or non-x86 bits are removed
     pub fn assembly(&self) -> String {
@@ -242,10 +234,7 @@ impl Insn {
                 s += &format!("0x{:x}", v);
             }
             Operand::RelativeAddress(v) => {
-                let trunc_mask = 0xffffffffffffffff >> (64 - self.opr_mode);
-                let pc = self.address + u64::from(self.length);
-                let address = pc.wrapping_add(*v as u64) & trunc_mask;
-                s += &format!("0x{:x}", address);
+                s += &format!("0x{:x}", v);
             }
             Operand::Pointer(size, seg, off) => match size {
                 32 => {
@@ -310,12 +299,12 @@ pub enum Operand {
     Pointer(u16, u16, u32),
     ImmediateUnsigned(u16, u64),
     ImmediateSigned(u16, i64),
-    RelativeAddress(i64),
+    RelativeAddress(u64),
     Const(u16, u64),
 }
 
 impl Operand {
-    pub fn from_ud_operand(mode: u16, operand: ud_operand) -> Operand {
+    pub fn from_ud_operand(next_address: u64, mode: u16, operand: ud_operand) -> Operand {
         use self::Operand::*;
         match operand.otype {
             ud_type::UD_OP_REG => Register(operand.size, Reg::from_ud_type(operand.base)),
@@ -358,7 +347,9 @@ impl Operand {
                     ImmediateUnsigned(operand.size, Self::get_imm_u64(operand.size, operand.lval))
                 }
             }
-            ud_type::UD_OP_JIMM => RelativeAddress(Self::get_imm_i64(operand.size, operand.lval)),
+            ud_type::UD_OP_JIMM => RelativeAddress(
+                next_address.wrapping_add(Self::get_imm_i64(operand.size, operand.lval) as u64),
+            ),
             ud_type::UD_OP_CONST => Const(operand.size, unsafe { operand.lval.uqword }),
             _ => panic!("Register used as operand type"),
         }
