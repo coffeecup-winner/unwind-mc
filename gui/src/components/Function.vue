@@ -6,6 +6,8 @@
 <style lang="scss" scoped>
 li {
     display: block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 9pt;
 }
 
 .decompile-fail {
