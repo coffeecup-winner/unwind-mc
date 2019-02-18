@@ -90,7 +90,7 @@ impl ILDecompiler {
                 let insn = graph.get_vertex(&addr);
                 match insn.code {
                     Mnemonic::Iand | Mnemonic::Ior => {
-                        if Self::check_flags(flag, Flags::PZS, Flags::CAO)? {
+                        if Self::check_flags(flag, Flags::CPZSO, Flags::AF)? {
                             let (left, _) = self.get_binary_operands(&insn.operands)?;
                             return Ok(Some(binary(left, Value(0))));
                         }
@@ -114,7 +114,7 @@ impl ILDecompiler {
                         }
                     }
                     Mnemonic::Itest => {
-                        if Self::check_flags(flag, Flags::PZS, Flags::CAO)? {
+                        if Self::check_flags(flag, Flags::CPZSO, Flags::AF)? {
                             let (left, right) = self.get_binary_operands(&insn.operands)?;
                             match (&left, &right) {
                                 (Register(reg_left), Register(reg_right))
