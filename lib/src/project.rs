@@ -17,12 +17,35 @@ use il_decompiler;
 use instruction_graph::*;
 use type_resolver;
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub enum FunctionStatus {
+    // Initial status
     Created,
+
+    // Asm decompilation stage
     BoundsResolved,
     BoundsNotResolvedInvalidAddress,
     BoundsNotResolvedIncompleteGraph,
+
+    // IL decompilation stage
+    ILDecompiled,
+    ILNotDecompiled,
+
+    // Control flow analysis stage
+    ControlFlowAnalyzed,
+    ControlFlowNotAnalyzed,
+
+    // Type resolution stage
+    TypesResolved,
+    TypesNotResolved,
+
+    // AST building stage
+    AstBuilt,
+    AstNotBuilt,
+
+    // Source code emission stage
+    SourceCodeEmitted,
+    SourceCodeNotEmitted,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
@@ -40,6 +63,7 @@ pub struct Function {
     pub name: String,
     pub callees: BTreeSet<u64>,
     pub callers: BTreeSet<u64>,
+    pub il: UResult<Vec<ILInstruction<ILOperand>>>,
 }
 
 impl Function {
@@ -52,6 +76,7 @@ impl Function {
             name: format!("sub_{0:06x}", address),
             callees: BTreeSet::new(),
             callers: BTreeSet::new(),
+            il: Err(String::from("IL decompilation didn't start")),
         }
     }
 }
@@ -175,12 +200,26 @@ impl Project {
         asm_analyzer::analyze(&mut self.graph, &mut self.functions, &mut self.jump_tables);
     }
 
-    pub fn decompile_il(&self, function: &Function) -> UResult<Vec<ILInstruction<ILOperand>>> {
-        il_decompiler::decompile(&self.graph, &self.functions, function.address)
+    pub fn decompile_il(&mut self) {
+        // TODO: remove full clone
+        for (address, _) in self.functions.clone() {
+            if self.functions[&address].status != FunctionStatus::BoundsResolved {
+                continue;
+            }
+            let il = il_decompiler::decompile(&self.graph, &self.functions, address);
+            let mut function = self.functions.get_mut(&address).unwrap();
+            function.il = il;
+            function.status = if function.il.is_ok() {
+                FunctionStatus::ILDecompiled
+            } else {
+                FunctionStatus::ILNotDecompiled
+            }
+        }
     }
 
     pub fn decompile_function(&self, function: &Function) -> String {
-        let il = self.decompile_il(function).expect("Failed to decompile IL");
+        let il = il_decompiler::decompile(&self.graph, &self.functions, function.address)
+            .expect("Failed to decompile IL");
         let blocks = flow_analyzer::build_flow_graph(il);
         let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
         let func = ast_builder::AstBuilder::build_ast(function.name.clone(), &blocks, &types);

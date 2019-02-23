@@ -9,7 +9,8 @@ const _unwindmc = ffi.Library('libunwindmc', {
     save_db: ['void', ['string']],
     get_functions: ['void', ['string', 'size_t']],
     get_instructions: ['void', ['uint64', 'string', 'size_t']],
-    decompile_il: ['bool', ['uint64', 'string', 'size_t']],
+    get_il: ['bool', ['uint64', 'string', 'size_t']],
+    decompile_il: ['void', []],
 })
 
 const _buffer = Buffer.alloc(16 * 1024 * 1024)
@@ -61,11 +62,15 @@ export default {
         return JSON.parse(ref.readCString(_buffer))
     },
 
-    decompileIL(func: number) {
-        if (_unwindmc.decompile_il(func, _buffer, _buffer.byteLength)) {
+    getIL(func: number) {
+        if (_unwindmc.get_il(func, _buffer, _buffer.byteLength)) {
             return JSON.parse(ref.readCString(_buffer))
         } else {
             return null
         }
+    },
+
+    decompileIL() {
+        _unwindmc.decompile_il()
     },
 }

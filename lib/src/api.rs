@@ -13,6 +13,14 @@ const VERSION: &[u8] = b"0.1.0\0";
 thread_local!(
     static PROJECT: RefCell<Option<Project>> = RefCell::new(None));
 
+fn with_project<T>(func: &mut FnMut(&Project) -> T) -> T {
+    PROJECT.with(|p| func(p.borrow().as_ref().unwrap()))
+}
+
+fn with_project_mut<T>(func: &mut FnMut(&mut Project) -> T) -> T {
+    PROJECT.with(|p| func(p.borrow_mut().as_mut().unwrap()))
+}
+
 struct CallbackLogger {
     callback: extern "C" fn(line: *const c_char) -> (),
 }
@@ -171,8 +179,8 @@ pub fn get_instructions(function: u64, ptr: *mut c_char, size: usize) {
 }
 
 #[no_mangle]
-pub fn decompile_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
-    trace!("get_instructions: 0x{:x}", address);
+pub fn get_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
+    trace!("get_il: 0x{:x}", address);
     with_project(&mut |project| {
         let function = match project.get_function(address) {
             Some(f) => f,
@@ -181,7 +189,7 @@ pub fn decompile_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
                 return false;
             }
         };
-        match project.decompile_il(function) {
+        match &function.il {
             Ok(il) => {
                 let mut res = vec![];
                 for (i, insn) in il.iter().enumerate() {
@@ -191,19 +199,24 @@ pub fn decompile_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
                     }));
                 }
                 copy_to_buffer(json::Value::Array(res).to_string(), ptr, size);
-                trace!("get_instructions: done");
+                trace!("get_il: done");
                 true
             }
             Err(s) => {
-                error!("get_instructions: ERROR: {}", s);
+                error!("get_il: ERROR: {}", s);
                 false
             }
         }
     })
 }
 
-fn with_project<T>(func: &mut FnMut(&Project) -> T) -> T {
-    PROJECT.with(|p| func(p.borrow().as_ref().unwrap()))
+#[no_mangle]
+pub fn decompile_il() {
+    trace!("decompile_il");
+    with_project_mut(&mut |project| {
+        project.decompile_il();
+    });
+    trace!("decompile_il: done");
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {

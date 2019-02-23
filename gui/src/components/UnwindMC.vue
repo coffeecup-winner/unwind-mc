@@ -120,11 +120,12 @@ module.exports = {
             if (this.selectedFunction == null) {
                 return
             }
+            unwindmc.decompileIL()
             for (let f of this.functions) {
                 console.log(f.address)
                 console.log(f.status)
                 if (f.status == 'BoundsResolved') {
-                    let il = unwindmc.decompileIL(f.address)
+                    let il = unwindmc.getIL(f.address)
                     console.log(il)
                 }
             }
