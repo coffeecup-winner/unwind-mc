@@ -1,6 +1,7 @@
 <template lang="jade">
     li(v-bind:class='classObj')
-        a(v-on:click='onClick()') {{ func.callingConvention == 'Stdcall' ? 'S' : '?' }} {{ func.name }}
+        a(v-on:click='onClick()')
+            {{ status }} {{ callconv }} {{ func.name }}
 </template>
 
 <style lang="scss" scoped>
@@ -13,6 +14,9 @@ li {
 .decompile-fail {
     background-color: darkred;
 }
+.ildecompile-fail {
+    background-color: orange;
+}
 </style>
 
 <script lang="ts">
@@ -21,7 +25,39 @@ module.exports = {
     computed: {
         classObj() {
             return {
-                'decompile-fail': this.func.status != 'BoundsResolved'
+                'decompile-fail':
+                    this.func.status == 'BoundsNotResolvedInvalidAddress' ||
+                    this.func.status == 'BoundsNotResolvedIncompleteGraph'
+                'ildecompile-fail':
+                    this.func.status == 'ILNotDecompiled'
+            }
+        },
+
+        status() {
+            switch this.func.status {
+                case 'Created': return 'C'
+                case 'BoundsResolved': return 'B'
+                case 'BoundsNotResolvedInvalidAddress': return 'b'
+                case 'BoundsNotResolvedIncompleteGraph': return 'b'
+                case 'ILDecompiled': return 'I'
+                case 'ILNotDecompiled': return 'i'
+                case 'ControlFlowAnalyzed': return 'F'
+                case 'ControlFlowNotAnalyzed': return 'f'
+                case 'TypesResolved': return 'T'
+                case 'TypesNotResolved': return 't'
+                case 'AstBuilt': return 'A'
+                case 'AstNotBuilt': return 'a'
+                case 'SourceCodeEmitted': return 'S'
+                case 'SourceCodeNotEmitted': return 's'
+                default: return '!'
+            }
+        },
+
+        callconv() {
+            switch this.func.callingConvention {
+                case 'Unknown': return '?'
+                case 'Stdcall': return 'S'
+                default: return '!'
             }
         },
     },
