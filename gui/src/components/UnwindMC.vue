@@ -18,9 +18,15 @@ div
             v-bind:instructions='instructions'
             v-on:xrefClick='functionClicked'
         )
+    #layout_extra
+        IL(
+            v-bind:il='il'
+        )
 </template>
 
 <style lang="scss" scoped>
+// TODO: use variables
+
 #layout_functions {
     position: fixed;
     overflow-y: scroll;
@@ -35,8 +41,17 @@ div
     overflow-y: scroll;
     top: 40px;
     left: 200px;
-    right: 0;
     height: calc(100vh - 40px);
+    width: calc((100vw - 200px) / 2);
+}
+
+#layout_extra {
+    position: fixed;
+    overflow-y: scroll;
+    top: 40px;
+    left: calc(200px + (100vw - 200px) / 2);
+    height: calc(100vh - 40px);
+    width: calc((100vw - 200px) / 2);
 }
 
 .functions {
@@ -48,6 +63,7 @@ div
 <script lang="ts">
 import * as Asm from './Asm.vue'
 import * as Function from './Function.vue'
+import * as IL from './IL.vue'
 
 import unwindmc,{ Instruction } from '../unwindmc'
 import { remote as e } from 'electron'
@@ -60,10 +76,11 @@ module.exports = {
         return {
             functions: [] as Function[],
             instructions: [] as Instruction[],
+            il: [],
             selectedFunction: null as (Function | null),
         }
     },
-    components: { Asm, Function },
+    components: { Asm, Function, IL },
     methods: {
         projectOpened(opened: boolean) {
             if (!opened) {
@@ -134,6 +151,7 @@ module.exports = {
         functionClicked(func: Function) {
             this.selectedFunction = func
             this.instructions = unwindmc.getInstructions(func.address)
+            this.il = unwindmc.getIL(func.address)
         },
     },
 }
