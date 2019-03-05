@@ -4,6 +4,7 @@ div
     button(v-on:click='openDBClicked') Open DB
     button(v-on:click='saveDBClicked') Save DB
     button(v-on:click='decompileILClicked') Decompile IL
+    button(v-on:click='analyzeControlFlowClicked') Analyze Control Flow
     #layout_functions
         ul.functions
             Function(
@@ -19,9 +20,14 @@ div
             v-on:xrefClick='functionClicked'
         )
     #layout_extra
+        button(v-on:click='ILViewClicked') IL
+        button(v-on:click='flowViewClicked') Flow
         IL(
+            v-bind:class='ILClassObj'
             v-bind:il='il'
         )
+        div(v-bind:class='flowClassObj')
+            {{ flow }}
 </template>
 
 <style lang="scss" scoped>
@@ -58,6 +64,10 @@ div
     margin: 0;
     padding: 0 0 0 10px;
 }
+
+.hide {
+    visibility: collapse;
+}
 </style>
 
 <script lang="ts">
@@ -68,6 +78,11 @@ import * as IL from './IL.vue'
 import unwindmc,{ Instruction } from '../unwindmc'
 import { remote as e } from 'electron'
 
+enum ExtraView {
+    IL,
+    Flow,
+}
+
 module.exports = {
     created: function () {
         unwindmc.init(line => console.log(line))
@@ -77,13 +92,28 @@ module.exports = {
             functions: [] as Function[],
             instructions: [] as Instruction[],
             il: [],
+            flow: [],
             selectedFunction: null as (Function | null),
+            extraView: ExtraView.IL,
         }
     },
+    computed: {
+        ILClassObj() {
+            return {
+                'hide': this.extraView != ExtraView.IL
+            }
+        },
+
+        flowClassObj() {
+            return {
+                'hide': this.extraView != ExtraView.Flow
+            }
+        },
+    }
     components: { Asm, Function, IL },
     methods: {
-        projectOpened(opened: boolean) {
-            if (!opened) {
+        refresh(isValid: boolean) {
+            if (!isValid) {
                 this.functions = []
                 this.instructions = []
                 this.selectedFunction = null
@@ -103,7 +133,7 @@ module.exports = {
             e.dialog.showOpenDialog({
                 title: 'Open a binary file',
             }, f => {
-                this.projectOpened(f.length > 0 && unwindmc.openBinaryFile(f[0]))
+                this.refresh(f.length > 0 && unwindmc.openBinaryFile(f[0]))
             })
         },
 
@@ -115,7 +145,7 @@ module.exports = {
                     extensions: ['db']
                 }],
             }, f => {
-                this.projectOpened(f.length > 0 && unwindmc.openDB(f[0]))
+                this.refresh(f.length > 0 && unwindmc.openDB(f[0]))
             })
         },
 
@@ -134,10 +164,8 @@ module.exports = {
         },
 
         decompileILClicked() {
-            if (this.selectedFunction == null) {
-                return
-            }
             unwindmc.decompileIL()
+            this.refresh(true)
             for (let f of this.functions) {
                 console.log(f.address)
                 console.log(f.status)
@@ -148,11 +176,33 @@ module.exports = {
             }
         },
 
+        analyzeControlFlowClicked() {
+            unwindmc.analyzeControlFlow()
+            this.refresh(true)
+            for (let f of this.functions) {
+                console.log(f.address)
+                console.log(f.status)
+                if (f.status == 'ControlFlowAnalyzed') {
+                    let il = unwindmc.getFlowBlocks(f.address)
+                    console.log(il)
+                }
+            }
+        },
+
         functionClicked(func: Function) {
             this.selectedFunction = func
             this.instructions = unwindmc.getInstructions(func.address)
             this.il = unwindmc.getIL(func.address)
+            this.flow = unwindmc.getFlowBlocks(func.address)
         },
+
+        ILViewClicked() {
+            this.extraView = ExtraView.IL
+        },
+
+        flowViewClicked() {
+            this.extraView = ExtraView.Flow
+        }
     },
 }
 </script>

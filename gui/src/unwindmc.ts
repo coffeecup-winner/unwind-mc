@@ -10,7 +10,9 @@ const _unwindmc = ffi.Library('libunwindmc', {
     get_functions: ['void', ['string', 'size_t']],
     get_instructions: ['void', ['uint64', 'string', 'size_t']],
     get_il: ['bool', ['uint64', 'string', 'size_t']],
+    get_flow_blocks: ['bool', ['uint64', 'string', 'size_t']],
     decompile_il: ['void', []],
+    analyze_control_flow: ['void', []]
 })
 
 const _buffer = Buffer.alloc(16 * 1024 * 1024)
@@ -70,7 +72,19 @@ export default {
         }
     },
 
+    getFlowBlocks(func: number) {
+        if (_unwindmc.get_flow_blocks(func, _buffer, _buffer.byteLength)) {
+            return JSON.parse(ref.readCString(_buffer))
+        } else {
+            return null
+        }
+    },
+
     decompileIL() {
         _unwindmc.decompile_il()
+    },
+
+    analyzeControlFlow() {
+        _unwindmc.analyze_control_flow()
     },
 }
