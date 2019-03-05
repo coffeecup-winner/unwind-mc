@@ -6,6 +6,8 @@ use log::*;
 use serde_json as json;
 use serde_json::json;
 
+use flow_analyzer::Block;
+use il::*;
 use project::*;
 
 const VERSION: &[u8] = b"0.1.0\0";
@@ -211,12 +213,78 @@ pub fn get_il(address: u64, ptr: *mut c_char, size: usize) -> bool {
 }
 
 #[no_mangle]
+pub fn get_flow_blocks(address: u64, ptr: *mut c_char, size: usize) -> bool {
+    trace!("get_flow_blocks: 0x{:x}", address);
+    with_project(&mut |project| {
+        let function = match project.get_function(address) {
+            Some(f) => f,
+            None => {
+                error!("Failed to find a function with the given address");
+                return false;
+            }
+        };
+        match &function.flow {
+            Ok(flow) => {
+                let res: serde_json::Value = flow.iter().map(|b| serialize_flow_block(b)).collect();
+                copy_to_buffer(res.to_string(), ptr, size);
+                trace!("get_il: done");
+                true
+            }
+            Err(s) => {
+                error!("get_il: ERROR: {}", s);
+                false
+            }
+        }
+    })
+}
+
+fn serialize_flow_block(block: &Block<ILOperand>) -> serde_json::Value {
+    match block {
+        Block::ConditionalBlock(block) => json!({
+            "tag": "CONDITION",
+            "condition": block.condition.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+            "trueBranch": block.true_branch.iter().map(|b| serialize_flow_block(b)).collect::<serde_json::Value>(),
+            "falseBranch": block.false_branch.iter().map(|b| serialize_flow_block(b)).collect::<serde_json::Value>(),
+        }),
+        Block::DoWhileBlock(block) => json!({
+            "tag": "DO_WHILE",
+            "condition": block.condition.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+            "body": block.body.iter().map(|b| serialize_flow_block(b)).collect::<serde_json::Value>(),
+        }),
+        Block::ForBlock(block) => json!({
+            "tag": "FOR",
+            "condition": block.condition.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+            "modifier": block.modifier.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+            "body": block.body.iter().map(|b| serialize_flow_block(b)).collect::<serde_json::Value>(),
+        }),
+        Block::SequentialBlock(block) => json!({
+            "tag": "SEQUENCE",
+            "instructions": block.instructions.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+        }),
+        Block::WhileBlock(block) => json!({
+            "tag": "WHILE",
+            "condition": block.condition.iter().map(|i| i.print_syntax()).collect::<serde_json::Value>(),
+            "body": block.body.iter().map(|b| serialize_flow_block(b)).collect::<serde_json::Value>(),
+        }),
+    }
+}
+
+#[no_mangle]
 pub fn decompile_il() {
     trace!("decompile_il");
     with_project_mut(&mut |project| {
         project.decompile_il();
     });
     trace!("decompile_il: done");
+}
+
+#[no_mangle]
+pub fn analyze_control_flow() {
+    trace!("analyze_control_flow");
+    with_project_mut(&mut |project| {
+        project.analyze_control_flow();
+    });
+    trace!("analyze_control_flow: done");
 }
 
 fn to_str<'a>(s: *const c_char) -> Option<&'a str> {
