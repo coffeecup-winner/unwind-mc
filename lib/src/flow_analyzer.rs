@@ -132,6 +132,9 @@ fn sequence(
                 condition: start + 1,
                 past_loop: end + 1,
             };
+            if end < &(start + 1) || (end - start - 1) > rest.len() {
+                return Err(String::from("Failed to parse a for loop"));
+            }
             let (body, rest) = rest.split_at(end - start - 1);
             let block = for_loop(&loop_, br.target as usize - start, body)?;
             let (_, rest) = rest.split_at(1);
@@ -148,12 +151,14 @@ fn sequence(
            ...
         */
         [(start, Branch(br), Some(end)), ..] => {
-            assert_eq!(end + 1, br.target as usize);
+            if (end + 1) != br.target as usize {
+                return Err(String::from("Failed to parse a while loop"));
+            }
             let (_, test) = list.split_at(end - start);
-            assert!(match test[0] {
-                (_, Branch(ref br), _) if br.type_ == BranchType::Unconditional => true,
-                _ => false,
-            });
+            match test[0] {
+                (_, Branch(ref br), _) if br.type_ == BranchType::Unconditional => {}
+                _ => return Err(String::from("Failed to parse a while loop")),
+            }
             // TODO assert_eq!()
             let loop_ = LoopBounds {
                 condition: *start,
@@ -198,6 +203,9 @@ fn sequence(
             if false_branch.type_ != BranchType::Unconditional =>
         {
             let false_branch = false_branch.target as usize;
+            if (false_branch - start - 1) > list.len() {
+                return Err(String::from("Failed to parse a condition"));
+            }
             let (_, false_branch_test) = list.split_at(false_branch - start - 1);
             let end = match false_branch_test {
                 [(_, Branch(br), _), ..]
@@ -209,6 +217,9 @@ fn sequence(
                 }
                 _ => false_branch, // no else case
             };
+            if (end - start) > list.len() {
+                return Err(String::from("Failed to parse a condition"));
+            }
             let (body, rest) = list.split_at(end - start);
             let block = conditional(loop_bounds, false_branch - start, body)?;
             result.push(Right(block));
@@ -263,6 +274,9 @@ fn conditional(
         }))
     } else {
         let (condition, list) = list.split_at(1);
+        if false_branch_idx < 3 {
+            return Err(String::from("Failed to parse a condition"));
+        }
         let (true_branch, list) = list.split_at(false_branch_idx - 3);
         let (_, list) = list.split_at(1);
         Ok(Block::ConditionalBlock(ConditionalBlock {
@@ -290,7 +304,7 @@ fn for_loop(
             }
             _ => false,
         })
-        .unwrap();
+        .ok_or(String::from("Failed to parse a for loop"))?;
     let (condition, list) = list.split_at(body_start + 1);
     Ok(Block::ForBlock(ForBlock {
         condition: invert_condition(get_instructions(condition))?,
