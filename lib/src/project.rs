@@ -64,6 +64,7 @@ pub struct Function {
     pub callees: BTreeSet<u64>,
     pub callers: BTreeSet<u64>,
     pub il: UResult<Vec<ILInstruction<ILOperand>>>,
+    pub flow: UResult<Vec<flow_analyzer::Block<ILOperand>>>,
 }
 
 impl Function {
@@ -77,6 +78,7 @@ impl Function {
             callees: BTreeSet::new(),
             callers: BTreeSet::new(),
             il: Err(String::from("IL decompilation didn't start")),
+            flow: Err(String::from("Control flow analysis didn't start")),
         }
     }
 }
@@ -217,10 +219,30 @@ impl Project {
         }
     }
 
+    pub fn analyze_control_flow(&mut self) {
+        // TODO: remove full clone
+        for (address, _) in self.functions.clone() {
+            if self.functions[&address].status != FunctionStatus::ILDecompiled {
+                continue;
+            }
+            if let Ok(il) = &self.functions[&address].il {
+                let flow = flow_analyzer::build_flow_graph(il);
+                let mut function = self.functions.get_mut(&address).unwrap();
+                function.flow = flow;
+                function.status = if function.flow.is_ok() {
+                    FunctionStatus::ControlFlowAnalyzed
+                } else {
+                    FunctionStatus::ControlFlowNotAnalyzed
+                }
+            }
+        }
+    }
+
     pub fn decompile_function(&self, function: &Function) -> String {
         let il = il_decompiler::decompile(&self.graph, &self.functions, function.address)
             .expect("Failed to decompile IL");
-        let blocks = flow_analyzer::build_flow_graph(il);
+        let blocks =
+            flow_analyzer::build_flow_graph(&il).expect("Failed to analyze the control flow");
         let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
         let func = ast_builder::AstBuilder::build_ast(function.name.clone(), &blocks, &types);
         cpp_emitter::CppEmitter::emit(&func)

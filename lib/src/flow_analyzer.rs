@@ -1,39 +1,40 @@
 use either::*;
 
+use common::*;
 use il::*;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct ConditionalBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub true_branch: Vec<Block<Op>>,
     pub false_branch: Vec<Block<Op>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct DoWhileBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct ForBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub modifier: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct SequentialBlock<Op: Clone> {
     pub instructions: Vec<ILInstruction<Op>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct WhileBlock<Op: Clone> {
     pub condition: Vec<ILInstruction<Op>>,
     pub body: Vec<Block<Op>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Block<Op: Clone> {
     ConditionalBlock(ConditionalBlock<Op>),
     DoWhileBlock(DoWhileBlock<Op>),
@@ -47,7 +48,7 @@ struct LoopBounds {
     pub past_loop: usize,
 }
 
-pub fn build_flow_graph(il: Vec<ILInstruction<ILOperand>>) -> Vec<Block<ILOperand>> {
+pub fn build_flow_graph(il: &Vec<ILInstruction<ILOperand>>) -> UResult<Vec<Block<ILOperand>>> {
     let mut branch_targets: Vec<Option<usize>> = (0..il.len()).map(|_| None).collect();
     for pair in il.iter().enumerate() {
         if let (address, ILInstruction::Branch(br)) = pair {
@@ -55,19 +56,21 @@ pub fn build_flow_graph(il: Vec<ILInstruction<ILOperand>>) -> Vec<Block<ILOperan
         }
     }
     let list: Vec<(usize, ILInstruction<ILOperand>, Option<usize>)> = il
+        .clone()
         .into_iter()
         .zip(branch_targets)
         .enumerate()
         .map(|(a, (b, c))| (a, b, c))
         .collect();
 
-    scope(
+    // TODO: return errors from scope() instead of panicking
+    Ok(scope(
         &LoopBounds {
             condition: (-1 as i32) as usize,
             past_loop: (-1 as i32) as usize,
         },
         &list[..],
-    )
+    ))
 }
 
 fn scope(

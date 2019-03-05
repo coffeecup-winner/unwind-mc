@@ -101,7 +101,7 @@ fn stage_test_functions_array() {
 
     assert_eq!(il, expected);
 
-    let blocks = build_flow_graph(il);
+    let blocks = build_flow_graph(&il).expect("Failed to analyze the control flow");
 
     let expected = vec![
         Block::SequentialBlock(SequentialBlock {
