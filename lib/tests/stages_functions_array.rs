@@ -112,7 +112,8 @@ fn stage_test_functions_array() {
                 GreaterOrEqual,
                 Some(binary(Register(Reg::ESI), Argument(4))),
                 7,
-            ))]),
+            ))])
+            .unwrap(),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![Assign(binary(
@@ -125,7 +126,8 @@ fn stage_test_functions_array() {
                         Equal,
                         Some(binary(Register(Reg::EAX), Value(0))),
                         5,
-                    ))]),
+                    ))])
+                    .unwrap(),
                     true_branch: vec![Block::SequentialBlock(SequentialBlock {
                         instructions: vec![Call(unary(Register(Reg::EAX)))],
                     })],
@@ -179,7 +181,8 @@ fn stage_test_functions_array() {
                 GreaterOrEqual,
                 Some(binary((Register(Reg::ESI), Some(0)), (Argument(4), None))),
                 7,
-            ))]),
+            ))])
+            .unwrap(),
             body: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![Assign(binary(
@@ -192,7 +195,8 @@ fn stage_test_functions_array() {
                         Equal,
                         Some(binary((Register(Reg::EAX), Some(1)), (Value(0), None))),
                         5,
-                    ))]),
+                    ))])
+                    .unwrap(),
                     true_branch: vec![Block::SequentialBlock(SequentialBlock {
                         instructions: vec![Call(unary((Register(Reg::EAX), Some(1))))],
                     })],

@@ -144,7 +144,8 @@ fn stage_test_find_max() {
                 Equal,
                 Some(binary(Register(Reg::ECX), Value(0))),
                 11,
-            ))]),
+            ))])
+            .unwrap(),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
@@ -170,7 +171,8 @@ fn stage_test_find_max() {
                                 GreaterOrEqual,
                                 Some(binary(Register(Reg::EAX), Register(Reg::ESI))),
                                 8,
-                            ))]),
+                            ))])
+                            .unwrap(),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
                                     Register(Reg::EAX),
@@ -236,7 +238,8 @@ fn stage_test_find_max() {
                 Equal,
                 Some(binary((Register(Reg::ECX), Some(0)), (Value(0), None))),
                 11,
-            ))]),
+            ))])
+            .unwrap(),
             true_branch: vec![
                 Block::SequentialBlock(SequentialBlock {
                     instructions: vec![
@@ -268,7 +271,8 @@ fn stage_test_find_max() {
                                     (Register(Reg::ESI), Some(4)),
                                 )),
                                 8,
-                            ))]),
+                            ))])
+                            .unwrap(),
                             true_branch: vec![Block::SequentialBlock(SequentialBlock {
                                 instructions: vec![Assign(binary(
                                     (Register(Reg::EAX), Some(1)),

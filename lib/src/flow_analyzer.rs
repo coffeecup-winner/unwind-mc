@@ -63,22 +63,21 @@ pub fn build_flow_graph(il: &Vec<ILInstruction<ILOperand>>) -> UResult<Vec<Block
         .map(|(a, (b, c))| (a, b, c))
         .collect();
 
-    // TODO: return errors from scope() instead of panicking
-    Ok(scope(
+    scope(
         &LoopBounds {
             condition: (-1 as i32) as usize,
             past_loop: (-1 as i32) as usize,
         },
         &list[..],
-    ))
+    )
 }
 
 fn scope(
     loop_bounds: &LoopBounds,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
-) -> Vec<Block<ILOperand>> {
+) -> UResult<Vec<Block<ILOperand>>> {
     let mut seq = vec![];
-    sequence(loop_bounds, list, &mut seq);
+    sequence(loop_bounds, list, &mut seq)?;
     let mut result = vec![];
     let mut insns = vec![];
     for elem in seq {
@@ -95,7 +94,7 @@ fn scope(
         if let Right(block) = elem {
             result.push(block);
         } else {
-            panic!("impossible");
+            unreachable!();
         }
     }
     if !insns.is_empty() {
@@ -103,14 +102,14 @@ fn scope(
             instructions: insns,
         }));
     }
-    result
+    Ok(result)
 }
 
 fn sequence(
     loop_bounds: &LoopBounds,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
     result: &mut Vec<Either<ILInstruction<ILOperand>, Block<ILOperand>>>,
-) {
+) -> UResult<()> {
     use il::ILInstruction::*;
     match list {
         /* for loop *
@@ -134,10 +133,10 @@ fn sequence(
                 past_loop: end + 1,
             };
             let (body, rest) = rest.split_at(end - start - 1);
-            let block = for_loop(&loop_, br.target as usize - start, body);
+            let block = for_loop(&loop_, br.target as usize - start, body)?;
             let (_, rest) = rest.split_at(1);
             result.push(Right(block));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* while loop *
            ...
@@ -162,9 +161,9 @@ fn sequence(
             };
             let (body, rest) = list.split_at(end - start);
             let (_, rest) = rest.split_at(1);
-            let block = while_loop(&loop_, body);
+            let block = while_loop(&loop_, body)?;
             result.push(Right(block));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* do while loop *
            ...
@@ -180,9 +179,9 @@ fn sequence(
                 past_loop: end + 1,
             };
             let (body, rest) = list.split_at(loop_.past_loop - start);
-            let block = do_while_loop(&loop_, loop_.past_loop - start - 1, body);
+            let block = do_while_loop(&loop_, loop_.past_loop - start - 1, body)?;
             result.push(Right(block));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* conditional *
          * if-then-else *  |  * if then *   |  * if else *
@@ -211,9 +210,9 @@ fn sequence(
                 _ => false_branch, // no else case
             };
             let (body, rest) = list.split_at(end - start);
-            let block = conditional(loop_bounds, false_branch - start, body);
+            let block = conditional(loop_bounds, false_branch - start, body)?;
             result.push(Right(block));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* loop control *
          * continue *     |  * continue *   |  * break *
@@ -228,24 +227,24 @@ fn sequence(
                 && br.target == loop_bounds.condition as u64 =>
         {
             result.push(Left(Continue));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         [(_, Branch(br), _), rest..]
             if br.type_ == BranchType::Unconditional
                 && br.target == loop_bounds.past_loop as u64 =>
         {
             result.push(Left(Break));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* sequential flow *
            ...
         */
         [(_, insn, _), rest..] => {
             result.push(Left(insn.clone()));
-            sequence(loop_bounds, rest, result);
+            sequence(loop_bounds, rest, result)
         }
         /* end of scope */
-        [] => {}
+        [] => Ok(()),
     }
 }
 
@@ -253,24 +252,24 @@ fn conditional(
     loop_bounds: &LoopBounds,
     false_branch_idx: usize,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
-) -> Block<ILOperand> {
+) -> UResult<Block<ILOperand>> {
     if false_branch_idx == list.len() {
         // no else case
         let (condition, list) = list.split_at(1);
-        Block::ConditionalBlock(ConditionalBlock {
-            condition: invert_condition(get_instructions(condition)),
-            true_branch: scope(loop_bounds, list),
+        Ok(Block::ConditionalBlock(ConditionalBlock {
+            condition: invert_condition(get_instructions(condition))?,
+            true_branch: scope(loop_bounds, list)?,
             false_branch: vec![],
-        })
+        }))
     } else {
         let (condition, list) = list.split_at(1);
         let (true_branch, list) = list.split_at(false_branch_idx - 3);
         let (_, list) = list.split_at(1);
-        Block::ConditionalBlock(ConditionalBlock {
-            condition: invert_condition(get_instructions(condition)),
-            true_branch: scope(loop_bounds, true_branch),
-            false_branch: scope(loop_bounds, list),
-        })
+        Ok(Block::ConditionalBlock(ConditionalBlock {
+            condition: invert_condition(get_instructions(condition))?,
+            true_branch: scope(loop_bounds, true_branch)?,
+            false_branch: scope(loop_bounds, list)?,
+        }))
     }
 }
 
@@ -278,7 +277,7 @@ fn for_loop(
     loop_bounds: &LoopBounds,
     condition_idx: usize,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
-) -> Block<ILOperand> {
+) -> UResult<Block<ILOperand>> {
     let (modifier, list) = list.split_at(condition_idx - 1);
     let body_start = list
         .iter()
@@ -293,38 +292,38 @@ fn for_loop(
         })
         .unwrap();
     let (condition, list) = list.split_at(body_start + 1);
-    Block::ForBlock(ForBlock {
-        condition: invert_condition(get_instructions(condition)),
+    Ok(Block::ForBlock(ForBlock {
+        condition: invert_condition(get_instructions(condition))?,
         modifier: get_instructions(modifier),
-        body: scope(loop_bounds, list),
-    })
+        body: scope(loop_bounds, list)?,
+    }))
 }
 
 fn do_while_loop(
     loop_bounds: &LoopBounds,
     condition_idx: usize,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
-) -> Block<ILOperand> {
+) -> UResult<Block<ILOperand>> {
     let (list, condition) = list.split_at(condition_idx);
     let mut list = list.to_vec();
     list[0].2 = None;
-    Block::DoWhileBlock(DoWhileBlock {
+    Ok(Block::DoWhileBlock(DoWhileBlock {
         condition: get_instructions(condition),
-        body: scope(loop_bounds, &list[..]),
-    })
+        body: scope(loop_bounds, &list[..])?,
+    }))
 }
 
 fn while_loop(
     loop_bounds: &LoopBounds,
     list: &[(usize, ILInstruction<ILOperand>, Option<usize>)],
-) -> Block<ILOperand> {
+) -> UResult<Block<ILOperand>> {
     let (condition, list) = list.split_at(1);
     let mut list = list.to_vec();
     list[0].2 = None;
-    Block::WhileBlock(WhileBlock {
-        condition: invert_condition(get_instructions(condition)),
-        body: scope(loop_bounds, &list[..]),
-    })
+    Ok(Block::WhileBlock(WhileBlock {
+        condition: invert_condition(get_instructions(condition))?,
+        body: scope(loop_bounds, &list[..])?,
+    }))
 }
 
 fn get_instructions(
@@ -335,15 +334,15 @@ fn get_instructions(
 
 pub fn invert_condition<Op: Clone + std::fmt::Debug>(
     mut condition: Vec<ILInstruction<Op>>,
-) -> Vec<ILInstruction<Op>> {
+) -> UResult<Vec<ILInstruction<Op>>> {
     use il::ILInstruction::*;
     let branch = match &condition[condition.len() - 1] {
         Branch(br) => Branch(branch(invert(&br.type_), br.condition.clone(), br.target)),
-        x => panic!(format!("not supported: {:?}", x)),
+        x => return Err(format!("not supported: {:?}", x)),
     };
     let last_idx = condition.len() - 1;
     condition[last_idx] = branch;
-    condition
+    Ok(condition)
 }
 
 fn invert(type_: &BranchType) -> BranchType {
@@ -355,6 +354,6 @@ fn invert(type_: &BranchType) -> BranchType {
         LessOrEqual => Greater,
         Greater => LessOrEqual,
         GreaterOrEqual => Less,
-        Unconditional => panic!("impossible"),
+        Unconditional => unreachable!(),
     }
 }
