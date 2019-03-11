@@ -27,7 +27,10 @@ div
             v-bind:il='il'
         )
         div(v-bind:class='flowClassObj')
-            {{ flow }}
+            FlowBlock(
+                v-for='block in flow'
+                v-bind:block='block'
+            )
 </template>
 
 <style lang="scss" scoped>
@@ -72,6 +75,7 @@ div
 
 <script lang="ts">
 import * as Asm from './Asm.vue'
+import * as FlowBlock from './FlowBlock.vue'
 import * as Function from './Function.vue'
 import * as IL from './IL.vue'
 
@@ -84,6 +88,7 @@ enum ExtraView {
 }
 
 module.exports = {
+    components: { Asm, FlowBlock, Function, IL },
     created: function () {
         unwindmc.init(line => console.log(line))
     },
@@ -110,7 +115,6 @@ module.exports = {
             }
         },
     }
-    components: { Asm, Function, IL },
     methods: {
         refresh(isValid: boolean) {
             if (!isValid) {
@@ -202,7 +206,7 @@ module.exports = {
 
         flowViewClicked() {
             this.extraView = ExtraView.Flow
-        }
+        },
     },
 }
 </script>
