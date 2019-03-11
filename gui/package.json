@@ -9,27 +9,28 @@
   "scripts": {
     "start": "node_modules/.bin/electron .",
     "lint": "node_modules/.bin/tslint --project tsconfig.json --force",
-    "make": "node_modules/.bin/electron-forge make"
+    "make": "node_modules/.bin/electron-forge make",
+    "rebuild": "electron-rebuild -v 4.0.0 -f -w ref"
   },
   "config": {
     "forge": "./forge.config.js"
   },
   "devDependencies": {
-    "@types/electron-devtools-installer": "^2.2.0",
-    "electron": "^4.0.1",
+    "@types/electron-devtools-installer": "^2.2.4",
+    "electron": "^4.0.8",
     "electron-forge": "^5.2.4",
     "electron-prebuilt-compile": "^4.0.0",
-    "electron-rebuild": "^1.8.2",
-    "tslint": "^5.12.1",
-    "typescript": "^3.2.4"
+    "electron-rebuild": "^1.8.4",
+    "tslint": "^5.13.1",
+    "typescript": "^3.3.3333"
   },
   "dependencies": {
-    "@types/ffi": "^0.2.1",
+    "@types/ffi": "^0.2.2",
     "electron-compile": "^6.4.4",
     "electron-devtools-installer": "^2.2.4",
     "electron-squirrel-startup": "^1.0.0",
     "ffi": "^2.3.0",
-    "vue": "^2.5.22",
+    "vue": "^2.6.8",
     "vueify": "^9.4.1"
   }
 }
