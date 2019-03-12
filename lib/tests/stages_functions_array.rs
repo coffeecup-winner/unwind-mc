@@ -145,7 +145,7 @@ fn stage_test_functions_array() {
 
     assert_eq!(blocks, expected);
 
-    let (blocks, types) = TypeResolver::resolve_types(blocks);
+    let (blocks, types) = TypeResolver::resolve_types(&blocks);
     let parameter_types = &types.parameter_types;
     let variable_types = &types.variable_types;
     let local_types = &types.local_types;

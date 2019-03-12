@@ -65,6 +65,8 @@ pub struct Function {
     pub callers: BTreeSet<u64>,
     pub il: UResult<Vec<ILInstruction<ILOperand>>>,
     pub flow: UResult<Vec<flow_analyzer::Block<ILOperand>>>,
+    pub types: UResult<type_resolver::Result>,
+    pub typed_flow: UResult<Vec<flow_analyzer::Block<type_resolver::ResolvedOperand>>>,
 }
 
 impl Function {
@@ -79,6 +81,8 @@ impl Function {
             callers: BTreeSet::new(),
             il: Err(String::from("IL decompilation didn't start")),
             flow: Err(String::from("Control flow analysis didn't start")),
+            types: Err(String::from("Type resolution didn't start")),
+            typed_flow: Err(String::from("Type resolution didn't start")),
         }
     }
 }
@@ -238,12 +242,32 @@ impl Project {
         }
     }
 
+    pub fn resolve_types(&mut self) {
+        // TODO: remove full clone
+        for (address, _) in self.functions.clone() {
+            if self.functions[&address].status != FunctionStatus::ControlFlowAnalyzed {
+                continue;
+            }
+            if let Ok(flow) = &self.functions[&address].flow {
+                let (typed_flow, types) = type_resolver::TypeResolver::resolve_types(&flow);
+                let mut function = self.functions.get_mut(&address).unwrap();
+                function.types = Ok(types);
+                function.typed_flow = Ok(typed_flow);
+                function.status = if function.typed_flow.is_ok() {
+                    FunctionStatus::TypesResolved
+                } else {
+                    FunctionStatus::TypesNotResolved
+                }
+            }
+        }
+    }
+
     pub fn decompile_function(&self, function: &Function) -> String {
         let il = il_decompiler::decompile(&self.graph, &self.functions, function.address)
             .expect("Failed to decompile IL");
         let blocks =
             flow_analyzer::build_flow_graph(&il).expect("Failed to analyze the control flow");
-        let (blocks, types) = type_resolver::TypeResolver::resolve_types(blocks);
+        let (blocks, types) = type_resolver::TypeResolver::resolve_types(&blocks);
         let func = ast_builder::AstBuilder::build_ast(function.name.clone(), &blocks, &types);
         cpp_emitter::CppEmitter::emit(&func)
     }

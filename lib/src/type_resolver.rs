@@ -8,7 +8,7 @@ use flow_analyzer::*;
 use il;
 use il::*;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum DataType {
     Int32,
     Function,
@@ -31,6 +31,7 @@ impl DataType {
 
 pub type ResolvedOperand = (ILOperand, Option<i32>);
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Result {
     pub parameter_types: Vec<DataType>,
     pub local_types: Vec<DataType>,
@@ -73,7 +74,7 @@ pub struct TypeResolver {
 }
 
 impl TypeResolver {
-    pub fn resolve_types(blocks: Vec<Block<ILOperand>>) -> (Vec<Block<ResolvedOperand>>, Result) {
+    pub fn resolve_types(blocks: &Vec<Block<ILOperand>>) -> (Vec<Block<ResolvedOperand>>, Result) {
         let mut resolver = TypeResolver {
             types: HashMap::new(),
             parameter_types: HashMap::new(),
@@ -254,37 +255,37 @@ impl TypeResolver {
 
     fn convert_blocks(
         &mut self,
-        blocks: Vec<Block<ILOperand>>,
+        blocks: &Vec<Block<ILOperand>>,
         returns_value: bool,
     ) -> Vec<Block<ResolvedOperand>> {
         use type_resolver::SsaMarker::*;
         blocks
-            .into_iter()
+            .iter()
             .map(|b| match b {
                 Block::SequentialBlock(b) => Block::SequentialBlock(SequentialBlock {
-                    instructions: self.convert_instructions(b.instructions, returns_value),
+                    instructions: self.convert_instructions(&b.instructions, returns_value),
                 }),
                 Block::WhileBlock(b) => {
                     self.on_ssa_marker(PushIds);
-                    let condition = self.convert_instructions(b.condition, returns_value);
-                    let body = self.convert_blocks(b.body, returns_value);
+                    let condition = self.convert_instructions(&b.condition, returns_value);
+                    let body = self.convert_blocks(&b.body, returns_value);
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
                     Block::WhileBlock(WhileBlock { condition, body })
                 }
                 Block::DoWhileBlock(b) => {
                     self.on_ssa_marker(PushIds);
-                    let body = self.convert_blocks(b.body, returns_value);
-                    let condition = self.convert_instructions(b.condition, returns_value);
+                    let body = self.convert_blocks(&b.body, returns_value);
+                    let condition = self.convert_instructions(&b.condition, returns_value);
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
                     Block::DoWhileBlock(DoWhileBlock { condition, body })
                 }
                 Block::ForBlock(b) => {
                     self.on_ssa_marker(PushIds);
-                    let body = self.convert_blocks(b.body, returns_value);
-                    let condition = self.convert_instructions(b.condition, returns_value);
-                    let modifier = self.convert_instructions(b.modifier, returns_value);
+                    let body = self.convert_blocks(&b.body, returns_value);
+                    let condition = self.convert_instructions(&b.condition, returns_value);
+                    let modifier = self.convert_instructions(&b.modifier, returns_value);
                     self.on_ssa_marker(PushIds);
                     self.on_ssa_marker(JoinPoint);
                     Block::ForBlock(ForBlock {
@@ -296,19 +297,19 @@ impl TypeResolver {
                 Block::ConditionalBlock(b) => {
                     let has_false_branch = !b.false_branch.is_empty();
                     let has_true_branch = !b.true_branch.is_empty();
-                    let condition = self.convert_instructions(b.condition, returns_value);
+                    let condition = self.convert_instructions(&b.condition, returns_value);
                     if has_false_branch != has_true_branch {
                         self.on_ssa_marker(PushIds);
                     }
                     let true_branch = if has_true_branch {
-                        let true_branch = self.convert_blocks(b.true_branch, returns_value);
+                        let true_branch = self.convert_blocks(&b.true_branch, returns_value);
                         self.on_ssa_marker(PushIds);
                         true_branch
                     } else {
                         vec![]
                     };
                     let false_branch = if has_false_branch {
-                        let false_branch = self.convert_blocks(b.false_branch, returns_value);
+                        let false_branch = self.convert_blocks(&b.false_branch, returns_value);
                         self.on_ssa_marker(PushIds);
                         false_branch
                     } else {
@@ -327,15 +328,15 @@ impl TypeResolver {
 
     fn convert_instructions(
         &mut self,
-        insns: Vec<ILInstruction<ILOperand>>,
+        insns: &Vec<ILInstruction<ILOperand>>,
         returns_value: bool,
     ) -> Vec<ILInstruction<ResolvedOperand>> {
         use il::ILInstruction::*;
         insns
-            .into_iter()
+            .iter()
             .map(|i| match i {
-                Binary(op, binary) => Binary(op, self.convert_binary(&binary)),
-                Unary(op, unary) => Unary(op, self.convert_unary(&unary)),
+                Binary(op, binary) => Binary(*op, self.convert_binary(&binary)),
+                Unary(op, unary) => Unary(*op, self.convert_unary(&unary)),
                 Assign(binary) => Assign(self.convert_assign(&binary)),
                 Copy(_copy) => panic!("Not supported yet"),
                 Call(unary) => Call(self.convert_call(&unary)),
@@ -344,7 +345,7 @@ impl TypeResolver {
                 Break => Break,
                 Branch(br) => Branch(branch(
                     br.type_,
-                    br.condition.map(|b| self.convert_binary(&b)),
+                    br.condition.clone().map(|b| self.convert_binary(&b)),
                     br.target,
                 )),
             })

@@ -28,7 +28,7 @@ pub struct CopyInstruction<Op> {
     pub count: Op,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum BranchType {
     Equal,
     NotEqual,
@@ -46,7 +46,7 @@ pub struct BranchInstruction<Op: Clone> {
     pub target: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ILBinaryOperator {
     Add,
     And,
@@ -60,7 +60,7 @@ pub enum ILBinaryOperator {
     Xor,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum ILUnaryOperator {
     Negate,
     Not,
