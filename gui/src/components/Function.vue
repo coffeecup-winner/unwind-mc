@@ -11,10 +11,10 @@ li {
     font-size: 9pt;
 }
 
-.decompile-fail {
+.asm-decompile-fail {
     background-color: darkred;
 }
-.ildecompile-fail {
+.decompile-fail {
     background-color: orange;
 }
 </style>
@@ -25,11 +25,15 @@ module.exports = {
     computed: {
         classObj() {
             return {
-                'decompile-fail':
+                'asm-decompile-fail':
                     this.func.status == 'BoundsNotResolvedInvalidAddress' ||
                     this.func.status == 'BoundsNotResolvedIncompleteGraph'
-                'ildecompile-fail':
-                    this.func.status == 'ILNotDecompiled'
+                'decompile-fail':
+                    this.func.status == 'ILNotDecompiled' ||
+                    this.func.status == 'ControlFlowNotAnalyzed' ||
+                    this.func.status == 'TypesNotResolved' ||
+                    this.func.status == 'AstNotBuilt' ||
+                    this.func.status == 'SourceCodeNotEmitted'
             }
         },
 
